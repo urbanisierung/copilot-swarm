@@ -60,7 +60,7 @@ Place these Markdown files in your repository under `.github/agents/`.
 
 The orchestrator is split into multiple files for maintainability. See [`doc/copilot-swarm-code.md`](copilot-swarm-code.md) for the full code architecture, file structure, and configuration reference.
 
-**Entry point** (`apps/ai/src/index.ts`):
+**Entry point** (`apps/core/src/index.ts`):
 
 ```ts
 import { loadConfig } from "./config.js";
@@ -123,7 +123,7 @@ jobs:
           REVIEW_MODEL: ${{ vars.REVIEW_MODEL || 'gpt-5.2-codex' }}
         run: |
           pnpm install --frozen-lockfile
-          pnpm --filter @copilot-swarm/ai start
+          pnpm --filter @copilot-swarm/core start
 ```
 
 ## 6. Summary of Operation

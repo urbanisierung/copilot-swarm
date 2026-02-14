@@ -9,7 +9,7 @@ The pipeline — which agents exist, how they connect, and in what order phases 
 ## File Structure
 
 ```
-apps/ai/
+apps/core/
 ├── src/
 │   ├── index.ts              Entry point — loads config, creates orchestrator, runs it
 │   ├── config.ts             Core config (env vars): verbose, issueBody, timeouts, etc.
@@ -174,13 +174,13 @@ Review iterations and QA iterations are now **per-step** in the pipeline YAML, n
 
 ```bash
 # Run with defaults (built-in pipeline)
-ISSUE_BODY="Add a dark mode toggle" pnpm --filter @copilot-swarm/ai start
+ISSUE_BODY="Add a dark mode toggle" pnpm --filter @copilot-swarm/core start
 
 # Override models via env
-ISSUE_BODY="Fix bug" PRIMARY_MODEL=gpt-5.2 REVIEW_MODEL=claude-opus-4-6-fast pnpm --filter @copilot-swarm/ai start
+ISSUE_BODY="Fix bug" PRIMARY_MODEL=gpt-5.2 REVIEW_MODEL=claude-opus-4-6-fast pnpm --filter @copilot-swarm/core start
 
 # Skip cross-model review
-ISSUE_BODY="Fix bug" PRIMARY_MODEL=claude-opus-4-6-fast REVIEW_MODEL=claude-opus-4-6-fast pnpm --filter @copilot-swarm/ai start
+ISSUE_BODY="Fix bug" PRIMARY_MODEL=claude-opus-4-6-fast REVIEW_MODEL=claude-opus-4-6-fast pnpm --filter @copilot-swarm/core start
 ```
 
 ### Custom Pipeline
@@ -189,7 +189,7 @@ Create `swarm.config.yaml` in the repo root (see `swarm.config.example.yaml`):
 
 ```bash
 # Uses the repo's swarm.config.yaml if present, otherwise built-in defaults
-ISSUE_BODY="Add login page" pnpm --filter @copilot-swarm/ai start
+ISSUE_BODY="Add login page" pnpm --filter @copilot-swarm/core start
 ```
 
 ### GitHub Actions

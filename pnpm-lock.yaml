@@ -27,7 +27,7 @@ importers:
         specifier: ^4.0.18
         version: 4.0.18(@types/node@25.2.3)(tsx@4.21.0)(yaml@2.8.2)
 
-  apps/ai:
+  apps/core:
     dependencies:
       '@github/copilot-sdk':
         specifier: latest

@@ -8,16 +8,16 @@ Detailed usage documentation for Copilot Swarm.
 
 ```bash
 # Required: set the issue body (the task description for the agents)
-ISSUE_BODY="Add a dark mode toggle to the settings page" pnpm --filter @copilot-swarm/ai start
+ISSUE_BODY="Add a dark mode toggle to the settings page" pnpm --filter @copilot-swarm/core start
 
 # With verbose output (streams agent responses, tool calls, intents)
-ISSUE_BODY="Add login form" VERBOSE=true pnpm --filter @copilot-swarm/ai start
+ISSUE_BODY="Add login form" VERBOSE=true pnpm --filter @copilot-swarm/core start
 
 # Override models
-ISSUE_BODY="Fix bug" PRIMARY_MODEL=gpt-5.2 REVIEW_MODEL=claude-opus-4-6-fast pnpm --filter @copilot-swarm/ai start
+ISSUE_BODY="Fix bug" PRIMARY_MODEL=gpt-5.2 REVIEW_MODEL=claude-opus-4-6-fast pnpm --filter @copilot-swarm/core start
 
 # Skip cross-model review (set both models to the same value)
-ISSUE_BODY="Fix bug" PRIMARY_MODEL=claude-opus-4-6-fast REVIEW_MODEL=claude-opus-4-6-fast pnpm --filter @copilot-swarm/ai start
+ISSUE_BODY="Fix bug" PRIMARY_MODEL=claude-opus-4-6-fast REVIEW_MODEL=claude-opus-4-6-fast pnpm --filter @copilot-swarm/core start
 ```
 
 ### GitHub Actions
@@ -58,7 +58,7 @@ The orchestrator reads `swarm.config.yaml` from the repository root. If not foun
 
 ### Custom Pipeline
 
-Create `swarm.config.yaml` in your repo root. See `apps/ai/swarm.config.example.yaml` for a complete example.
+Create `swarm.config.yaml` in your repo root. See `apps/core/swarm.config.example.yaml` for a complete example.
 
 ```yaml
 agents:

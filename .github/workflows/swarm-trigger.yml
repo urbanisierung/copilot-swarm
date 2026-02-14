@@ -36,4 +36,4 @@ jobs:
           VERBOSE: ${{ github.event.label.name == 'run-swarm-verbose' && 'true' || 'false' }}
         run: |
           pnpm install --frozen-lockfile
-          pnpm --filter @copilot-swarm/ai start
+          pnpm --filter @copilot-swarm/core start

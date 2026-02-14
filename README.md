@@ -19,7 +19,7 @@ Modern AI coding assistants work well for individual tasks, but complex features
 pnpm install
 
 # Run Copilot Swarm
-ISSUE_BODY="Add a dark mode toggle" pnpm --filter @copilot-swarm/ai start
+ISSUE_BODY="Add a dark mode toggle" pnpm --filter @copilot-swarm/core start
 
 # Build all packages
 pnpm turbo build
