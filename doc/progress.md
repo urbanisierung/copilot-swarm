@@ -5,6 +5,8 @@ All notable changes to this project are documented here, in reverse chronologica
 ## 2026-02-14
 
 ### Added
+- **CLI binary** — Package exposes `swarm` binary via `bin` field. Runnable with `npx @copilot-swarm/core`, `pnpx @copilot-swarm/core`, or globally as `swarm`.
+- **Renamed to Copilot Swarm** — All references to "AI Agency" / "AI Playground" renamed to "copilot-swarm". Package: `@copilot-swarm/core`. Config file: `swarm.config.yaml`.
 - **Declarative pipeline engine** — `swarm.config.yaml` defines the full pipeline: agents, phases, review loops, conditions. Replaces all hardcoded phase logic.
   - `pipeline-types.ts` — TypeScript schema for the pipeline config
   - `pipeline-config.ts` — YAML loader with exhaustive validation and env var overrides

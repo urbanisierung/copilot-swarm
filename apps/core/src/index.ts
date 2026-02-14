@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { loadConfig } from "./config.js";
 import { Logger } from "./logger.js";
 import { msg } from "./messages.js";

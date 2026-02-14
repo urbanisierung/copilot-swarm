@@ -4,6 +4,27 @@ Detailed usage documentation for Copilot Swarm.
 
 ## Running the Orchestrator
 
+### Via npx / pnpx
+
+```bash
+# Run directly (no install required)
+ISSUE_BODY="Add a dark mode toggle" npx @copilot-swarm/core
+ISSUE_BODY="Add a dark mode toggle" pnpx @copilot-swarm/core
+
+# With verbose output
+ISSUE_BODY="Add login form" VERBOSE=true npx @copilot-swarm/core
+```
+
+### Global Install
+
+```bash
+npm install -g @copilot-swarm/core
+
+# Then run with the short binary name
+ISSUE_BODY="Add a dark mode toggle" swarm
+ISSUE_BODY="Fix bug" VERBOSE=true swarm
+```
+
 ### Local Development
 
 ```bash

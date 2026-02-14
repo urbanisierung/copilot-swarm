@@ -1,8 +1,14 @@
 {
   "name": "@copilot-swarm/core",
   "version": "1.0.0",
-  "private": true,
   "type": "module",
+  "bin": {
+    "swarm": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "defaults"
+  ],
   "scripts": {
     "start": "tsx src/index.ts",
     "build": "tsc",
