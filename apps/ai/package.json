@@ -1,0 +1,17 @@
+{
+  "name": "@ai-playground/ai",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "check": "biome check src/",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@github/copilot-sdk": "latest",
+    "yaml": "^2.8.2"
+  }
+}

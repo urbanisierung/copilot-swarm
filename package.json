@@ -1,0 +1,20 @@
+{
+  "name": "ai-playground",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.21.0",
+  "scripts": {
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "check": "turbo run check",
+    "test": "turbo run test"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.15",
+    "@types/node": "latest",
+    "tsx": "latest",
+    "turbo": "^2.8.8",
+    "typescript": "latest",
+    "vitest": "^4.0.18"
+  }
+}

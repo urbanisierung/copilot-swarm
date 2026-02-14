@@ -1,0 +1,62 @@
+# Default pipeline configuration for the AI Agency Orchestrator.
+# This mirrors the hardcoded behavior — every consuming repo gets this
+# pipeline unless it provides its own agency.config.yaml.
+
+primaryModel: claude-opus-4-6-fast
+reviewModel: gpt-5.2-codex
+
+agents:
+  pm:              builtin:pm
+  pm-reviewer:     builtin:pm-reviewer
+  spec-reviewer:   builtin:eng-spec-reviewer
+  designer:        builtin:designer
+  design-reviewer: builtin:design-reviewer
+  engineer:        builtin:engineer
+  code-reviewer:   builtin:eng-code-reviewer
+  tester:          builtin:tester
+  cross-model:     builtin:cross-model-reviewer
+
+pipeline:
+  - phase: spec
+    agent: pm
+    reviews:
+      - agent: pm-reviewer
+        maxIterations: 3
+        approvalKeyword: APPROVED
+      - agent: spec-reviewer
+        maxIterations: 3
+        approvalKeyword: APPROVED
+
+  - phase: decompose
+    agent: pm
+    frontendMarker: "[FRONTEND]"
+
+  - phase: design
+    condition: hasFrontendTasks
+    agent: designer
+    clarificationAgent: pm
+    reviews:
+      - agent: design-reviewer
+        maxIterations: 3
+        approvalKeyword: APPROVED
+        clarificationKeyword: CLARIFICATION_NEEDED
+        clarificationAgent: pm
+
+  - phase: implement
+    parallel: true
+    agent: engineer
+    reviews:
+      - agent: code-reviewer
+        maxIterations: 3
+        approvalKeyword: APPROVED
+    qa:
+      agent: tester
+      maxIterations: 5
+      approvalKeyword: ALL_PASSED
+
+  - phase: cross-model-review
+    condition: differentReviewModel
+    agent: cross-model
+    fixAgent: engineer
+    maxIterations: 3
+    approvalKeyword: APPROVED

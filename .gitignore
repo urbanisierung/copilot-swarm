@@ -1,0 +1,23 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.turbo/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Output
+AGENCY_SUMMARY.md
+coverage/
