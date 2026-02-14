@@ -1,0 +1,13 @@
+---
+"@copilot-swarm/core": patch
+---
+
+Initial release of Copilot Swarm — a multi-agent orchestrator for GitHub Copilot.
+
+- Declarative pipeline via `swarm.config.yaml` (spec → decompose → design → implement → cross-model review)
+- Interactive planning mode (`swarm plan`) with PM clarification and engineering analysis
+- 9 built-in agents: PM, designer, engineer, reviewers, tester, cross-model reviewer
+- Self-correcting review loops with configurable iterations and approval keywords
+- Cross-model review phase to catch model-specific blind spots
+- CLI binary (`swarm`) with verbose mode, plan file input, and env var support
+- GitHub Actions integration via issue labels
