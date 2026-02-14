@@ -1,6 +1,8 @@
 {
   "name": "@copilot-swarm/core",
-  "version": "1.0.0",
+  "version": "0.0.0",
+  "description": "Multi-agent orchestrator for GitHub Copilot — coordinates PM, designer, engineer, reviewer, and tester agents through a declarative pipeline",
+  "license": "MIT",
   "type": "module",
   "bin": {
     "swarm": "dist/index.js"
@@ -9,6 +11,25 @@
     "dist",
     "defaults"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/urbanisierung/copilot-swarm.git",
+    "directory": "apps/core"
+  },
+  "keywords": [
+    "copilot",
+    "ai",
+    "agents",
+    "orchestrator",
+    "multi-agent",
+    "swarm"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "start": "tsx src/index.ts",
     "build": "tsc",

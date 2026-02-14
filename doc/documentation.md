@@ -172,3 +172,56 @@ pnpm turbo typecheck   # TypeScript type checking
 pnpm turbo check       # Biome lint & format
 pnpm turbo test        # Run all tests
 ```
+
+## Publishing to npm
+
+The package `@copilot-swarm/core` is published to npm using [changesets](https://github.com/changesets/changesets) for version management and npm trusted publishing (OIDC) for authentication.
+
+### Release Flow
+
+1. **Create a changeset** — After making changes, run:
+   ```bash
+   pnpm changeset
+   ```
+   Follow the prompts to select the package (`@copilot-swarm/core`), bump type (patch/minor/major), and write a summary. This creates a changeset file in `.changeset/`.
+
+2. **Commit and push** — Commit the changeset file along with your code changes.
+
+3. **Version PR** — When changesets are merged to `main`, the release workflow automatically creates a "Version Packages" PR that bumps `package.json` versions and updates `CHANGELOG.md`.
+
+4. **Publish** — Merging the version PR triggers the release workflow again. Since there are no pending changesets, it runs `changeset publish`, which publishes to npm with provenance attestation.
+
+### First-Time Setup
+
+Before the first publish, configure npm trusted publishing:
+
+1. **Create the package on npmjs.com** — Go to [npmjs.com](https://www.npmjs.com/) and create the `@copilot-swarm/core` package (or let the first publish create it).
+
+2. **Configure trusted publisher** — On the package settings page, add a trusted publisher:
+   - **GitHub organization/user**: `urbanisierung`
+   - **Repository**: `copilot-swarm`
+   - **Workflow filename**: `release.yml`
+
+3. **No NPM_TOKEN needed** — Trusted publishing uses GitHub's OIDC token for authentication. No secrets need to be configured.
+
+### Manual Publishing
+
+For one-off publishes (e.g., the very first release):
+
+```bash
+# Login to npm
+npm login
+
+# Build and publish
+pnpm turbo build
+cd apps/core
+npm publish --access public --provenance
+```
+
+### Changeset Commands
+
+```bash
+pnpm changeset              # Create a new changeset
+pnpm version-packages       # Apply changesets (bump versions, update changelogs)
+pnpm release                # Build and publish all versioned packages
+```

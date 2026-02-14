@@ -41,9 +41,9 @@ Implementation roadmap for Copilot Swarm.
 ## Phase 5: Standalone Package Extraction
 
 - [x] Add `bin/copilot-swarm.js` CLI entry point
-- [ ] Add `publishConfig` to `package.json` targeting GitHub Packages
-- [ ] Bundle built-in agent `.md` files into the package
-- [ ] Create publish workflow (GitHub Action → `npm publish` on push to main)
+- [x] Add `publishConfig` to `package.json` targeting npm (public, scoped)
+- [x] Bundle built-in agent `.md` files into the package
+- [x] Create publish workflow (GitHub Action → trusted publishing with OIDC, changesets for versioning)
 - [ ] Extract to dedicated `copilot-swarm` repo
 - [x] Validate `pnpx @copilot-swarm/core` / `npx @copilot-swarm/core` works from a consuming repo (binary: `swarm`)
 

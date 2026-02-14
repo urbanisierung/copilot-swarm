@@ -21,3 +21,7 @@ Thumbs.db
 # Output
 AGENCY_SUMMARY.md
 coverage/
+
+# Planning mode output (generated, not committed)
+doc/plan-*.md
+doc/plan-latest.md
