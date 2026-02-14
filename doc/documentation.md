@@ -8,11 +8,11 @@ Detailed usage documentation for Copilot Swarm.
 
 ```bash
 # Run directly (no install required)
-ISSUE_BODY="Add a dark mode toggle" npx @copilot-swarm/core
-ISSUE_BODY="Add a dark mode toggle" pnpx @copilot-swarm/core
+npx @copilot-swarm/core "Add a dark mode toggle"
+pnpx @copilot-swarm/core "Add a dark mode toggle"
 
 # With verbose output
-ISSUE_BODY="Add login form" VERBOSE=true npx @copilot-swarm/core
+npx @copilot-swarm/core -v "Add login form"
 ```
 
 ### Global Install
@@ -21,18 +21,31 @@ ISSUE_BODY="Add login form" VERBOSE=true npx @copilot-swarm/core
 npm install -g @copilot-swarm/core
 
 # Then run with the short binary name
-ISSUE_BODY="Add a dark mode toggle" swarm
-ISSUE_BODY="Fix bug" VERBOSE=true swarm
+swarm "Add a dark mode toggle"
+swarm -v "Fix the login bug"
 ```
+
+### CLI Options
+
+```
+Usage: swarm [options] "<prompt>"
+
+Options:
+  -v, --verbose   Enable verbose streaming output
+  -h, --help      Show this help message
+```
+
+The prompt can be passed as the last argument or via the `ISSUE_BODY` environment variable. CLI arguments take precedence over env vars.
 
 ### Local Development
 
 ```bash
-# Required: set the issue body (the task description for the agents)
-ISSUE_BODY="Add a dark mode toggle to the settings page" pnpm --filter @copilot-swarm/core start
+# Using CLI args
+pnpm --filter @copilot-swarm/core start -- "Add a dark mode toggle"
+pnpm --filter @copilot-swarm/core start -- -v "Add login form"
 
-# With verbose output (streams agent responses, tool calls, intents)
-ISSUE_BODY="Add login form" VERBOSE=true pnpm --filter @copilot-swarm/core start
+# Using env vars (also works)
+ISSUE_BODY="Add a dark mode toggle" pnpm --filter @copilot-swarm/core start
 
 # Override models
 ISSUE_BODY="Fix bug" PRIMARY_MODEL=gpt-5.2 REVIEW_MODEL=claude-opus-4-6-fast pnpm --filter @copilot-swarm/core start
