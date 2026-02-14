@@ -1,6 +1,6 @@
-# AI Playground
+# Copilot Swarm
 
-A Turborepo monorepo for experimenting with AI-powered development workflows, featuring an **AI Agency Orchestrator** that coordinates multiple AI agents through a declarative, config-driven pipeline.
+A Turborepo monorepo for experimenting with AI-powered development workflows, featuring **Copilot Swarm** — a multi-agent orchestrator that coordinates multiple AI agents through a declarative, config-driven pipeline.
 
 ## Motivation
 
@@ -18,8 +18,8 @@ Modern AI coding assistants work well for individual tasks, but complex features
 # Install dependencies
 pnpm install
 
-# Run the AI Agency Orchestrator
-ISSUE_BODY="Add a dark mode toggle" pnpm --filter @ai-playground/ai start
+# Run Copilot Swarm
+ISSUE_BODY="Add a dark mode toggle" pnpm --filter @copilot-swarm/ai start
 
 # Build all packages
 pnpm turbo build
@@ -34,7 +34,7 @@ pnpm turbo test        # Vitest
 
 ```
 apps/
-  ai/              # AI Agency Orchestrator
+  ai/              # Copilot Swarm Orchestrator
 doc/               # Documentation
 .github/
   agents/          # Agent instruction files (.md)
@@ -43,8 +43,8 @@ doc/               # Documentation
 
 ## Documentation
 
-- [AI Agency Concept](doc/ai-agency.md) — Architecture, agent roles, workflow
-- [Code Architecture](doc/ai-agency-code.md) — File structure, modules, config reference
+- [Copilot Swarm Concept](doc/copilot-swarm.md) — Architecture, agent roles, workflow
+- [Code Architecture](doc/copilot-swarm-code.md) — File structure, modules, config reference
 - [Features](doc/features.md) — High-level feature list
 - [CLI Documentation](doc/documentation.md) — Detailed usage guide
 - [Roadmap](doc/roadmap.md) — Implementation roadmap

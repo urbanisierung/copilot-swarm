@@ -1,5 +1,5 @@
 {
-  "name": "@ai-playground/ai",
+  "name": "@copilot-swarm/ai",
   "version": "1.0.0",
   "private": true,
   "type": "module",

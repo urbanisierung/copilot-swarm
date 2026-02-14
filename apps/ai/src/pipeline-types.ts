@@ -1,6 +1,6 @@
 /**
  * Declarative pipeline configuration types.
- * Defines the shape of `agency.config.yaml` — the single file that controls
+ * Defines the shape of `swarm.config.yaml` — the single file that controls
  * which agents exist, how they connect, and in what order phases execute.
  */
 
@@ -72,7 +72,7 @@ export type PhaseConfig =
   | ImplementPhaseConfig
   | CrossModelReviewPhaseConfig;
 
-/** Root configuration loaded from `agency.config.yaml`. */
+/** Root configuration loaded from `swarm.config.yaml`. */
 export interface PipelineConfig {
   readonly primaryModel: string;
   readonly reviewModel: string;

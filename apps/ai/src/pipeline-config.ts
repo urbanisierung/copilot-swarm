@@ -14,7 +14,7 @@ import type {
 } from "./pipeline-types.js";
 
 const VALID_PHASES = new Set(["spec", "decompose", "design", "implement", "cross-model-review"]);
-const CONFIG_FILE_NAME = "agency.config.yaml";
+const CONFIG_FILE_NAME = "swarm.config.yaml";
 
 function fail(msg: string): never {
   throw new Error(`Pipeline config error: ${msg}`);

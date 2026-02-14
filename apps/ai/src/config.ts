@@ -36,9 +36,9 @@ function readEnvPositiveInt(key: string, fallback: number): number {
 
 /**
  * Core config loaded from environment variables.
- * Model selection and pipeline structure are in `agency.config.yaml` (PipelineConfig).
+ * Model selection and pipeline structure are in `swarm.config.yaml` (PipelineConfig).
  */
-export interface AgencyConfig {
+export interface SwarmConfig {
   readonly repoRoot: string;
   readonly verbose: boolean;
   readonly issueBody: string;
@@ -49,7 +49,7 @@ export interface AgencyConfig {
   readonly summaryFileName: string;
 }
 
-export function loadConfig(): AgencyConfig {
+export function loadConfig(): SwarmConfig {
   return {
     repoRoot,
     verbose: readEnvBoolean("VERBOSE", false),
@@ -58,6 +58,6 @@ export function loadConfig(): AgencyConfig {
     docDir: readEnvString("DOC_DIR", "doc"),
     sessionTimeoutMs: readEnvPositiveInt("SESSION_TIMEOUT_MS", 300_000),
     maxRetries: readEnvPositiveInt("MAX_RETRIES", 2),
-    summaryFileName: readEnvString("SUMMARY_FILE_NAME", "agency-summary.md"),
+    summaryFileName: readEnvString("SUMMARY_FILE_NAME", "swarm-summary.md"),
   };
 }

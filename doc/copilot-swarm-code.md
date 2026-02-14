@@ -1,10 +1,10 @@
-# AI Agency Orchestrator — Code Architecture
+# Copilot Swarm — Code Architecture
 
 ## Overview
 
-The AI Agency Orchestrator is a TypeScript application that coordinates multiple AI agents through a **declarative, config-driven pipeline**. It uses the GitHub Copilot SDK to run specialized agents in isolated sessions, producing reviewed and tested code from a natural language issue description.
+Copilot Swarm is a TypeScript application that coordinates multiple AI agents through a **declarative, config-driven pipeline**. It uses the GitHub Copilot SDK to run specialized agents in isolated sessions, producing reviewed and tested code from a natural language issue description.
 
-The pipeline — which agents exist, how they connect, and in what order phases execute — is defined in a single `agency.config.yaml` file. If no config is found, the built-in default mirrors the original hardcoded behavior.
+The pipeline — which agents exist, how they connect, and in what order phases execute — is defined in a single `swarm.config.yaml` file. If no config is found, the built-in default mirrors the original hardcoded behavior.
 
 ## File Structure
 
@@ -23,25 +23,25 @@ apps/ai/
 │   ├── pipeline-engine.ts    Generic engine that interprets the config and runs phases
 │   └── orchestrator.ts       Thin wrapper — loads pipeline config, delegates to engine
 ├── defaults/
-│   └── agency.config.yaml    Built-in default pipeline (used when no repo config exists)
-└── agency.config.example.yaml  Example showing customization
+│   └── swarm.config.yaml    Built-in default pipeline (used when no repo config exists)
+└── swarm.config.example.yaml  Example showing customization
 ```
 
 ## Module Responsibilities
 
 ### `config.ts`
-- Defines the `AgencyConfig` interface with core parameters (runtime behavior, not pipeline structure)
+- Defines the `SwarmConfig` interface with core parameters (runtime behavior, not pipeline structure)
 - Reads and validates environment variables at startup
 - Fails fast with descriptive errors for invalid values
 
 ### `pipeline-types.ts`
-- TypeScript types for the `agency.config.yaml` schema
+- TypeScript types for the `swarm.config.yaml` schema
 - `PipelineConfig` — root config: agents map + ordered phase list
 - Phase types: `SpecPhaseConfig`, `DecomposePhaseConfig`, `DesignPhaseConfig`, `ImplementPhaseConfig`, `CrossModelReviewPhaseConfig`
 - `ReviewStepConfig` / `QaStepConfig` — review loop configuration
 
 ### `pipeline-config.ts`
-- `loadPipelineConfig(repoRoot)` — loads `agency.config.yaml` from repo root, falls back to `defaults/`
+- `loadPipelineConfig(repoRoot)` — loads `swarm.config.yaml` from repo root, falls back to `defaults/`
 - Full validation: type checks every field, validates agent cross-references
 - Env var overrides: `PRIMARY_MODEL` and `REVIEW_MODEL` always take precedence over YAML
 
@@ -94,7 +94,7 @@ apps/ai/
 
 ## Pipeline Configuration
 
-### `agency.config.yaml` Schema
+### `swarm.config.yaml` Schema
 
 ```yaml
 # Models (overridable via PRIMARY_MODEL / REVIEW_MODEL env vars)
@@ -157,14 +157,14 @@ Instructions are cached after first load — each file is read once per run.
 | `docDir` | `DOC_DIR` | `doc` | Non-empty string |
 | `sessionTimeoutMs` | `SESSION_TIMEOUT_MS` | `300000` | Positive integer |
 | `maxRetries` | `MAX_RETRIES` | `2` | Positive integer |
-| `summaryFileName` | `SUMMARY_FILE_NAME` | `agency-summary.md` | Non-empty string |
+| `summaryFileName` | `SUMMARY_FILE_NAME` | `swarm-summary.md` | Non-empty string |
 
 ### Pipeline Config (YAML, env var overridable)
 
 | Parameter | Env Var | Default | Source |
 |---|---|---|---|
-| `primaryModel` | `PRIMARY_MODEL` | `claude-opus-4-6-fast` | `agency.config.yaml` |
-| `reviewModel` | `REVIEW_MODEL` | `gpt-5.2-codex` | `agency.config.yaml` |
+| `primaryModel` | `PRIMARY_MODEL` | `claude-opus-4-6-fast` | `swarm.config.yaml` |
+| `reviewModel` | `REVIEW_MODEL` | `gpt-5.2-codex` | `swarm.config.yaml` |
 
 Review iterations and QA iterations are now **per-step** in the pipeline YAML, not global env vars.
 
@@ -174,22 +174,22 @@ Review iterations and QA iterations are now **per-step** in the pipeline YAML, n
 
 ```bash
 # Run with defaults (built-in pipeline)
-ISSUE_BODY="Add a dark mode toggle" pnpm --filter @ai-playground/ai start
+ISSUE_BODY="Add a dark mode toggle" pnpm --filter @copilot-swarm/ai start
 
 # Override models via env
-ISSUE_BODY="Fix bug" PRIMARY_MODEL=gpt-5.2 REVIEW_MODEL=claude-opus-4-6-fast pnpm --filter @ai-playground/ai start
+ISSUE_BODY="Fix bug" PRIMARY_MODEL=gpt-5.2 REVIEW_MODEL=claude-opus-4-6-fast pnpm --filter @copilot-swarm/ai start
 
 # Skip cross-model review
-ISSUE_BODY="Fix bug" PRIMARY_MODEL=claude-opus-4-6-fast REVIEW_MODEL=claude-opus-4-6-fast pnpm --filter @ai-playground/ai start
+ISSUE_BODY="Fix bug" PRIMARY_MODEL=claude-opus-4-6-fast REVIEW_MODEL=claude-opus-4-6-fast pnpm --filter @copilot-swarm/ai start
 ```
 
 ### Custom Pipeline
 
-Create `agency.config.yaml` in the repo root (see `agency.config.example.yaml`):
+Create `swarm.config.yaml` in the repo root (see `swarm.config.example.yaml`):
 
 ```bash
-# Uses the repo's agency.config.yaml if present, otherwise built-in defaults
-ISSUE_BODY="Add login page" pnpm --filter @ai-playground/ai start
+# Uses the repo's swarm.config.yaml if present, otherwise built-in defaults
+ISSUE_BODY="Add login page" pnpm --filter @copilot-swarm/ai start
 ```
 
 ### GitHub Actions

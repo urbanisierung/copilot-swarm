@@ -1,6 +1,6 @@
 # Roadmap
 
-Implementation roadmap for the AI Agency Orchestrator.
+Implementation roadmap for Copilot Swarm.
 
 ## Phase 1: Core Orchestrator ✅
 
@@ -24,8 +24,8 @@ Implementation roadmap for the AI Agency Orchestrator.
 - [x] Define pipeline config schema (`pipeline-types.ts`)
 - [x] YAML config loader with exhaustive validation (`pipeline-config.ts`)
 - [x] Generic pipeline engine that interprets config (`pipeline-engine.ts`)
-- [x] Built-in default config (`defaults/agency.config.yaml`)
-- [x] Example config with customization (`agency.config.example.yaml`)
+- [x] Built-in default config (`defaults/swarm.config.yaml`)
+- [x] Example config with customization (`swarm.config.example.yaml`)
 - [x] Agent instruction resolution (builtin prefix, file paths, fallback)
 - [x] Instruction caching in SessionManager
 
@@ -40,7 +40,7 @@ Implementation roadmap for the AI Agency Orchestrator.
 
 ## Phase 5: Standalone Package Extraction
 
-- [ ] Add `bin/ai-agency.js` CLI entry point
+- [ ] Add `bin/copilot-swarm.js` CLI entry point
 - [ ] Add `publishConfig` to `package.json` targeting GitHub Packages
 - [ ] Bundle built-in agent `.md` files into the package
 - [ ] Create publish workflow (GitHub Action → `npm publish` on push to main)

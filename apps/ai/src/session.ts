@@ -2,7 +2,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { CopilotSession } from "@github/copilot-sdk";
 import { CopilotClient } from "@github/copilot-sdk";
-import type { AgencyConfig } from "./config.js";
+import type { SwarmConfig } from "./config.js";
 import { BUILTIN_AGENT_PREFIX, SessionEvent, SYSTEM_MESSAGE_MODE } from "./constants.js";
 import type { Logger } from "./logger.js";
 import { msg } from "./messages.js";
@@ -13,7 +13,7 @@ export class SessionManager {
   private readonly instructionCache = new Map<string, string>();
 
   constructor(
-    private readonly config: AgencyConfig,
+    private readonly config: SwarmConfig,
     private readonly pipeline: PipelineConfig,
     private readonly logger: Logger,
   ) {

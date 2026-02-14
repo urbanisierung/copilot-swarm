@@ -1,6 +1,12 @@
-# Default pipeline configuration for the AI Agency Orchestrator.
-# This mirrors the hardcoded behavior — every consuming repo gets this
-# pipeline unless it provides its own agency.config.yaml.
+# Example: Custom pipeline configuration for a consuming repository.
+# Place this file as "swarm.config.yaml" in the repository root.
+# Only override what you need — everything else falls back to defaults.
+#
+# This example shows:
+#   - A custom engineer agent (local .md file)
+#   - An additional security reviewer in the pipeline
+#   - Increased QA iterations
+#   - No design phase (backend-only project)
 
 primaryModel: claude-opus-4-6-fast
 reviewModel: gpt-5.2-codex
@@ -9,14 +15,14 @@ agents:
   pm:              builtin:pm
   pm-reviewer:     builtin:pm-reviewer
   spec-reviewer:   builtin:eng-spec-reviewer
-  designer:        builtin:designer
-  design-reviewer: builtin:design-reviewer
-  engineer:        builtin:engineer
+  engineer:        .github/agents/engineer.md        # Custom engineer instructions
   code-reviewer:   builtin:eng-code-reviewer
   tester:          builtin:tester
+  security:        .github/agents/security-reviewer.md  # Entirely new agent
   cross-model:     builtin:cross-model-reviewer
 
 pipeline:
+  # Phase 1: Specification with reviews
   - phase: spec
     agent: pm
     reviews:
@@ -24,24 +30,17 @@ pipeline:
         maxIterations: 3
         approvalKeyword: APPROVED
       - agent: spec-reviewer
-        maxIterations: 3
+        maxIterations: 2
         approvalKeyword: APPROVED
 
+  # Phase 2: Task decomposition
   - phase: decompose
     agent: pm
     frontendMarker: "[FRONTEND]"
 
-  - phase: design
-    condition: hasFrontendTasks
-    agent: designer
-    clarificationAgent: pm
-    reviews:
-      - agent: design-reviewer
-        maxIterations: 3
-        approvalKeyword: APPROVED
-        clarificationKeyword: CLARIFICATION_NEEDED
-        clarificationAgent: pm
+  # No design phase — this is a backend-only project
 
+  # Phase 3: Implementation with extra security review
   - phase: implement
     parallel: true
     agent: engineer
@@ -49,11 +48,15 @@ pipeline:
       - agent: code-reviewer
         maxIterations: 3
         approvalKeyword: APPROVED
+      - agent: security
+        maxIterations: 2
+        approvalKeyword: APPROVED
     qa:
       agent: tester
-      maxIterations: 5
+      maxIterations: 8
       approvalKeyword: ALL_PASSED
 
+  # Phase 4: Cross-model review
   - phase: cross-model-review
     condition: differentReviewModel
     agent: cross-model

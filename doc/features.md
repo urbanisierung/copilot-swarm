@@ -1,13 +1,13 @@
 # Features
 
-High-level feature list for the AI Agency Orchestrator.
+High-level feature list for Copilot Swarm.
 
 ## Core Features
 
 | Feature | Added | Description |
 |---|---|---|
 | **Multi-agent orchestration** | 2026-02 | Coordinates PM, designer, engineer, reviewer, and tester agents through a structured pipeline |
-| **Declarative pipeline config** | 2026-02-14 | `agency.config.yaml` defines agents, phases, review loops, and conditions — zero code changes to customize |
+| **Declarative pipeline config** | 2026-02-14 | `swarm.config.yaml` defines agents, phases, review loops, and conditions — zero code changes to customize |
 | **Cross-model review** | 2026-02 | Optional phase where a different AI model reviews all output, catching model-specific blind spots |
 | **Isolated session strategy** | 2026-02 | Reviews use fresh sessions to prevent self-review bias; implementation streams use long-lived sessions for context |
 | **Configurable review loops** | 2026-02-14 | Per-step `maxIterations` and `approvalKeyword` in the pipeline config |

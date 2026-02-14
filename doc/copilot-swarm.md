@@ -1,8 +1,8 @@
-# The 2026 AI Development Agency: Unified Documentation
+# Copilot Swarm: Unified Documentation
 
 ## 1. The Concept: "Hierarchical Parallel Agency"
 
-The AI Agency moves beyond simple chat. It mimics a high-performing engineering team by using an Orchestrator (the Master) to coordinate specialized Sub-Agents.
+Copilot Swarm moves beyond simple chat. It mimics a high-performing engineering team by using an Orchestrator (the Master) to coordinate specialized Sub-Agents.
 
 ### Key Architectural Pillars:
 
@@ -58,7 +58,7 @@ Place these Markdown files in your repository under `.github/agents/`.
 
 ## 4. The Orchestrator (TypeScript + Copilot SDK)
 
-The orchestrator is split into multiple files for maintainability. See [`doc/ai-agency-code.md`](ai-agency-code.md) for the full code architecture, file structure, and configuration reference.
+The orchestrator is split into multiple files for maintainability. See [`doc/copilot-swarm-code.md`](copilot-swarm-code.md) for the full code architecture, file structure, and configuration reference.
 
 **Entry point** (`apps/ai/src/index.ts`):
 
@@ -66,35 +66,35 @@ The orchestrator is split into multiple files for maintainability. See [`doc/ai-
 import { loadConfig } from "./config.js";
 import { Logger } from "./logger.js";
 import { msg } from "./messages.js";
-import { AgencyOrchestrator } from "./orchestrator.js";
+import { SwarmOrchestrator } from "./orchestrator.js";
 
 const config = loadConfig();
 const logger = new Logger(config.verbose);
 
-logger.info(msg.startingAgency);
+logger.info(msg.startingSwarm);
 
-const agency = new AgencyOrchestrator(config, logger);
-agency
+const swarm = new SwarmOrchestrator(config, logger);
+swarm
   .start()
-  .then(() => agency.execute())
-  .finally(() => agency.stop());
+  .then(() => swarm.execute())
+  .finally(() => swarm.stop());
 ```
 
-All parameters are centralized in `config.ts` and overridable via environment variables with type and value validation. See the configuration reference in [`doc/ai-agency-code.md`](ai-agency-code.md#configuration-reference) for the full list.
+All parameters are centralized in `config.ts` and overridable via environment variables with type and value validation. See the configuration reference in [`doc/copilot-swarm-code.md`](copilot-swarm-code.md#configuration-reference) for the full list.
 
 ## 5. Deployment: The GitHub Workflow
 
-Save this as `.github/workflows/agency-trigger.yml`. It connects your central TypeScript logic to your GitHub repository.
+Save this as `.github/workflows/swarm-trigger.yml`. It connects your central TypeScript logic to your GitHub repository.
 
 ```yaml
-name: "Run 2026 AI Agency"
+name: "Run Copilot Swarm"
 on:
   issues:
     types: [labeled]
 
 jobs:
   agency-exec:
-    if: github.event.label.name == 'run-agency' || github.event.label.name == 'run-agency-verbose'
+    if: github.event.label.name == 'run-swarm' || github.event.label.name == 'run-swarm-verbose'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     permissions:
@@ -119,22 +119,22 @@ jobs:
         env:
           ISSUE_BODY: ${{ github.event.issue.body }}
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
-          VERBOSE: ${{ github.event.label.name == 'run-agency-verbose' && 'true' || 'false' }}
+          VERBOSE: ${{ github.event.label.name == 'run-swarm-verbose' && 'true' || 'false' }}
           REVIEW_MODEL: ${{ vars.REVIEW_MODEL || 'gpt-5.2-codex' }}
         run: |
           pnpm install --frozen-lockfile
-          pnpm --filter @ai-playground/ai start
+          pnpm --filter @copilot-swarm/ai start
 ```
 
 ## 6. Summary of Operation
 
-1. **Trigger:** Apply the `run-agency` (or `run-agency-verbose`) label to a GitHub Issue.
+1. **Trigger:** Apply the `run-swarm` (or `run-swarm-verbose`) label to a GitHub Issue.
 2. **Phase 1 — PM Specification (isolated sessions):** The PM drafts a spec in its own session. A Creative Reviewer challenges it in a separate session (preventing self-review bias). A Technical Architect validates feasibility in another isolated session. Each review loops up to 3 iterations.
 3. **Phase 2 — Task Decomposition:** The PM splits the approved spec into 2-3 independent tasks, marking frontend tasks with `[FRONTEND]`.
 4. **Phase 3 — Design (conditional, single session + isolated review):** If frontend tasks exist, a Designer session creates a UI/UX design spec. The Designer can request clarification from the PM. A Design Reviewer validates in an isolated session, looping back to the Designer session for revisions.
 5. **Phase 4 — Parallel Task Streams (one session per stream):** Each task gets its own long-lived Engineer session. Within that session: the Engineer implements, an isolated Code Reviewer evaluates (up to 3 iterations), and an isolated QA Tester validates against the spec (up to 5 iterations). Fixes are applied within the same Engineer session, preserving context.
 6. **Phase 5 — Cross-Model Review (conditional):** If `REVIEW_MODEL` is set and differs from the primary model, a different AI model reviews all stream outputs in fresh isolated sessions. This catches systematic blind spots specific to the primary model. Issues loop back to the primary model's Engineer for fixes (up to 3 iterations), preserving implementation style and consistency. Skipped if the review model equals the primary model.
-7. **Phase 6 — Delivery:** The orchestrator writes role summaries to `doc/` (one file per role) and a final `doc/agency-summary.md` with all stream results.
+7. **Phase 6 — Delivery:** The orchestrator writes role summaries to `doc/` (one file per role) and a final `doc/swarm-summary.md` with all stream results.
 
 ## 7. Agent Definitions
 

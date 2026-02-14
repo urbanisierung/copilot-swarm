@@ -1,6 +1,6 @@
 # CLI Documentation
 
-Detailed usage documentation for the AI Agency Orchestrator.
+Detailed usage documentation for Copilot Swarm.
 
 ## Running the Orchestrator
 
@@ -8,21 +8,21 @@ Detailed usage documentation for the AI Agency Orchestrator.
 
 ```bash
 # Required: set the issue body (the task description for the agents)
-ISSUE_BODY="Add a dark mode toggle to the settings page" pnpm --filter @ai-playground/ai start
+ISSUE_BODY="Add a dark mode toggle to the settings page" pnpm --filter @copilot-swarm/ai start
 
 # With verbose output (streams agent responses, tool calls, intents)
-ISSUE_BODY="Add login form" VERBOSE=true pnpm --filter @ai-playground/ai start
+ISSUE_BODY="Add login form" VERBOSE=true pnpm --filter @copilot-swarm/ai start
 
 # Override models
-ISSUE_BODY="Fix bug" PRIMARY_MODEL=gpt-5.2 REVIEW_MODEL=claude-opus-4-6-fast pnpm --filter @ai-playground/ai start
+ISSUE_BODY="Fix bug" PRIMARY_MODEL=gpt-5.2 REVIEW_MODEL=claude-opus-4-6-fast pnpm --filter @copilot-swarm/ai start
 
 # Skip cross-model review (set both models to the same value)
-ISSUE_BODY="Fix bug" PRIMARY_MODEL=claude-opus-4-6-fast REVIEW_MODEL=claude-opus-4-6-fast pnpm --filter @ai-playground/ai start
+ISSUE_BODY="Fix bug" PRIMARY_MODEL=claude-opus-4-6-fast REVIEW_MODEL=claude-opus-4-6-fast pnpm --filter @copilot-swarm/ai start
 ```
 
 ### GitHub Actions
 
-The orchestrator is triggered by labeling a GitHub Issue with `run-agency` or `run-agency-verbose`. See the workflow file for details.
+The orchestrator is triggered by labeling a GitHub Issue with `run-swarm` or `run-swarm-verbose`. See the workflow file for details.
 
 ## Environment Variables
 
@@ -41,11 +41,11 @@ The orchestrator is triggered by labeling a GitHub Issue with `run-agency` or `r
 | `DOC_DIR` | `doc` | Directory for role summaries and the final summary file. |
 | `SESSION_TIMEOUT_MS` | `300000` | Timeout in milliseconds for each agent session call. |
 | `MAX_RETRIES` | `2` | Max retry attempts for failed or empty agent responses. |
-| `SUMMARY_FILE_NAME` | `agency-summary.md` | Name of the final summary file written to `DOC_DIR`. |
+| `SUMMARY_FILE_NAME` | `swarm-summary.md` | Name of the final summary file written to `DOC_DIR`. |
 
 ### Optional (Model Overrides)
 
-These override the values in `agency.config.yaml`:
+These override the values in `swarm.config.yaml`:
 
 | Variable | Default (from YAML) | Description |
 |---|---|---|
@@ -54,11 +54,11 @@ These override the values in `agency.config.yaml`:
 
 ## Pipeline Configuration
 
-The orchestrator reads `agency.config.yaml` from the repository root. If not found, it uses the built-in default pipeline.
+The orchestrator reads `swarm.config.yaml` from the repository root. If not found, it uses the built-in default pipeline.
 
 ### Custom Pipeline
 
-Create `agency.config.yaml` in your repo root. See `apps/ai/agency.config.example.yaml` for a complete example.
+Create `swarm.config.yaml` in your repo root. See `apps/ai/swarm.config.example.yaml` for a complete example.
 
 ```yaml
 agents:

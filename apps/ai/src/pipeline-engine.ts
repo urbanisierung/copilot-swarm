@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AgencyConfig } from "./config.js";
+import type { SwarmConfig } from "./config.js";
 import type { Logger } from "./logger.js";
 import { msg } from "./messages.js";
 import type {
@@ -27,7 +27,7 @@ export class PipelineEngine {
   private readonly sessions: SessionManager;
 
   constructor(
-    private readonly config: AgencyConfig,
+    private readonly config: SwarmConfig,
     private readonly pipeline: PipelineConfig,
     private readonly logger: Logger,
   ) {
@@ -68,10 +68,10 @@ export class PipelineEngine {
     }
 
     // Final summary
-    this.logger.info(msg.agencyComplete);
+    this.logger.info(msg.swarmComplete);
     const timestamp = new Date().toISOString();
     const summary =
-      `# Agency Run Summary\n\n**Timestamp:** ${timestamp}\n**Tasks:** ${ctx.tasks.length}\n\n` +
+      `# Swarm Run Summary\n\n**Timestamp:** ${timestamp}\n**Tasks:** ${ctx.tasks.length}\n\n` +
       `${ctx.streamResults.map((r, i) => `## Stream ${i + 1}\n\n${r}`).join("\n\n---\n\n")}\n`;
     const docPath = path.join(this.config.repoRoot, this.config.docDir);
     await fs.mkdir(docPath, { recursive: true });

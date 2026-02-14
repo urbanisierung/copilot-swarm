@@ -1,8 +1,8 @@
 /** Centralized log messages. Edit this file to change any user-facing output. */
 export const msg = {
   // --- Lifecycle ---
-  startingAgency: "🚀 Starting AI Agency Orchestrator...",
-  agencyComplete: "🏁 All Agency Streams Completed.",
+  startingSwarm: "🚀 Starting Copilot Swarm...",
+  swarmComplete: "🏁 All Swarm Streams Completed.",
   configLoaded: (model: string, review: string, verbose: boolean) =>
     `⚙️  Config: primary=${model}, review=${review}, verbose=${verbose}`,
   pipelineSource: (source: string) => `📋 Pipeline: ${source}`,

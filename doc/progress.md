@@ -5,12 +5,12 @@ All notable changes to this project are documented here, in reverse chronologica
 ## 2026-02-14
 
 ### Added
-- **Declarative pipeline engine** — `agency.config.yaml` defines the full pipeline: agents, phases, review loops, conditions. Replaces all hardcoded phase logic.
+- **Declarative pipeline engine** — `swarm.config.yaml` defines the full pipeline: agents, phases, review loops, conditions. Replaces all hardcoded phase logic.
   - `pipeline-types.ts` — TypeScript schema for the pipeline config
   - `pipeline-config.ts` — YAML loader with exhaustive validation and env var overrides
   - `pipeline-engine.ts` — Generic engine that interprets the config and runs phases
-  - `defaults/agency.config.yaml` — Built-in default pipeline
-  - `agency.config.example.yaml` — Example showing customization (custom agents, security reviewer, no design phase)
+  - `defaults/swarm.config.yaml` — Built-in default pipeline
+  - `swarm.config.example.yaml` — Example showing customization (custom agents, security reviewer, no design phase)
 - **Tooling setup** — Turborepo, Biome, Vitest installed and configured
   - `turbo.json` — Task pipeline (build, typecheck, check, test)
   - `biome.json` — Linter/formatter config
@@ -19,7 +19,7 @@ All notable changes to this project are documented here, in reverse chronologica
 - **Documentation** — README, progress, features, documentation, roadmap files created
 
 ### Changed
-- **Config split** — Model selection and iteration limits moved from env vars to `agency.config.yaml`. Core runtime config (verbose, issueBody, timeouts) remains in env vars.
+- **Config split** — Model selection and iteration limits moved from env vars to `swarm.config.yaml`. Core runtime config (verbose, issueBody, timeouts) remains in env vars.
 - **Agent resolution** — `SessionManager` now resolves agent instructions via `builtin:<name>` prefix or file paths from the pipeline config, with instruction caching.
 - **Constants** — Removed hardcoded `AgentName` enum; agent names are now dynamic strings from the config.
 - **Messages** — Generalized log messages to accept dynamic agent names instead of hardcoded references.

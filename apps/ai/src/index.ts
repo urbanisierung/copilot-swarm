@@ -1,15 +1,15 @@
 import { loadConfig } from "./config.js";
 import { Logger } from "./logger.js";
 import { msg } from "./messages.js";
-import { AgencyOrchestrator } from "./orchestrator.js";
+import { SwarmOrchestrator } from "./orchestrator.js";
 
 const config = loadConfig();
 const logger = new Logger(config.verbose);
 
-logger.info(msg.startingAgency);
+logger.info(msg.startingSwarm);
 
-const agency = new AgencyOrchestrator(config, logger);
-agency
+const swarm = new SwarmOrchestrator(config, logger);
+swarm
   .start()
-  .then(() => agency.execute())
-  .finally(() => agency.stop());
+  .then(() => swarm.execute())
+  .finally(() => swarm.stop());

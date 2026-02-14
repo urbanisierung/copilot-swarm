@@ -1,11 +1,11 @@
-name: "Run 2026 AI Agency"
+name: "Run Copilot Swarm"
 on:
   issues:
     types: [labeled]
 
 jobs:
-  agency-exec:
-    if: github.event.label.name == 'run-agency' || github.event.label.name == 'run-agency-verbose'
+  swarm-exec:
+    if: github.event.label.name == 'run-swarm' || github.event.label.name == 'run-swarm-verbose'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     permissions:
@@ -28,12 +28,12 @@ jobs:
           npm install -g @github/copilot
           copilot -v
 
-      - name: Run Agency
+      - name: Run Swarm
         env:
           ISSUE_BODY: ${{ github.event.issue.body }}
           GH_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
-          VERBOSE: ${{ github.event.label.name == 'run-agency-verbose' && 'true' || 'false' }}
+          VERBOSE: ${{ github.event.label.name == 'run-swarm-verbose' && 'true' || 'false' }}
         run: |
           pnpm install --frozen-lockfile
-          pnpm --filter @ai-playground/ai start
+          pnpm --filter @copilot-swarm/ai start

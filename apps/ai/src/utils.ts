@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AgencyConfig } from "./config.js";
+import type { SwarmConfig } from "./config.js";
 import { FRONTEND_KEYWORDS, FRONTEND_MARKER } from "./constants.js";
 
 /** Extract a JSON array from a response that may contain surrounding prose. */
@@ -18,7 +18,7 @@ export function parseJsonArray(raw: string): string[] {
 }
 
 /** Write a timestamped role summary to the doc directory. */
-export async function writeRoleSummary(config: AgencyConfig, role: string, content: string): Promise<void> {
+export async function writeRoleSummary(config: SwarmConfig, role: string, content: string): Promise<void> {
   const docPath = path.join(config.repoRoot, config.docDir);
   const timestamp = new Date().toISOString();
   const summary = `# ${role} Summary\n\n**Timestamp:** ${timestamp}\n\n${content}\n`;
