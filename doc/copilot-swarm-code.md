@@ -11,13 +11,14 @@ The pipeline — which agents exist, how they connect, and in what order phases 
 ```
 apps/core/
 ├── src/
-│   ├── index.ts              Entry point — loads config, creates orchestrator, runs it
-│   ├── config.ts             Core config (env vars): verbose, issueBody, timeouts, etc.
+│   ├── index.ts              Entry point — routes to planning or orchestration mode
+│   ├── config.ts             Core config (env vars + CLI args): command, verbose, issueBody, etc.
 │   ├── constants.ts          Enums and constant values used across the codebase
 │   ├── messages.ts           All user-facing log message templates
 │   ├── logger.ts             Logging abstraction wrapping console output
 │   ├── session.ts            SessionManager — Copilot SDK lifecycle + agent resolution
 │   ├── utils.ts              Pure utility functions (parsing, file I/O, detection)
+│   ├── planning-engine.ts    Interactive planning mode (PM clarification + engineering analysis)
 │   ├── pipeline-types.ts     TypeScript types for the pipeline config schema
 │   ├── pipeline-config.ts    YAML loader, validator, and env var override logic
 │   ├── pipeline-engine.ts    Generic engine that interprets the config and runs phases
@@ -31,8 +32,16 @@ apps/core/
 
 ### `config.ts`
 - Defines the `SwarmConfig` interface with core parameters (runtime behavior, not pipeline structure)
-- Reads and validates environment variables at startup
+- Parses CLI arguments (`plan`/`run` subcommands, `-v`/`--verbose`, positional prompt)
+- CLI args take precedence over environment variables
 - Fails fast with descriptive errors for invalid values
+
+### `planning-engine.ts`
+- `PlanningEngine` — interactive requirements clarification and technical analysis
+- Phase 1: PM agent asks clarifying questions; user answers via stdin (up to 10 rounds)
+- Phase 2: Engineering agent analyzes codebase and produces complexity/scope assessment
+- Agent instructions are embedded inline (no external files needed)
+- Output saved to `doc/plan.md`
 
 ### `pipeline-types.ts`
 - TypeScript types for the `swarm.config.yaml` schema

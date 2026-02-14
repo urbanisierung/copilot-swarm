@@ -10,6 +10,7 @@ export const ResponseKeyword = {
   APPROVED: "APPROVED",
   ALL_PASSED: "ALL_PASSED",
   CLARIFICATION_NEEDED: "CLARIFICATION_NEEDED",
+  REQUIREMENTS_CLEAR: "REQUIREMENTS_CLEAR",
 } as const;
 
 /** Marker prefix for frontend tasks in task decomposition. */

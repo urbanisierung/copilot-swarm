@@ -67,6 +67,10 @@ export class SessionManager {
 
   async createAgentSession(agentName: string, model?: string): Promise<CopilotSession> {
     const instructions = await this.loadAgentInstructions(agentName);
+    return this.createSessionWithInstructions(instructions, model);
+  }
+
+  async createSessionWithInstructions(instructions: string, model?: string): Promise<CopilotSession> {
     const session = await this.client.createSession({
       model: model ?? this.pipeline.primaryModel,
       systemMessage: { mode: SYSTEM_MESSAGE_MODE, content: instructions },

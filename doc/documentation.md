@@ -28,14 +28,49 @@ swarm -v "Fix the login bug"
 ### CLI Options
 
 ```
-Usage: swarm [options] "<prompt>"
+Usage: swarm [command] [options] "<prompt>"
+
+Commands:
+  run              Run the full orchestration pipeline (default)
+  plan             Interactive planning mode — clarify requirements before running
 
 Options:
-  -v, --verbose   Enable verbose streaming output
-  -h, --help      Show this help message
+  -v, --verbose        Enable verbose streaming output
+  -p, --plan <file>    Use a plan file as input (reads the refined requirements section)
+  -h, --help           Show this help message
 ```
 
 The prompt can be passed as the last argument or via the `ISSUE_BODY` environment variable. CLI arguments take precedence over env vars.
+
+### Planning Mode
+
+Use `swarm plan` to interactively refine vague requirements before running the full pipeline:
+
+```bash
+swarm plan "Add a dark mode toggle"
+```
+
+The planning mode runs two phases:
+1. **Requirements Clarification** — A PM agent asks targeted questions to fill in gaps. You answer interactively in the terminal. Press Enter to skip a round.
+2. **Technical Analysis** — An engineering agent analyzes the codebase and reports complexity, affected files, risks, and suggested approach.
+
+Output files:
+- `doc/plan-<timestamp>.md` — Timestamped plan (never overwritten)
+- `doc/plan-latest.md` — Copy of the most recent plan (stable reference)
+
+### Running from a Plan
+
+After planning, run the full pipeline using the refined requirements:
+
+```bash
+# Use the latest plan
+swarm --plan doc/plan-latest.md
+
+# Or reference a specific timestamped plan
+swarm --plan doc/plan-2026-02-14T13-30-00-000Z.md
+```
+
+The `--plan` flag reads the "Refined Requirements" section from the plan file and uses it as the pipeline input.
 
 ### Local Development
 

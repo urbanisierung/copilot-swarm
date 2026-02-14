@@ -57,4 +57,12 @@ export const msg = {
   // --- Verbose session events ---
   toolExecution: (name: string) => `    🔧 Tool: ${name}`,
   intentUpdate: (intent: string) => `    💭 Intent: ${intent}`,
+
+  // --- Planning Mode ---
+  planningStart: "🧠 Starting Planning Mode...",
+  planningPmPhase: "\n[Planning: Requirements Clarification]",
+  planningEngPhase: "\n[Planning: Technical Analysis]",
+  planningComplete: "\n✅ Planning complete.",
+  planSaved: (path: string) => `📄 Plan saved to ${path}`,
+  planningUserPrompt: "\n💬 Your answer (or press Enter to skip): ",
 } as const;
