@@ -215,8 +215,10 @@ npm login
 # Build and publish
 pnpm turbo build
 cd apps/core
-npm publish --access public --provenance
+npm publish --access public
 ```
+
+> **Note:** `--provenance` only works inside GitHub Actions (requires an OIDC provider). Omit it for local publishes. The CI release workflow adds provenance automatically.
 
 ### Changeset Commands
 
