@@ -44,7 +44,7 @@ Implementation roadmap for the AI Agency Orchestrator.
 - [ ] Add `publishConfig` to `package.json` targeting GitHub Packages
 - [ ] Bundle built-in agent `.md` files into the package
 - [ ] Create publish workflow (GitHub Action → `npm publish` on push to main)
-- [ ] Extract to dedicated `camunda/ai-agency` repo
-- [ ] Validate `pnpx @camunda/ai-agency` works from a consuming repo
+- [ ] Extract to dedicated `copilot-swarm` repo
+- [ ] Validate `pnpx copilot-swarm` works from a consuming repo
 
 See [`doc/standalone-execution.md`](standalone-execution.md) for the full extraction proposal.
