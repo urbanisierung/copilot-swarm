@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.6
+
+### Patch Changes
+
+- dee9aec: Dedicated swarm folder
+
 ## 0.0.5
 
 ### Patch Changes
