@@ -37,6 +37,8 @@ Commands:
 Options:
   -v, --verbose        Enable verbose streaming output
   -p, --plan <file>    Use a plan file as input (reads the refined requirements section)
+  -f, --file <file>    Read prompt from a file instead of inline text
+  -V, --version        Show version number
   -h, --help           Show this help message
 ```
 
