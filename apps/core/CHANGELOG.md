@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.3
+
+### Patch Changes
+
+- 47d6770: Embed default agent roles.
+
 ## 0.0.2
 
 ### Patch Changes
