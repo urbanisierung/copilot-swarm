@@ -107,6 +107,7 @@ export class PlanningEngine {
         `Here is the user's request:\n\n${this.config.issueBody}\n\n` +
           "Analyze this request. If it's clear enough, respond with REQUIREMENTS_CLEAR followed by the structured summary. " +
           "If you need more information, ask your clarifying questions.",
+        "PM is analyzing requirements…",
       );
 
       for (let round = 0; round < MAX_CLARIFICATION_ROUNDS; round++) {
@@ -123,9 +124,14 @@ export class PlanningEngine {
           response = await this.sessions.send(
             session,
             "The user skipped this round. Use your best judgment for any open questions and produce the final requirements. Respond with REQUIREMENTS_CLEAR followed by the structured summary.",
+            "PM is finalizing requirements…",
           );
         } else {
-          response = await this.sessions.send(session, `User's answers:\n\n${answer}`);
+          response = await this.sessions.send(
+            session,
+            `User's answers:\n\n${answer}`,
+            "PM is processing your answers…",
+          );
         }
       }
 
@@ -152,6 +158,7 @@ export class PlanningEngine {
       const analysis = await this.sessions.send(
         session,
         `Analyze the codebase against these requirements and produce a technical assessment:\n\n${spec}`,
+        "Engineer is analyzing codebase…",
       );
 
       console.log("\n🔍 Technical Analysis:\n");
