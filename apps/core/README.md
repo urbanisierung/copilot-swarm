@@ -31,6 +31,8 @@ Commands:
 Options:
   -v, --verbose        Enable verbose streaming output
   -p, --plan <file>    Use a plan file as input (reads the refined requirements section)
+  -f, --file <file>    Read prompt from a file instead of inline text
+  -V, --version        Show version number
   -h, --help           Show this help message
 ```
 
@@ -42,6 +44,10 @@ swarm "Fix the login bug on the settings page"
 
 # Verbose output (streams agent deltas, tool calls, intent updates)
 swarm -v "Add user avatar upload"
+
+# Read prompt from a file
+swarm plan -f requirements.md
+swarm -f feature-description.txt
 
 # Plan first, run later
 swarm plan "Redesign the notification system"

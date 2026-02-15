@@ -1,6 +1,7 @@
 import { execSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
 const repoRoot = execSync("git rev-parse --show-toplevel", { encoding: "utf-8" }).trim();
@@ -36,6 +37,14 @@ interface CliArgs {
   verbose: boolean;
   prompt: string | undefined;
   planFile: string | undefined;
+  promptFile: string | undefined;
+}
+
+function readVersion(): string {
+  const dir = path.dirname(fileURLToPath(import.meta.url));
+  const pkgPath = path.join(dir, "..", "package.json");
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
+  return pkg.version;
 }
 
 const HELP_TEXT = `Usage: swarm [command] [options] "<prompt>"
@@ -47,11 +56,14 @@ Commands:
 Options:
   -v, --verbose        Enable verbose streaming output
   -p, --plan <file>    Use a plan file as input (reads the refined requirements section)
+  -f, --file <file>    Read prompt from a file instead of inline text
+  -V, --version        Show version number
   -h, --help           Show this help message
 
 Examples:
   swarm "Add a dark mode toggle"
   swarm plan "Add a dark mode toggle"
+  swarm plan -f requirements.md
   swarm run -v "Fix the login bug"
   swarm --plan doc/plan-latest.md
   ISSUE_BODY="Add a feature" swarm plan
@@ -66,9 +78,16 @@ function parseCliArgs(): CliArgs {
     options: {
       verbose: { type: "boolean", short: "v", default: false },
       help: { type: "boolean", short: "h", default: false },
+      version: { type: "boolean", short: "V", default: false },
       plan: { type: "string", short: "p" },
+      file: { type: "string", short: "f" },
     },
   });
+
+  if (values.version) {
+    console.log(readVersion());
+    process.exit(0);
+  }
 
   if (values.help) {
     console.log(HELP_TEXT);
@@ -88,6 +107,7 @@ function parseCliArgs(): CliArgs {
     verbose: values.verbose as boolean,
     prompt: promptParts.length > 0 ? promptParts.join(" ") : undefined,
     planFile: values.plan as string | undefined,
+    promptFile: values.file as string | undefined,
   };
 }
 
@@ -114,6 +134,16 @@ function readPlanFile(filePath: string): string {
   return section.trim();
 }
 
+/** Read the entire contents of a file as the prompt. */
+function readPromptFile(filePath: string): string {
+  const resolved = path.isAbsolute(filePath) ? filePath : path.join(repoRoot, filePath);
+  if (!fs.existsSync(resolved)) {
+    console.error(`Error: Prompt file not found: ${resolved}`);
+    process.exit(1);
+  }
+  return fs.readFileSync(resolved, "utf-8").trim();
+}
+
 /**
  * Core config loaded from environment variables and CLI arguments.
  * CLI args take precedence over env vars.
@@ -138,6 +168,8 @@ export function loadConfig(): SwarmConfig {
 
   if (cli.planFile) {
     issueBody = readPlanFile(cli.planFile);
+  } else if (cli.promptFile) {
+    issueBody = readPromptFile(cli.promptFile);
   } else {
     issueBody = cli.prompt ?? process.env.ISSUE_BODY;
   }
