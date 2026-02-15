@@ -5,6 +5,7 @@ import type { SwarmConfig } from "./config.js";
 import { ResponseKeyword } from "./constants.js";
 import type { Logger } from "./logger.js";
 import { msg } from "./messages.js";
+import { plansDir } from "./paths.js";
 import type { PipelineConfig } from "./pipeline-types.js";
 import { SessionManager } from "./session.js";
 import { responseContains } from "./utils.js";
@@ -81,11 +82,11 @@ export class PlanningEngine {
       `## Refined Requirements\n\n${spec}\n\n` +
       `## Technical Analysis\n\n${analysis}\n`;
 
-    const docPath = path.join(this.config.repoRoot, this.config.docDir);
-    await fs.mkdir(docPath, { recursive: true });
+    const dir = plansDir(this.config);
+    await fs.mkdir(dir, { recursive: true });
 
-    const timestampedPath = path.join(docPath, `plan-${fileTimestamp}.md`);
-    const latestPath = path.join(docPath, "plan-latest.md");
+    const timestampedPath = path.join(dir, `plan-${fileTimestamp}.md`);
+    const latestPath = path.join(dir, "plan-latest.md");
     await fs.writeFile(timestampedPath, plan);
     await fs.copyFile(timestampedPath, latestPath);
 

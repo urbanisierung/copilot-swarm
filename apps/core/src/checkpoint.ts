@@ -1,8 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { SwarmConfig } from "./config.js";
-
-const CHECKPOINT_FILE = ".swarm-checkpoint.json";
+import { latestPointerPath, runDir, swarmRoot } from "./paths.js";
 
 export interface PipelineCheckpoint {
   completedPhases: string[];
@@ -11,18 +10,42 @@ export interface PipelineCheckpoint {
   designSpec: string;
   streamResults: string[];
   issueBody: string;
+  runId: string;
 }
 
-function checkpointPath(config: SwarmConfig): string {
-  return path.join(config.repoRoot, CHECKPOINT_FILE);
+/** Resolve checkpoint path — inside the run dir for new runs, or from latest pointer on resume. */
+async function checkpointPath(config: SwarmConfig): Promise<string> {
+  if (config.resume) {
+    const latestRunId = await resolveLatestRunId(config);
+    if (latestRunId) {
+      return path.join(swarmRoot(config), "runs", latestRunId, "checkpoint.json");
+    }
+  }
+  return path.join(runDir(config), "checkpoint.json");
+}
+
+async function resolveLatestRunId(config: SwarmConfig): Promise<string | null> {
+  try {
+    return (await fs.readFile(latestPointerPath(config), "utf-8")).trim();
+  } catch {
+    return null;
+  }
 }
 
 export async function saveCheckpoint(config: SwarmConfig, checkpoint: PipelineCheckpoint): Promise<void> {
-  await fs.writeFile(checkpointPath(config), JSON.stringify(checkpoint, null, 2));
+  const dir = runDir(config);
+  await fs.mkdir(dir, { recursive: true });
+  const filePath = path.join(dir, "checkpoint.json");
+  await fs.writeFile(filePath, JSON.stringify(checkpoint, null, 2));
+
+  // Update latest pointer
+  const root = swarmRoot(config);
+  await fs.mkdir(root, { recursive: true });
+  await fs.writeFile(latestPointerPath(config), config.runId);
 }
 
 export async function loadCheckpoint(config: SwarmConfig): Promise<PipelineCheckpoint | null> {
-  const filePath = checkpointPath(config);
+  const filePath = await checkpointPath(config);
   try {
     const content = await fs.readFile(filePath, "utf-8");
     return JSON.parse(content) as PipelineCheckpoint;
@@ -32,8 +55,9 @@ export async function loadCheckpoint(config: SwarmConfig): Promise<PipelineCheck
 }
 
 export async function clearCheckpoint(config: SwarmConfig): Promise<void> {
+  const filePath = await checkpointPath(config);
   try {
-    await fs.unlink(checkpointPath(config));
+    await fs.unlink(filePath);
   } catch {
     // File may not exist
   }

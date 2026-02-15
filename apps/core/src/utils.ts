@@ -2,6 +2,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { SwarmConfig } from "./config.js";
 import { FRONTEND_KEYWORDS, FRONTEND_MARKER } from "./constants.js";
+import { rolesDir } from "./paths.js";
 
 /** Extract a JSON array from a response that may contain surrounding prose. */
 export function parseJsonArray(raw: string): string[] {
@@ -17,13 +18,13 @@ export function parseJsonArray(raw: string): string[] {
   return parsed;
 }
 
-/** Write a timestamped role summary to the doc directory. */
+/** Write a timestamped role summary to the run's roles directory. */
 export async function writeRoleSummary(config: SwarmConfig, role: string, content: string): Promise<void> {
-  const docPath = path.join(config.repoRoot, config.docDir);
+  const dir = rolesDir(config);
   const timestamp = new Date().toISOString();
   const summary = `# ${role} Summary\n\n**Timestamp:** ${timestamp}\n\n${content}\n`;
-  await fs.mkdir(docPath, { recursive: true });
-  await fs.writeFile(path.join(docPath, `${role}.md`), summary);
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(path.join(dir, `${role}.md`), summary);
 }
 
 /** Check whether any task in the list involves frontend work. */

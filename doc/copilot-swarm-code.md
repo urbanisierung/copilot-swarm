@@ -41,7 +41,7 @@ apps/core/
 - Phase 1: PM agent asks clarifying questions; user answers via stdin (up to 10 rounds)
 - Phase 2: Engineering agent analyzes codebase and produces complexity/scope assessment
 - Agent instructions are embedded inline (no external files needed)
-- Output saved to `doc/plan.md`
+- Output saved to `.swarm/plans/`
 
 ### `pipeline-types.ts`
 - TypeScript types for the `swarm.config.yaml` schema
@@ -163,10 +163,10 @@ Instructions are cached after first load — each file is read once per run.
 | `verbose` | `VERBOSE` | `false` | Must be `"true"` or `"false"` |
 | `issueBody` | `ISSUE_BODY` | *(required)* | **Required.** Non-empty string |
 | `agentsDir` | `AGENTS_DIR` | `.github/agents` | Non-empty string |
-| `docDir` | `DOC_DIR` | `doc` | Non-empty string |
-| `sessionTimeoutMs` | `SESSION_TIMEOUT_MS` | `300000` | Positive integer |
+| `swarmDir` | `SWARM_DIR` | `.swarm` | Non-empty string |
+| `sessionTimeoutMs` | `SESSION_TIMEOUT_MS` | `1800000` | Positive integer |
 | `maxRetries` | `MAX_RETRIES` | `2` | Positive integer |
-| `summaryFileName` | `SUMMARY_FILE_NAME` | `swarm-summary.md` | Non-empty string |
+| `maxAutoResume` | `MAX_AUTO_RESUME` | `3` | Positive integer |
 
 ### Pipeline Config (YAML, env var overridable)
 

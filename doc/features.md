@@ -8,7 +8,7 @@ High-level feature list for Copilot Swarm.
 |---|---|---|
 | **Multi-agent orchestration** | 2026-02 | Coordinates PM, designer, engineer, reviewer, and tester agents through a structured pipeline |
 | **Interactive planning mode** | 2026-02-14 | `swarm plan` — PM agent clarifies requirements interactively, then engineering agent analyzes codebase complexity and scope |
-| **Repository analysis** | 2026-02-15 | `swarm analyze` — Architect explores repo, senior engineer reviews, cross-model verification; outputs `doc/repo-analysis.md` |
+| **Repository analysis** | 2026-02-15 | `swarm analyze` — Architect explores repo, senior engineer reviews, cross-model verification; outputs `.swarm/analysis/repo-analysis.md` |
 | **Declarative pipeline config** | 2026-02-14 | `swarm.config.yaml` defines agents, phases, review loops, and conditions — zero code changes to customize |
 | **Cross-model review** | 2026-02 | Optional phase where a different AI model reviews all output, catching model-specific blind spots |
 | **Isolated session strategy** | 2026-02 | Reviews use fresh sessions to prevent self-review bias; implementation streams use long-lived sessions for context |
@@ -20,8 +20,9 @@ High-level feature list for Copilot Swarm.
 | **Checkpoint & resume** | 2026-02-15 | Pipeline progress saved after each phase; `--resume` skips completed phases and streams, retrying only failed work |
 | **Auto-resume** | 2026-02-15 | On failure, automatically retries from checkpoint up to 3 times (configurable via `MAX_AUTO_RESUME`) — no manual intervention needed |
 | **Extended timeout** | 2026-02-15 | Default session timeout increased to 30 minutes (configurable via `SESSION_TIMEOUT_MS`) for complex tasks |
+| **Structured `.swarm/` output** | 2026-02-15 | All output organized under `.swarm/` with subfolders: `plans/`, `runs/<runId>/`, `analysis/` — no conflicts with existing repo files |
 | **Verbose streaming mode** | 2026-02 | `VERBOSE=true` streams agent deltas, tool calls, and intent updates to stdout |
-| **Role summaries** | 2026-02 | Each agent writes a timestamped summary to `doc/` for audit trail |
+| **Role summaries** | 2026-02 | Each agent writes a timestamped summary to `.swarm/runs/<runId>/roles/` for audit trail |
 
 ## Pipeline Phases
 

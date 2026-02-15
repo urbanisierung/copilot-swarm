@@ -3,6 +3,7 @@ import * as path from "node:path";
 import type { SwarmConfig } from "./config.js";
 import type { Logger } from "./logger.js";
 import { msg } from "./messages.js";
+import { analysisDir } from "./paths.js";
 import type { PipelineConfig } from "./pipeline-types.js";
 import { SessionManager } from "./session.js";
 import { responseContains } from "./utils.js";
@@ -102,9 +103,9 @@ export class AnalysisEngine {
     }
 
     // Save result
-    const docPath = path.join(this.config.repoRoot, this.config.docDir);
-    await fs.mkdir(docPath, { recursive: true });
-    const outputPath = path.join(docPath, "repo-analysis.md");
+    const dir = analysisDir(this.config);
+    await fs.mkdir(dir, { recursive: true });
+    const outputPath = path.join(dir, "repo-analysis.md");
     await fs.writeFile(outputPath, analysis);
 
     this.logger.info(msg.analyzeComplete);

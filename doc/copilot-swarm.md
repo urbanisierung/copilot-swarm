@@ -14,7 +14,7 @@ Copilot Swarm moves beyond simple chat. It mimics a high-performing engineering 
 * **Cross-Model Review:** After all task streams pass their same-model QA gate, a different AI model reviews the entire output in fresh sessions. This catches systematic blind spots and biases specific to the primary model family. Defects loop back to the primary model's engineer for fixes, preserving implementation style.
 * **QA Gate:** After engineering, a dedicated QA phase validates each stream against the spec. Defects loop back to the Engineer within the same session until resolved.
 * **Repo-Aware:** All sessions use `systemMessage: { mode: "append" }` so the repository's `copilot-instructions.md` is always included as the foundation for every agent.
-* **State Management:** The orchestrator maintains a global state — spec, design artifacts, and engineering outputs — ensuring all agents operate from a single source of truth. Each role writes a single timestamped summary to `doc/`.
+* **State Management:** The orchestrator maintains a global state — spec, design artifacts, and engineering outputs — ensuring all agents operate from a single source of truth. Each role writes a single timestamped summary to `.swarm/runs/<runId>/roles/`.
 
 ## 2. Prerequisites & Authentication
 
@@ -134,7 +134,7 @@ jobs:
 4. **Phase 3 — Design (conditional, single session + isolated review):** If frontend tasks exist, a Designer session creates a UI/UX design spec. The Designer can request clarification from the PM. A Design Reviewer validates in an isolated session, looping back to the Designer session for revisions.
 5. **Phase 4 — Parallel Task Streams (one session per stream):** Each task gets its own long-lived Engineer session. Within that session: the Engineer implements, an isolated Code Reviewer evaluates (up to 3 iterations), and an isolated QA Tester validates against the spec (up to 5 iterations). Fixes are applied within the same Engineer session, preserving context.
 6. **Phase 5 — Cross-Model Review (conditional):** If `REVIEW_MODEL` is set and differs from the primary model, a different AI model reviews all stream outputs in fresh isolated sessions. This catches systematic blind spots specific to the primary model. Issues loop back to the primary model's Engineer for fixes (up to 3 iterations), preserving implementation style and consistency. Skipped if the review model equals the primary model.
-7. **Phase 6 — Delivery:** The orchestrator writes role summaries to `doc/` (one file per role) and a final `doc/swarm-summary.md` with all stream results.
+7. **Phase 6 — Delivery:** The orchestrator writes role summaries to `.swarm/runs/<runId>/roles/` (one file per role) and a final `.swarm/runs/<runId>/summary.md` with all stream results.
 
 ## 7. Agent Definitions
 

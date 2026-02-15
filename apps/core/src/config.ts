@@ -69,7 +69,7 @@ Examples:
   swarm plan -f requirements.md
   swarm run -v "Fix the login bug"
   swarm run --resume                   Resume a failed/timed-out run
-  swarm --plan doc/plan-latest.md
+  swarm --plan .swarm/plans/plan-latest.md
   swarm analyze
 
 Environment variables override defaults; CLI args override env vars.
@@ -165,11 +165,11 @@ export interface SwarmConfig {
   readonly resume: boolean;
   readonly issueBody: string;
   readonly agentsDir: string;
-  readonly docDir: string;
+  readonly swarmDir: string;
+  readonly runId: string;
   readonly sessionTimeoutMs: number;
   readonly maxRetries: number;
   readonly maxAutoResume: number;
-  readonly summaryFileName: string;
 }
 
 export function loadConfig(): SwarmConfig {
@@ -190,6 +190,9 @@ export function loadConfig(): SwarmConfig {
     process.exit(1);
   }
 
+  const swarmDir = readEnvString("SWARM_DIR", ".swarm");
+  const runId = new Date().toISOString().replace(/[:.]/g, "-");
+
   return {
     command: cli.command,
     repoRoot,
@@ -197,10 +200,10 @@ export function loadConfig(): SwarmConfig {
     resume: cli.resume,
     issueBody: issueBody ?? "",
     agentsDir: readEnvString("AGENTS_DIR", ".github/agents"),
-    docDir: readEnvString("DOC_DIR", "doc"),
+    swarmDir,
+    runId,
     sessionTimeoutMs: readEnvPositiveInt("SESSION_TIMEOUT_MS", 1_800_000),
     maxRetries: readEnvPositiveInt("MAX_RETRIES", 2),
     maxAutoResume: readEnvPositiveInt("MAX_AUTO_RESUME", 3),
-    summaryFileName: readEnvString("SUMMARY_FILE_NAME", "swarm-summary.md"),
   };
 }

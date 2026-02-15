@@ -59,8 +59,8 @@ The planning mode runs two phases:
 2. **Technical Analysis** — An engineering agent analyzes the codebase and reports complexity, affected files, risks, and suggested approach.
 
 Output files:
-- `doc/plan-<timestamp>.md` — Timestamped plan (never overwritten)
-- `doc/plan-latest.md` — Copy of the most recent plan (stable reference)
+- `.swarm/plans/plan-<timestamp>.md` — Timestamped plan (never overwritten)
+- `.swarm/plans/plan-latest.md` — Copy of the most recent plan (stable reference)
 
 ### Running from a Plan
 
@@ -68,10 +68,10 @@ After planning, run the full pipeline using the refined requirements:
 
 ```bash
 # Use the latest plan
-swarm --plan doc/plan-latest.md
+swarm --plan .swarm/plans/plan-latest.md
 
 # Or reference a specific timestamped plan
-swarm --plan doc/plan-2026-02-14T13-30-00-000Z.md
+swarm --plan .swarm/plans/plan-2026-02-14T13-30-00-000Z.md
 ```
 
 The `--plan` flag reads the "Refined Requirements" section from the plan file and uses it as the pipeline input.
@@ -91,7 +91,7 @@ The analyze mode runs a dual-model review process:
 3. **Cross-model verification** — The same architect→senior engineer loop runs with the review model, catching model-specific blind spots (up to 3 iterations). Skipped if primary and review models are the same.
 
 Output:
-- `doc/repo-analysis.md` — The final analysis document (overwritten on each run)
+- `.swarm/analysis/repo-analysis.md` — The final analysis document (overwritten on each run)
 
 ### Checkpoint & Resume
 
@@ -107,11 +107,11 @@ swarm -r -v
 ```
 
 How it works:
-- After each pipeline phase completes, progress is saved to `.swarm-checkpoint.json` in the repo root.
+- After each pipeline phase completes, progress is saved to `.swarm/runs/<runId>/checkpoint.json`.
 - During the `implement` phase, each completed stream is saved individually — if 2 of 3 streams finish before a timeout, those 2 are preserved.
 - On `--resume`, completed phases and streams are skipped. Only failed/incomplete work is retried.
 - The checkpoint file is automatically deleted on successful completion.
-- Add `.swarm-checkpoint.json` to your `.gitignore`.
+- Add `.swarm/runs/` and `.swarm/latest` to your `.gitignore`.
 
 ### Auto-Resume
 
@@ -155,11 +155,10 @@ The orchestrator is triggered by labeling a GitHub Issue with `run-swarm` or `ru
 |---|---|---|
 | `VERBOSE` | `false` | Enable verbose streaming output. Must be `"true"` or `"false"`. |
 | `AGENTS_DIR` | `.github/agents` | Directory containing agent instruction `.md` files. |
-| `DOC_DIR` | `doc` | Directory for role summaries and the final summary file. |
+| `SWARM_DIR` | `.swarm` | Root directory for all swarm output (plans, runs, analysis). |
 | `SESSION_TIMEOUT_MS` | `1800000` | Timeout in milliseconds for each agent session call (default: 30 minutes). |
 | `MAX_AUTO_RESUME` | `3` | Max automatic resume attempts on pipeline failure (set to `0` to disable). |
 | `MAX_RETRIES` | `2` | Max retry attempts for failed or empty agent responses. |
-| `SUMMARY_FILE_NAME` | `swarm-summary.md` | Name of the final summary file written to `DOC_DIR`. |
 
 ### Optional (Model Overrides)
 
@@ -204,14 +203,33 @@ pipeline:
 
 ## Output
 
-The orchestrator writes the following files:
+All output is organized under the `.swarm/` directory:
 
-| File | Description |
-|---|---|
-| `<DOC_DIR>/<agent-name>.md` | Per-role summary with timestamp |
-| `<DOC_DIR>/engineer-stream-N.md` | Per-task engineering output |
-| `<DOC_DIR>/cross-model-review.md` | Cross-model review results (if applicable) |
-| `<DOC_DIR>/<SUMMARY_FILE_NAME>` | Final summary with all stream results |
+```
+.swarm/
+  plans/                          # Planning mode output
+    plan-latest.md                # Most recent plan (stable reference)
+    plan-<timestamp>.md           # Timestamped plans
+  runs/                           # Pipeline run output (one folder per run)
+    <runId>/
+      summary.md                  # Final run summary
+      checkpoint.json             # Checkpoint (deleted on success)
+      roles/                      # Per-role summaries
+        pm.md
+        designer.md
+        engineer-stream-1.md
+        ...
+        cross-model-review.md
+  analysis/                       # Repository analysis output
+    repo-analysis.md
+  latest                          # Pointer to the most recent run ID
+```
+
+Recommended `.gitignore` entries:
+```gitignore
+.swarm/runs/
+.swarm/latest
+```
 
 ## Build & Check Commands
 
