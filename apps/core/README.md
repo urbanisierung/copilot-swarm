@@ -53,7 +53,7 @@ swarm -f feature-description.txt
 
 # Plan first, run later
 swarm plan "Redesign the notification system"
-swarm --plan doc/plan-latest.md
+swarm --plan .swarm/plans/plan-latest.md
 
 # Resume a failed/timed-out run
 swarm --resume
@@ -76,13 +76,13 @@ Two phases run in sequence:
 
 Output:
 
-- `doc/plan-<timestamp>.md` — Timestamped plan (never overwritten)
-- `doc/plan-latest.md` — Copy of the most recent plan
+- `.swarm/plans/plan-<timestamp>.md` — Timestamped plan (never overwritten)
+- `.swarm/plans/plan-latest.md` — Copy of the most recent plan
 
 Then feed the plan into the full pipeline:
 
 ```bash
-swarm --plan doc/plan-latest.md
+swarm --plan .swarm/plans/plan-latest.md
 ```
 
 ## Analyze Mode
@@ -93,7 +93,7 @@ Generate a comprehensive repository context document:
 swarm analyze
 ```
 
-Produces `doc/repo-analysis.md` — a structured analysis covering tech stack, architecture, key files, commands, patterns, and a step-by-step guide for implementing new features. The analysis goes through a dual-model review process:
+Produces `.swarm/analysis/repo-analysis.md` — a structured analysis covering tech stack, architecture, key files, commands, patterns, and a step-by-step guide for implementing new features. The analysis goes through a dual-model review process:
 
 1. **Architect** explores the repo and drafts the document
 2. **Senior engineer** reviews for accuracy (up to 3 iterations)
@@ -191,10 +191,10 @@ pipeline:
 | `ISSUE_BODY` | — | Task description (alternative to CLI prompt) |
 | `VERBOSE` | `false` | Enable verbose streaming output |
 | `AGENTS_DIR` | `.github/agents` | Directory for agent instruction files |
-| `DOC_DIR` | `doc` | Output directory for summaries |
-| `SESSION_TIMEOUT_MS` | `300000` | Timeout per agent session (ms) |
+| `SWARM_DIR` | `.swarm` | Root directory for all swarm output |
+| `SESSION_TIMEOUT_MS` | `1800000` | Timeout per agent session (ms) |
+| `MAX_AUTO_RESUME` | `3` | Auto-resume attempts on failure |
 | `MAX_RETRIES` | `2` | Retry attempts for failed agent responses |
-| `SUMMARY_FILE_NAME` | `swarm-summary.md` | Final summary filename |
 | `PRIMARY_MODEL` | `claude-opus-4-6-fast` | AI model for primary agents (overrides YAML) |
 | `REVIEW_MODEL` | `gpt-5.2-codex` | AI model for cross-model review (overrides YAML) |
 
@@ -234,14 +234,22 @@ Label an issue with `run-swarm` or `run-swarm-verbose` to trigger it.
 
 ## Output
 
-The orchestrator writes these files to the configured `DOC_DIR`:
+All output is organized under `.swarm/`:
 
-| File | Description |
-|---|---|
-| `<agent-name>.md` | Per-role summary with timestamp |
-| `engineer-stream-N.md` | Per-task engineering output |
-| `cross-model-review.md` | Cross-model review results (if applicable) |
-| `swarm-summary.md` | Final summary with all stream results |
+```
+.swarm/
+  plans/                    # Planning mode output
+    plan-latest.md
+    plan-<timestamp>.md
+  runs/                     # Per-run output (timestamped)
+    <runId>/
+      summary.md
+      roles/
+        pm.md, designer.md, engineer-stream-*.md, ...
+  analysis/                 # Repository analysis
+    repo-analysis.md
+  latest                    # Pointer to most recent run
+```
 
 ## Requirements
 

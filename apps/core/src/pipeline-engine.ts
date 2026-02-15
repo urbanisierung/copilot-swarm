@@ -4,6 +4,7 @@ import { clearCheckpoint, loadCheckpoint, saveCheckpoint } from "./checkpoint.js
 import type { SwarmConfig } from "./config.js";
 import type { Logger } from "./logger.js";
 import { msg } from "./messages.js";
+import { latestPointerPath, runDir, swarmRoot } from "./paths.js";
 import type {
   CrossModelReviewPhaseConfig,
   DecomposePhaseConfig,
@@ -26,12 +27,14 @@ interface PipelineContext {
 
 export class PipelineEngine {
   private readonly sessions: SessionManager;
+  private effectiveConfig: SwarmConfig;
 
   constructor(
     private readonly config: SwarmConfig,
     private readonly pipeline: PipelineConfig,
     private readonly logger: Logger,
   ) {
+    this.effectiveConfig = config;
     this.sessions = new SessionManager(config, pipeline, logger);
   }
 
@@ -53,6 +56,10 @@ export class PipelineEngine {
     if (this.config.resume) {
       const checkpoint = await loadCheckpoint(this.config);
       if (checkpoint) {
+        // Use the same runId so files go to the same run directory
+        if (checkpoint.runId) {
+          this.effectiveConfig = { ...this.config, runId: checkpoint.runId };
+        }
         ctx = {
           spec: checkpoint.spec,
           tasks: checkpoint.tasks,
@@ -93,13 +100,14 @@ export class PipelineEngine {
       }
 
       completedPhases.add(phaseKey);
-      await saveCheckpoint(this.config, {
+      await saveCheckpoint(this.effectiveConfig, {
         completedPhases: [...completedPhases],
         spec: ctx.spec,
         tasks: ctx.tasks,
         designSpec: ctx.designSpec,
         streamResults: ctx.streamResults,
-        issueBody: this.config.issueBody,
+        issueBody: this.effectiveConfig.issueBody,
+        runId: this.effectiveConfig.runId,
       });
       this.logger.info(msg.checkpointSaved(phase.phase));
     }
@@ -110,12 +118,17 @@ export class PipelineEngine {
     const summary =
       `# Swarm Run Summary\n\n**Timestamp:** ${timestamp}\n**Tasks:** ${ctx.tasks.length}\n\n` +
       `${ctx.streamResults.map((r, i) => `## Stream ${i + 1}\n\n${r}`).join("\n\n---\n\n")}\n`;
-    const docPath = path.join(this.config.repoRoot, this.config.docDir);
-    await fs.mkdir(docPath, { recursive: true });
-    await fs.writeFile(path.join(docPath, this.config.summaryFileName), summary);
+    const dir = runDir(this.effectiveConfig);
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, "summary.md"), summary);
+
+    // Update latest pointer
+    const root = swarmRoot(this.effectiveConfig);
+    await fs.mkdir(root, { recursive: true });
+    await fs.writeFile(latestPointerPath(this.effectiveConfig), this.effectiveConfig.runId);
 
     // Clean up checkpoint on successful completion
-    await clearCheckpoint(this.config);
+    await clearCheckpoint(this.effectiveConfig);
   }
 
   // --- SPEC PHASE ---
@@ -131,7 +144,7 @@ export class PipelineEngine {
       spec = await this.runReviewLoop(review, spec, phase.agent, (content) => `Review this specification:\n${content}`);
     }
 
-    await writeRoleSummary(this.config, phase.agent, `## Final Specification\n\n${spec}`);
+    await writeRoleSummary(this.effectiveConfig, phase.agent, `## Final Specification\n\n${spec}`);
     return spec;
   }
 
@@ -148,7 +161,7 @@ export class PipelineEngine {
     this.logger.info(msg.tasksResult(tasks));
 
     await writeRoleSummary(
-      this.config,
+      this.effectiveConfig,
       `${phase.agent}-tasks`,
       `## Decomposed Tasks\n\n${tasks.map((t, i) => `${i + 1}. ${t}`).join("\n")}`,
     );
@@ -225,7 +238,7 @@ export class PipelineEngine {
         }
       }
 
-      await writeRoleSummary(this.config, phase.agent, design);
+      await writeRoleSummary(this.effectiveConfig, phase.agent, design);
       return design;
     } finally {
       await session.destroy();
@@ -302,17 +315,18 @@ export class PipelineEngine {
           }
         }
 
-        await writeRoleSummary(this.config, `engineer-stream-${idx + 1}`, code);
+        await writeRoleSummary(this.effectiveConfig, `engineer-stream-${idx + 1}`, code);
 
         // Save intermediate progress so completed streams survive a crash
         results[idx] = code;
-        await saveCheckpoint(this.config, {
+        await saveCheckpoint(this.effectiveConfig, {
           completedPhases: [],
           spec: ctx.spec,
           tasks: ctx.tasks,
           designSpec: ctx.designSpec,
           streamResults: results,
-          issueBody: this.config.issueBody,
+          issueBody: this.effectiveConfig.issueBody,
+          runId: this.effectiveConfig.runId,
         });
 
         return code;
@@ -327,13 +341,14 @@ export class PipelineEngine {
       if (failures.length > 0) {
         this.logger.warn(msg.partialStreamFailure(failures.length, settled.length));
         // Save partial results before re-throwing so --resume can pick up completed streams
-        await saveCheckpoint(this.config, {
+        await saveCheckpoint(this.effectiveConfig, {
           completedPhases: [],
           spec: ctx.spec,
           tasks: ctx.tasks,
           designSpec: ctx.designSpec,
           streamResults: results,
-          issueBody: this.config.issueBody,
+          issueBody: this.effectiveConfig.issueBody,
+          runId: this.effectiveConfig.runId,
         });
         throw new Error(`${failures.length}/${settled.length} streams failed. Use --resume to retry failed streams.`);
       }
@@ -386,7 +401,7 @@ export class PipelineEngine {
     );
 
     await writeRoleSummary(
-      this.config,
+      this.effectiveConfig,
       "cross-model-review",
       reviewed.map((r, i) => `## Stream ${i + 1}\n\n${r}`).join("\n\n---\n\n"),
     );
