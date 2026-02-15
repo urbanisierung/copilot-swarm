@@ -75,4 +75,17 @@ export const msg = {
   analyzeFeedback: (preview: string) => `  ❌ Feedback: ${preview}...`,
   analyzeComplete: "\n✅ Repository analysis complete.",
   analyzeSaved: (path: string) => `📄 Analysis saved to ${path}`,
+
+  // --- Checkpoints & Resume ---
+  checkpointSaved: (phase: string) => `💾 Checkpoint saved after ${phase} phase`,
+  resuming: (completedCount: number) => `🔄 Resuming from checkpoint (${completedCount} phases completed)`,
+  noCheckpoint: "⚠️  No checkpoint found — starting from the beginning",
+  phaseSkipped: (phase: string) => `⏭️  Skipping ${phase} phase (already completed)`,
+  streamSkipped: (label: string) => `  ⏭️  Skipping ${label} (already completed)`,
+  partialStreamFailure: (failed: number, total: number) =>
+    `⚠️  ${failed}/${total} streams failed. Completed streams saved to checkpoint.`,
+  autoResumeAttempt: (attempt: number, max: number) =>
+    `\n🔁 Auto-resuming from checkpoint (attempt ${attempt}/${max})...`,
+  autoResumeExhausted: (max: number) =>
+    `\n❌ All ${max} auto-resume attempts exhausted. Use --resume to retry manually.`,
 } as const;

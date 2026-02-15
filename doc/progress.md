@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here, in reverse chronological order.
 
+## 2026-02-15
+
+### Added
+- **Checkpoint & resume** — Pipeline progress saved to `.swarm-checkpoint.json` after each phase. `--resume`/`-r` flag skips completed phases and streams. Individual implement streams saved incrementally — completed streams survive a timeout/crash. Checkpoint cleared on successful completion.
+- **Auto-resume** — On pipeline failure, automatically retries from the last checkpoint up to 3 times (configurable via `MAX_AUTO_RESUME` env var). No manual `--resume` needed for transient failures.
+- **Extended timeout** — Default `SESSION_TIMEOUT_MS` increased from 5 minutes to 30 minutes (1,800,000ms) for complex agent tasks. Still configurable via env var.
+- **Repository analysis mode** — `swarm analyze` generates a structured repo context document (`doc/repo-analysis.md`). Architect explores repo, senior engineer reviews for accuracy (max 3 iterations), then cross-model verification with a different AI model repeats the same loop.
+
 ## 2026-02-14
 
 ### Added

@@ -39,6 +39,7 @@ Options:
   -v, --verbose        Enable verbose streaming output
   -p, --plan <file>    Use a plan file as input (reads the refined requirements section)
   -f, --file <file>    Read prompt from a file instead of inline text
+  -r, --resume         Resume from the last checkpoint (skip completed phases)
   -V, --version        Show version number
   -h, --help           Show this help message
 ```
@@ -92,6 +93,33 @@ The analyze mode runs a dual-model review process:
 Output:
 - `doc/repo-analysis.md` — The final analysis document (overwritten on each run)
 
+### Checkpoint & Resume
+
+Long-running pipeline executions are checkpointed after each phase. If a run fails (e.g., due to a timeout), you can resume from where it stopped:
+
+```bash
+# Resume a failed run
+swarm --resume
+swarm -r
+
+# Resume with verbose output
+swarm -r -v
+```
+
+How it works:
+- After each pipeline phase completes, progress is saved to `.swarm-checkpoint.json` in the repo root.
+- During the `implement` phase, each completed stream is saved individually — if 2 of 3 streams finish before a timeout, those 2 are preserved.
+- On `--resume`, completed phases and streams are skipped. Only failed/incomplete work is retried.
+- The checkpoint file is automatically deleted on successful completion.
+- Add `.swarm-checkpoint.json` to your `.gitignore`.
+
+### Auto-Resume
+
+By default, the orchestrator automatically retries from the last checkpoint up to 3 times when a failure occurs (e.g., timeout, network error). This means most transient failures are recovered without manual intervention.
+
+- Configure via `MAX_AUTO_RESUME` env var (default: `3`, set to `0` to disable)
+- The `--resume` flag is still available for manual retries after all auto-resume attempts are exhausted
+
 ### Local Development
 
 ```bash
@@ -128,7 +156,8 @@ The orchestrator is triggered by labeling a GitHub Issue with `run-swarm` or `ru
 | `VERBOSE` | `false` | Enable verbose streaming output. Must be `"true"` or `"false"`. |
 | `AGENTS_DIR` | `.github/agents` | Directory containing agent instruction `.md` files. |
 | `DOC_DIR` | `doc` | Directory for role summaries and the final summary file. |
-| `SESSION_TIMEOUT_MS` | `300000` | Timeout in milliseconds for each agent session call. |
+| `SESSION_TIMEOUT_MS` | `1800000` | Timeout in milliseconds for each agent session call (default: 30 minutes). |
+| `MAX_AUTO_RESUME` | `3` | Max automatic resume attempts on pipeline failure (set to `0` to disable). |
 | `MAX_RETRIES` | `2` | Max retry attempts for failed or empty agent responses. |
 | `SUMMARY_FILE_NAME` | `swarm-summary.md` | Name of the final summary file written to `DOC_DIR`. |
 
