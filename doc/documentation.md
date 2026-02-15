@@ -33,6 +33,7 @@ Usage: swarm [command] [options] "<prompt>"
 Commands:
   run              Run the full orchestration pipeline (default)
   plan             Interactive planning mode — clarify requirements before running
+  analyze          Analyze the repository and generate a context document
 
 Options:
   -v, --verbose        Enable verbose streaming output
@@ -73,6 +74,23 @@ swarm --plan doc/plan-2026-02-14T13-30-00-000Z.md
 ```
 
 The `--plan` flag reads the "Refined Requirements" section from the plan file and uses it as the pipeline input.
+
+### Analyze Mode
+
+Use `swarm analyze` to generate a comprehensive repository context document:
+
+```bash
+swarm analyze
+```
+
+The analyze mode runs a dual-model review process:
+
+1. **Architect exploration (primary model)** — An architect agent explores the repository and produces a structured analysis covering: tech stack, structure, architecture, key files, commands, patterns, conventions, dependencies, and a step-by-step guide for implementing new features.
+2. **Senior engineer review (primary model)** — A senior engineer independently verifies the analysis for accuracy and completeness (up to 3 iterations).
+3. **Cross-model verification** — The same architect→senior engineer loop runs with the review model, catching model-specific blind spots (up to 3 iterations). Skipped if primary and review models are the same.
+
+Output:
+- `doc/repo-analysis.md` — The final analysis document (overwritten on each run)
 
 ### Local Development
 

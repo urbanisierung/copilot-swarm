@@ -141,4 +141,32 @@ export class SessionManager {
     }
     return "";
   }
+
+  async callIsolatedWithInstructions(
+    instructions: string,
+    prompt: string,
+    spinnerLabel: string,
+    model?: string,
+  ): Promise<string> {
+    const maxAttempts = this.config.maxRetries;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const session = await this.createSessionWithInstructions(instructions, model);
+      try {
+        const content = await this.send(session, prompt, spinnerLabel);
+        if (!content && attempt < maxAttempts) {
+          this.logger.warn(msg.emptyResponse("inline-agent", attempt, maxAttempts));
+          continue;
+        }
+        return content;
+      } catch (err) {
+        this.logger.stopSpinner();
+        this.logger.error(msg.callError("inline-agent", attempt, maxAttempts), err);
+        if (attempt >= maxAttempts) throw err;
+      } finally {
+        await session.destroy();
+      }
+    }
+    return "";
+  }
 }

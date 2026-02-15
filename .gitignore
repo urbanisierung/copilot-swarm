@@ -25,3 +25,4 @@ coverage/
 # Planning mode output (generated, not committed)
 doc/plan-*.md
 doc/plan-latest.md
+doc/repo-analysis.md
