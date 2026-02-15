@@ -30,7 +30,7 @@ function readEnvPositiveInt(key: string, fallback: number): number {
   return parsed;
 }
 
-export type SwarmCommand = "run" | "plan";
+export type SwarmCommand = "run" | "plan" | "analyze";
 
 interface CliArgs {
   command: SwarmCommand;
@@ -52,6 +52,7 @@ const HELP_TEXT = `Usage: swarm [command] [options] "<prompt>"
 Commands:
   run              Run the full orchestration pipeline (default)
   plan             Interactive planning mode — clarify requirements before running
+  analyze          Analyze the repository and generate a context document
 
 Options:
   -v, --verbose        Enable verbose streaming output
@@ -66,6 +67,7 @@ Examples:
   swarm plan -f requirements.md
   swarm run -v "Fix the login bug"
   swarm --plan doc/plan-latest.md
+  swarm analyze
   ISSUE_BODY="Add a feature" swarm plan
 
 Environment variables override defaults; CLI args override env vars.
@@ -97,7 +99,10 @@ function parseCliArgs(): CliArgs {
   let command: SwarmCommand = "run";
   let promptParts = positionals;
 
-  if (positionals.length > 0 && (positionals[0] === "plan" || positionals[0] === "run")) {
+  if (
+    positionals.length > 0 &&
+    (positionals[0] === "plan" || positionals[0] === "run" || positionals[0] === "analyze")
+  ) {
     command = positionals[0] as SwarmCommand;
     promptParts = positionals.slice(1);
   }
@@ -174,7 +179,7 @@ export function loadConfig(): SwarmConfig {
     issueBody = cli.prompt ?? process.env.ISSUE_BODY;
   }
 
-  if (!issueBody || issueBody === "") {
+  if (cli.command !== "analyze" && (!issueBody || issueBody === "")) {
     console.error(`Error: No prompt provided. Pass it as an argument, use --plan, or set ISSUE_BODY.\n\n${HELP_TEXT}`);
     process.exit(1);
   }
@@ -183,7 +188,7 @@ export function loadConfig(): SwarmConfig {
     command: cli.command,
     repoRoot,
     verbose: cli.verbose || readEnvBoolean("VERBOSE", false),
-    issueBody,
+    issueBody: issueBody ?? "",
     agentsDir: readEnvString("AGENTS_DIR", ".github/agents"),
     docDir: readEnvString("DOC_DIR", "doc"),
     sessionTimeoutMs: readEnvPositiveInt("SESSION_TIMEOUT_MS", 300_000),

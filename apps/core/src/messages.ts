@@ -65,4 +65,14 @@ export const msg = {
   planningComplete: "\n✅ Planning complete.",
   planSaved: (path: string) => `📄 Plan saved to ${path}`,
   planningUserPrompt: "\n💬 Your answer (or press Enter to skip): ",
+
+  // --- Analyze Mode ---
+  analyzeStart: "🔍 Starting Repository Analysis...",
+  analyzeArchitectPhase: (model: string) => `\n[Analysis: Architect exploration — ${model}]`,
+  analyzeReviewPhase: (model: string) => `\n[Analysis: Senior engineer review — ${model}]`,
+  analyzeIteration: (i: number, max: number) => `  └─ Iteration ${i}/${max}`,
+  analyzeApproved: "  ✅ Analysis approved by senior engineer",
+  analyzeFeedback: (preview: string) => `  ❌ Feedback: ${preview}...`,
+  analyzeComplete: "\n✅ Repository analysis complete.",
+  analyzeSaved: (path: string) => `📄 Analysis saved to ${path}`,
 } as const;
