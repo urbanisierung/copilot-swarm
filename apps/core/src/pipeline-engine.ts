@@ -131,6 +131,7 @@ export class PipelineEngine {
         session,
         `Create a detailed UI/UX design specification based on this spec:\n${ctx.spec}\n\n` +
           `Include: component hierarchy, layout, interactions, states, and accessibility considerations.`,
+        `${phase.agent} is designing…`,
       );
 
       if (phase.clarificationAgent && responseContains(design, "CLARIFICATION_NEEDED")) {
@@ -139,7 +140,11 @@ export class PipelineEngine {
           phase.clarificationAgent,
           `The designer needs clarification:\n${design}`,
         );
-        design = await this.sessions.send(session, `PM Clarification:\n${clarification}\n\nRevise the design.`);
+        design = await this.sessions.send(
+          session,
+          `PM Clarification:\n${clarification}\n\nRevise the design.`,
+          `${phase.agent} is revising…`,
+        );
       }
 
       for (const review of phase.reviews) {
@@ -166,11 +171,16 @@ export class PipelineEngine {
               design = await this.sessions.send(
                 session,
                 `Review feedback:\n${feedback}\n\nPM Clarification:\n${clar}\n\nRevise the design.`,
+                `${phase.agent} is revising…`,
               );
             }
           } else {
             this.logger.info(msg.codeFeedback(feedback.substring(0, 80)));
-            design = await this.sessions.send(session, `Review feedback:\n${feedback}\n\nRevise the design.`);
+            design = await this.sessions.send(
+              session,
+              `Review feedback:\n${feedback}\n\nRevise the design.`,
+              `${phase.agent} is revising…`,
+            );
           }
         }
       }
@@ -197,7 +207,7 @@ export class PipelineEngine {
         const engineeringPrompt = isFrontendTask(task)
           ? `Spec:\n${ctx.spec}\n\nDesign:\n${ctx.designSpec}\n\nTask:\n${task}\n\nImplement this task.`
           : `Spec:\n${ctx.spec}\n\nTask:\n${task}\n\nImplement this task.`;
-        let code = await this.sessions.send(session, engineeringPrompt);
+        let code = await this.sessions.send(session, engineeringPrompt, `${phase.agent} (${label}) is implementing…`);
 
         // Reviews
         for (const review of phase.reviews) {
@@ -211,7 +221,11 @@ export class PipelineEngine {
               break;
             }
             this.logger.info(msg.codeFeedback(feedback.substring(0, 80)));
-            code = await this.sessions.send(session, `Code review feedback:\n${feedback}\n\nFix all issues.`);
+            code = await this.sessions.send(
+              session,
+              `Code review feedback:\n${feedback}\n\nFix all issues.`,
+              `${phase.agent} (${label}) is fixing…`,
+            );
           }
         }
 
@@ -230,7 +244,11 @@ export class PipelineEngine {
               break;
             }
             this.logger.info(msg.defectsFound);
-            code = await this.sessions.send(session, `QA Report:\n${testReport}\n\nFix all reported issues.`);
+            code = await this.sessions.send(
+              session,
+              `QA Report:\n${testReport}\n\nFix all reported issues.`,
+              `${phase.agent} (${label}) is fixing defects…`,
+            );
           }
         }
 

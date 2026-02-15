@@ -8,6 +8,7 @@
     "typecheck": "turbo run typecheck",
     "check": "turbo run check",
     "test": "turbo run test",
+    "verify": "turbo run build typecheck check test",
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "turbo run build && changeset publish"

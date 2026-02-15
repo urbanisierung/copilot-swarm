@@ -1,5 +1,9 @@
 /** Thin logging wrapper for centralized output control. */
 export class Logger {
+  private spinnerInterval: ReturnType<typeof setInterval> | null = null;
+  private spinnerFrame = 0;
+  private static readonly SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+
   constructor(private readonly verbose: boolean) {}
 
   info(message: string): void {
@@ -33,6 +37,28 @@ export class Logger {
   debug(message: string): void {
     if (this.verbose) {
       console.log(message);
+    }
+  }
+
+  /** Show an animated spinner with a message. No-op in verbose mode (streaming output is enough). */
+  startSpinner(message: string): void {
+    if (this.verbose) return;
+    this.stopSpinner();
+    this.spinnerFrame = 0;
+    const frames = Logger.SPINNER_FRAMES;
+    process.stdout.write(`${frames[0]} ${message}`);
+    this.spinnerInterval = setInterval(() => {
+      this.spinnerFrame = (this.spinnerFrame + 1) % frames.length;
+      process.stdout.write(`\r${frames[this.spinnerFrame]} ${message}`);
+    }, 80);
+  }
+
+  /** Stop the spinner and clear the line. */
+  stopSpinner(): void {
+    if (this.spinnerInterval !== null) {
+      clearInterval(this.spinnerInterval);
+      this.spinnerInterval = null;
+      process.stdout.write("\r\x1b[K");
     }
   }
 }
