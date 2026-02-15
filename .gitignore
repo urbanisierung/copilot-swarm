@@ -22,6 +22,9 @@ Thumbs.db
 AGENCY_SUMMARY.md
 coverage/
 
+# Swarm runtime files
+.swarm-checkpoint.json
+
 # Planning mode output (generated, not committed)
 doc/plan-*.md
 doc/plan-latest.md

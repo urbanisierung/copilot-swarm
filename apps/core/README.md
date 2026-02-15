@@ -33,6 +33,7 @@ Options:
   -v, --verbose        Enable verbose streaming output
   -p, --plan <file>    Use a plan file as input (reads the refined requirements section)
   -f, --file <file>    Read prompt from a file instead of inline text
+  -r, --resume         Resume from the last checkpoint (skip completed phases)
   -V, --version        Show version number
   -h, --help           Show this help message
 ```
@@ -53,6 +54,9 @@ swarm -f feature-description.txt
 # Plan first, run later
 swarm plan "Redesign the notification system"
 swarm --plan doc/plan-latest.md
+
+# Resume a failed/timed-out run
+swarm --resume
 ```
 
 The prompt can also be passed via the `ISSUE_BODY` environment variable. CLI arguments take precedence.

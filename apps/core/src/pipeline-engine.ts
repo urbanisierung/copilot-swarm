@@ -1,5 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { clearCheckpoint, loadCheckpoint, saveCheckpoint } from "./checkpoint.js";
 import type { SwarmConfig } from "./config.js";
 import type { Logger } from "./logger.js";
 import { msg } from "./messages.js";
@@ -45,9 +46,34 @@ export class PipelineEngine {
   async execute(): Promise<void> {
     this.logger.info(msg.configLoaded(this.pipeline.primaryModel, this.pipeline.reviewModel, this.config.verbose));
 
-    const ctx: PipelineContext = { spec: "", tasks: [], designSpec: "", streamResults: [] };
+    let ctx: PipelineContext = { spec: "", tasks: [], designSpec: "", streamResults: [] };
+    let completedPhases: Set<string> = new Set();
+
+    // Resume from checkpoint if requested
+    if (this.config.resume) {
+      const checkpoint = await loadCheckpoint(this.config);
+      if (checkpoint) {
+        ctx = {
+          spec: checkpoint.spec,
+          tasks: checkpoint.tasks,
+          designSpec: checkpoint.designSpec,
+          streamResults: checkpoint.streamResults,
+        };
+        completedPhases = new Set(checkpoint.completedPhases);
+        this.logger.info(msg.resuming(completedPhases.size));
+      } else {
+        this.logger.warn(msg.noCheckpoint);
+      }
+    }
 
     for (const phase of this.pipeline.pipeline) {
+      const phaseKey = `${phase.phase}-${this.pipeline.pipeline.indexOf(phase)}`;
+
+      if (completedPhases.has(phaseKey)) {
+        this.logger.info(msg.phaseSkipped(phase.phase));
+        continue;
+      }
+
       switch (phase.phase) {
         case "spec":
           ctx.spec = await this.executeSpec(phase);
@@ -65,6 +91,17 @@ export class PipelineEngine {
           ctx.streamResults = await this.executeCrossModelReview(phase, ctx);
           break;
       }
+
+      completedPhases.add(phaseKey);
+      await saveCheckpoint(this.config, {
+        completedPhases: [...completedPhases],
+        spec: ctx.spec,
+        tasks: ctx.tasks,
+        designSpec: ctx.designSpec,
+        streamResults: ctx.streamResults,
+        issueBody: this.config.issueBody,
+      });
+      this.logger.info(msg.checkpointSaved(phase.phase));
     }
 
     // Final summary
@@ -76,6 +113,9 @@ export class PipelineEngine {
     const docPath = path.join(this.config.repoRoot, this.config.docDir);
     await fs.mkdir(docPath, { recursive: true });
     await fs.writeFile(path.join(docPath, this.config.summaryFileName), summary);
+
+    // Clean up checkpoint on successful completion
+    await clearCheckpoint(this.config);
   }
 
   // --- SPEC PHASE ---
@@ -197,7 +237,17 @@ export class PipelineEngine {
   private async executeImplement(phase: ImplementPhaseConfig, ctx: PipelineContext): Promise<string[]> {
     this.logger.info(msg.launchingStreams(ctx.tasks.length));
 
+    // Pre-fill with any existing partial results from a previous run
+    const results: string[] =
+      ctx.streamResults.length === ctx.tasks.length ? [...ctx.streamResults] : new Array(ctx.tasks.length).fill("");
+
     const runStream = async (task: string, idx: number): Promise<string> => {
+      // Skip streams that already have results (from a resumed checkpoint)
+      if (results[idx]) {
+        this.logger.info(msg.streamSkipped(msg.streamLabel(idx)));
+        return results[idx];
+      }
+
       const label = msg.streamLabel(idx);
       this.logger.info(msg.streamStart(label, task));
 
@@ -253,6 +303,18 @@ export class PipelineEngine {
         }
 
         await writeRoleSummary(this.config, `engineer-stream-${idx + 1}`, code);
+
+        // Save intermediate progress so completed streams survive a crash
+        results[idx] = code;
+        await saveCheckpoint(this.config, {
+          completedPhases: [],
+          spec: ctx.spec,
+          tasks: ctx.tasks,
+          designSpec: ctx.designSpec,
+          streamResults: results,
+          issueBody: this.config.issueBody,
+        });
+
         return code;
       } finally {
         await session.destroy();
@@ -260,11 +322,25 @@ export class PipelineEngine {
     };
 
     if (phase.parallel) {
-      return Promise.all(ctx.tasks.map((task, idx) => runStream(task, idx)));
+      const settled = await Promise.allSettled(ctx.tasks.map((task, idx) => runStream(task, idx)));
+      const failures = settled.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+      if (failures.length > 0) {
+        this.logger.warn(msg.partialStreamFailure(failures.length, settled.length));
+        // Save partial results before re-throwing so --resume can pick up completed streams
+        await saveCheckpoint(this.config, {
+          completedPhases: [],
+          spec: ctx.spec,
+          tasks: ctx.tasks,
+          designSpec: ctx.designSpec,
+          streamResults: results,
+          issueBody: this.config.issueBody,
+        });
+        throw new Error(`${failures.length}/${settled.length} streams failed. Use --resume to retry failed streams.`);
+      }
+      return results;
     }
-    const results: string[] = [];
     for (let i = 0; i < ctx.tasks.length; i++) {
-      results.push(await runStream(ctx.tasks[i], i));
+      results[i] = await runStream(ctx.tasks[i], i);
     }
     return results;
   }

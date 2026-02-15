@@ -38,6 +38,7 @@ interface CliArgs {
   prompt: string | undefined;
   planFile: string | undefined;
   promptFile: string | undefined;
+  resume: boolean;
 }
 
 function readVersion(): string {
@@ -58,6 +59,7 @@ Options:
   -v, --verbose        Enable verbose streaming output
   -p, --plan <file>    Use a plan file as input (reads the refined requirements section)
   -f, --file <file>    Read prompt from a file instead of inline text
+  -r, --resume         Resume from the last checkpoint (skip completed phases)
   -V, --version        Show version number
   -h, --help           Show this help message
 
@@ -66,9 +68,9 @@ Examples:
   swarm plan "Add a dark mode toggle"
   swarm plan -f requirements.md
   swarm run -v "Fix the login bug"
+  swarm run --resume                   Resume a failed/timed-out run
   swarm --plan doc/plan-latest.md
   swarm analyze
-  ISSUE_BODY="Add a feature" swarm plan
 
 Environment variables override defaults; CLI args override env vars.
 See documentation for all env var options.`;
@@ -81,6 +83,7 @@ function parseCliArgs(): CliArgs {
       verbose: { type: "boolean", short: "v", default: false },
       help: { type: "boolean", short: "h", default: false },
       version: { type: "boolean", short: "V", default: false },
+      resume: { type: "boolean", short: "r", default: false },
       plan: { type: "string", short: "p" },
       file: { type: "string", short: "f" },
     },
@@ -113,6 +116,7 @@ function parseCliArgs(): CliArgs {
     prompt: promptParts.length > 0 ? promptParts.join(" ") : undefined,
     planFile: values.plan as string | undefined,
     promptFile: values.file as string | undefined,
+    resume: values.resume as boolean,
   };
 }
 
@@ -158,11 +162,13 @@ export interface SwarmConfig {
   readonly command: SwarmCommand;
   readonly repoRoot: string;
   readonly verbose: boolean;
+  readonly resume: boolean;
   readonly issueBody: string;
   readonly agentsDir: string;
   readonly docDir: string;
   readonly sessionTimeoutMs: number;
   readonly maxRetries: number;
+  readonly maxAutoResume: number;
   readonly summaryFileName: string;
 }
 
@@ -179,7 +185,7 @@ export function loadConfig(): SwarmConfig {
     issueBody = cli.prompt ?? process.env.ISSUE_BODY;
   }
 
-  if (cli.command !== "analyze" && (!issueBody || issueBody === "")) {
+  if (cli.command !== "analyze" && !cli.resume && (!issueBody || issueBody === "")) {
     console.error(`Error: No prompt provided. Pass it as an argument, use --plan, or set ISSUE_BODY.\n\n${HELP_TEXT}`);
     process.exit(1);
   }
@@ -188,11 +194,13 @@ export function loadConfig(): SwarmConfig {
     command: cli.command,
     repoRoot,
     verbose: cli.verbose || readEnvBoolean("VERBOSE", false),
+    resume: cli.resume,
     issueBody: issueBody ?? "",
     agentsDir: readEnvString("AGENTS_DIR", ".github/agents"),
     docDir: readEnvString("DOC_DIR", "doc"),
-    sessionTimeoutMs: readEnvPositiveInt("SESSION_TIMEOUT_MS", 300_000),
+    sessionTimeoutMs: readEnvPositiveInt("SESSION_TIMEOUT_MS", 1_800_000),
     maxRetries: readEnvPositiveInt("MAX_RETRIES", 2),
+    maxAutoResume: readEnvPositiveInt("MAX_AUTO_RESUME", 3),
     summaryFileName: readEnvString("SUMMARY_FILE_NAME", "swarm-summary.md"),
   };
 }
