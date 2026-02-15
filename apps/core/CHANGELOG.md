@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.2
+
+### Patch Changes
+
+- db43158: Add -f / --file parameter
+
 ## 0.0.1
 
 ### Patch Changes
