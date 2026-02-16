@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.7
+
+### Patch Changes
+
+- 5810801: TUI shell for improved UX in the cli.
+
 ## 0.0.6
 
 ### Patch Changes
