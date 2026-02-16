@@ -185,4 +185,41 @@ describe("checkpoint round-trip", () => {
     expect(loaded?.activePhase).toBe("plan-review-3");
     expect(loaded?.iterationProgress?.["plan-review-3"]?.completedIterations).toBe(1);
   });
+
+  it("saves and loads an analyze-mode checkpoint with iteration progress", async () => {
+    const config = makeConfig("test-analyze");
+    cleanupDirs.push(config.repoRoot);
+
+    const checkpoint: PipelineCheckpoint = {
+      mode: "analyze",
+      completedPhases: ["analyze-architect-0", "analyze-review-1"],
+      spec: "",
+      tasks: [],
+      designSpec: "",
+      streamResults: [],
+      analysis: "# Repository Analysis\n\n## Overview\nA CLI tool...",
+      issueBody: "",
+      runId: "test-analyze",
+      activePhase: "analyze-architect-2",
+      iterationProgress: {
+        "analyze-architect-2-draft": {
+          content: "cross-model draft analysis",
+          completedIterations: 0,
+        },
+        "analyze-architect-2-review": {
+          content: "revised analysis after review",
+          completedIterations: 1,
+        },
+      },
+    };
+
+    await saveCheckpoint(config, checkpoint);
+    const loaded = await loadCheckpoint(config);
+    expect(loaded).toEqual(checkpoint);
+    expect(loaded?.mode).toBe("analyze");
+    expect(loaded?.analysis).toContain("Repository Analysis");
+    expect(loaded?.activePhase).toBe("analyze-architect-2");
+    expect(loaded?.iterationProgress?.["analyze-architect-2-draft"]?.content).toBe("cross-model draft analysis");
+    expect(loaded?.iterationProgress?.["analyze-architect-2-review"]?.completedIterations).toBe(1);
+  });
 });
