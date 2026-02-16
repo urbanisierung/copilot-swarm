@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.8
+
+### Patch Changes
+
+- 3b2b045: TUI shell, Summary, clarification loop
+
 ## 0.0.7
 
 ### Patch Changes
