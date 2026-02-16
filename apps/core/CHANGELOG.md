@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.11
+
+### Patch Changes
+
+- 7713f17: Add checkpoints for analyze mode.
+
 ## 0.0.10
 
 ### Patch Changes
