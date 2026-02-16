@@ -95,7 +95,7 @@ Output:
 
 ### Checkpoint & Resume
 
-Long-running pipeline executions are checkpointed after each phase. If a run fails (e.g., due to a timeout), you can resume from where it stopped:
+Long-running pipeline executions are checkpointed at multiple granularity levels. If a run fails (e.g., due to a timeout), it resumes from the exact point of failure:
 
 ```bash
 # Resume a failed run
@@ -107,9 +107,11 @@ swarm -r -v
 ```
 
 How it works:
-- After each pipeline phase completes, progress is saved to `.swarm/runs/<runId>/checkpoint.json`.
-- During the `implement` phase, each completed stream is saved individually — if 2 of 3 streams finish before a timeout, those 2 are preserved.
-- On `--resume`, completed phases and streams are skipped. Only failed/incomplete work is retried.
+- **Phase-level:** After each pipeline phase completes, full progress is saved to `.swarm/runs/<runId>/checkpoint.json`.
+- **Iteration-level:** Within review and QA feedback loops, progress is saved after each iteration. On resume, completed iterations are skipped and the latest revised content is used as the starting point.
+- **Stream-level:** During the `implement` phase, each completed stream is saved individually — if 2 of 3 streams finish before a timeout, those 2 are preserved. Draft code and review progress within each stream are also checkpointed.
+- **Draft-level:** The initial output of each agent (spec draft, design draft, engineering code) is saved before review loops begin, so it doesn't need to be regenerated on resume.
+- On `--resume`, completed phases, iterations, and streams are skipped. Only the remaining work is executed.
 - The checkpoint file is automatically deleted on successful completion.
 - Add `.swarm/runs/` and `.swarm/latest` to your `.gitignore`.
 

@@ -13,7 +13,7 @@ All notable changes to this project are documented here, in reverse chronologica
 ## 2026-02-15
 
 ### Added
-- **Checkpoint & resume** — Pipeline progress saved to `.swarm/runs/<runId>/checkpoint.json` after each phase. `--resume`/`-r` flag skips completed phases and streams. Individual implement streams saved incrementally — completed streams survive a timeout/crash. Checkpoint cleared on successful completion.
+- **Checkpoint & resume** — Pipeline progress saved at phase-level, iteration-level (within review/QA loops), and draft-level (agent initial output). `--resume`/`-r` flag skips completed phases, iterations, and streams. Individual implement streams saved incrementally — completed streams survive a timeout/crash. When resuming mid-review, the session is primed with the latest content so the agent has full context. Checkpoint cleared on successful completion.
 - **Auto-resume** — On pipeline failure, automatically retries from the last checkpoint up to 3 times (configurable via `MAX_AUTO_RESUME` env var). No manual `--resume` needed for transient failures.
 - **Extended timeout** — Default `SESSION_TIMEOUT_MS` increased from 5 minutes to 30 minutes (1,800,000ms) for complex agent tasks. Still configurable via env var.
 - **Structured `.swarm/` output directory** — All output moved from `doc/` to `.swarm/` with dedicated subfolders: `plans/` for planning mode, `runs/<runId>/` for per-run summaries and role outputs, `analysis/` for repo analysis. Eliminates conflicts with existing repo files. `DOC_DIR` and `SUMMARY_FILE_NAME` env vars replaced by `SWARM_DIR` (default `.swarm`).

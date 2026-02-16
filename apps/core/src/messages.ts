@@ -84,6 +84,8 @@ export const msg = {
   noCheckpoint: "⚠️  No checkpoint found — starting from the beginning",
   phaseSkipped: (phase: string) => `⏭️  Skipping ${phase} phase (already completed)`,
   streamSkipped: (label: string) => `  ⏭️  Skipping ${label} (already completed)`,
+  draftResumed: "  ⏭️  Resuming from saved draft",
+  iterationResumed: (completed: number, max: number) => `  ⏭️  Resuming from iteration ${completed}/${max}`,
   partialStreamFailure: (failed: number, total: number) =>
     `⚠️  ${failed}/${total} streams failed. Completed streams saved to checkpoint.`,
   autoResumeAttempt: (attempt: number, max: number) =>

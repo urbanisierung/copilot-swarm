@@ -3,6 +3,12 @@ import * as path from "node:path";
 import type { SwarmConfig } from "./config.js";
 import { latestPointerPath, runDir, swarmRoot } from "./paths.js";
 
+/** Snapshot of a single review/QA iteration's progress. */
+export interface IterationSnapshot {
+  content: string;
+  completedIterations: number;
+}
+
 export interface PipelineCheckpoint {
   completedPhases: string[];
   spec: string;
@@ -11,6 +17,12 @@ export interface PipelineCheckpoint {
   streamResults: string[];
   issueBody: string;
   runId: string;
+  /** Phase key that was actively executing when the checkpoint was saved. */
+  activePhase?: string;
+  /** Draft content produced by the main agent before review loops began. */
+  phaseDraft?: string;
+  /** Iteration progress within review/QA loops, keyed by stable identifiers. */
+  iterationProgress?: Record<string, IterationSnapshot>;
 }
 
 /** Resolve checkpoint path — inside the run dir for new runs, or from latest pointer on resume. */

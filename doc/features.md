@@ -18,7 +18,7 @@ High-level feature list for Copilot Swarm.
 | **Conditional phases** | 2026-02-14 | Phases can be skipped based on conditions (e.g., `hasFrontendTasks`, `differentReviewModel`) |
 | **Agent instruction resolution** | 2026-02-14 | `builtin:` prefix for package defaults, file paths for custom overrides, fallback to agents dir |
 | **Central config with validation** | 2026-02 | All env vars validated at startup with descriptive errors; fail-fast on invalid values |
-| **Checkpoint & resume** | 2026-02-15 | Pipeline progress saved after each phase; `--resume` skips completed phases and streams, retrying only failed work |
+| **Checkpoint & resume** | 2026-02-15 | Pipeline progress saved after each phase and each review/QA iteration; `--resume` skips completed phases, streams, and iterations, retrying only from the last saved point |
 | **Auto-resume** | 2026-02-15 | On failure, automatically retries from checkpoint up to 3 times (configurable via `MAX_AUTO_RESUME`) — no manual intervention needed |
 | **Extended timeout** | 2026-02-15 | Default session timeout increased to 30 minutes (configurable via `SESSION_TIMEOUT_MS`) for complex tasks |
 | **Structured `.swarm/` output** | 2026-02-15 | All output organized under `.swarm/` with subfolders: `plans/`, `runs/<runId>/`, `analysis/` — no conflicts with existing repo files |
