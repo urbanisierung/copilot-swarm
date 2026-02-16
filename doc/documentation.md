@@ -54,12 +54,18 @@ Use `swarm plan` to interactively refine vague requirements before running the f
 swarm plan "Add a dark mode toggle"
 ```
 
-The planning mode runs two phases:
+The planning mode runs up to 8 phases:
 1. **Requirements Clarification** — A PM agent asks targeted questions to fill in gaps. You answer interactively in the terminal. Multi-line answers are supported: type your response across multiple lines and press Enter on an empty line to send. Literal `\n` sequences are converted to real newlines. Press Enter immediately to skip a round.
-2. **Technical Analysis** — An engineering agent analyzes the codebase and reports complexity, affected files, risks, and suggested approach.
+2. **PM Review** — A reviewer verifies the refined requirements are clear, complete, and actionable (up to 3 iterations).
+3. **Engineer Clarification** — A senior engineer reviews the refined requirements from a technical perspective. Asks about API contracts, edge cases, testing expectations, and integration points. Skip if everything is clear.
+4. **Engineer Review** — A reviewer verifies the engineering decisions are sound and complete (up to 3 iterations).
+5. **Designer Clarification** — A UI/UX designer clarifies visual, interaction, and accessibility details. Skip if the task has no frontend aspects.
+6. **Designer Review** — A reviewer verifies the design decisions (up to 3 iterations).
+7. **Technical Analysis** — An engineering agent analyzes the codebase and reports complexity, affected files, risks, and suggested approach.
+8. **Cross-model Review** — If the review model differs from the primary model, the complete plan is reviewed by the review model for accuracy, feasibility, and completeness (up to 3 iterations). Skipped if both models are the same.
 
 Output files:
-- `.swarm/plans/plan-<timestamp>.md` — Timestamped plan (never overwritten)
+- `.swarm/plans/plan-<timestamp>.md` — Timestamped plan with refined requirements, engineering decisions, design decisions, and technical analysis (never overwritten)
 - `.swarm/plans/plan-latest.md` — Copy of the most recent plan (stable reference)
 
 ### Running from a Plan
@@ -74,7 +80,7 @@ swarm --plan .swarm/plans/plan-latest.md
 swarm --plan .swarm/plans/plan-2026-02-14T13-30-00-000Z.md
 ```
 
-The `--plan` flag reads the "Refined Requirements" section from the plan file and uses it as the pipeline input.
+The `--plan` flag reads the "Refined Requirements", "Engineering Decisions", and "Design Decisions" sections from the plan file and uses them as the pipeline input. When a plan is provided, the **spec phase is automatically skipped** — the plan's refined requirements are used directly as the specification, going straight to task decomposition. This avoids redundant re-analysis that can produce blockers instead of actionable implementation.
 
 ### Analyze Mode
 

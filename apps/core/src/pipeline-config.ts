@@ -85,6 +85,7 @@ function validatePhase(raw: unknown, index: number): PhaseConfig {
     case "spec": {
       return {
         phase: "spec",
+        condition: optionalString(obj, "condition"),
         agent: requireString(obj, "agent", ctx),
         reviews: validateReviews(obj.reviews, ctx),
       } satisfies SpecPhaseConfig;

@@ -142,6 +142,14 @@ export class PipelineEngine {
 
       switch (phase.phase) {
         case "spec":
+          if (phase.condition === "noPlanProvided" && this.config.planProvided) {
+            this.logger.info(msg.specSkippedPlan);
+            ctx.spec = this.config.issueBody;
+            this.tracker?.skipPhase(phaseKey);
+            completedPhases.add(phaseKey);
+            await saveProgress();
+            continue;
+          }
           ctx.spec = await this.executeSpec(phase, ctx, saveProgress);
           break;
         case "decompose":
