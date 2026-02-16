@@ -26,6 +26,11 @@ export function analysisDir(config: SwarmConfig): string {
   return path.join(swarmRoot(config), "analysis");
 }
 
+/** Path to the repo analysis file: .swarm/analysis/repo-analysis.md */
+export function analysisFilePath(config: SwarmConfig): string {
+  return path.join(analysisDir(config), "repo-analysis.md");
+}
+
 /** Pointer to the latest run directory: .swarm/latest */
 export function latestPointerPath(config: SwarmConfig): string {
   return path.join(swarmRoot(config), "latest");

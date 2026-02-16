@@ -119,8 +119,8 @@ export class PlanningEngine {
         // Show agent's questions
         console.log(`\n${response}`);
 
-        // Read user's answer
-        const answer = await rl.question(msg.planningUserPrompt);
+        // Read multi-line user answer
+        const answer = await this.readMultiLineInput(rl);
         if (!answer.trim()) {
           response = await this.sessions.send(
             session,
@@ -149,6 +149,32 @@ export class PlanningEngine {
       rl.close();
       await session.destroy();
     }
+  }
+
+  /**
+   * Reads multi-line input from the user. Lines are collected until the user
+   * submits an empty line (presses Enter twice). Literal `\n` sequences typed
+   * by the user are converted to real newlines.
+   */
+  private async readMultiLineInput(rl: readline.Interface): Promise<string> {
+    const lines: string[] = [];
+    const firstLine = await rl.question(msg.planningUserPrompt);
+    if (!firstLine.trim()) {
+      return "";
+    }
+    lines.push(firstLine);
+
+    // Continue reading until empty line
+    while (true) {
+      const line = await rl.question(msg.planningInputContinue);
+      if (!line.trim()) {
+        break;
+      }
+      lines.push(line);
+    }
+
+    // Join and convert literal \n sequences to real newlines
+    return lines.join("\n").replace(/\\n/g, "\n");
   }
 
   private async analyzeCodebase(spec: string): Promise<string> {

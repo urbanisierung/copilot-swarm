@@ -6,7 +6,14 @@ import { SwarmOrchestrator } from "./orchestrator.js";
 import { PlanningEngine } from "./planning-engine.js";
 
 const config = loadConfig();
-const logger = new Logger(config.verbose);
+const logger = new Logger(config.verbose, config.runId);
+
+const showLogOnError = (err: unknown) => {
+  if (logger.logFilePath) {
+    console.error(msg.logFileHint(logger.logFilePath));
+  }
+  throw err;
+};
 
 if (config.command === "plan") {
   const pipeline = (await import("./pipeline-config.js")).loadPipelineConfig(config.repoRoot);
@@ -14,6 +21,7 @@ if (config.command === "plan") {
   planner
     .start()
     .then(() => planner.execute())
+    .catch(showLogOnError)
     .finally(() => planner.stop());
 } else if (config.command === "analyze") {
   const pipeline = (await import("./pipeline-config.js")).loadPipelineConfig(config.repoRoot);
@@ -22,6 +30,7 @@ if (config.command === "plan") {
   analyzer
     .start()
     .then(() => analyzer.execute())
+    .catch(showLogOnError)
     .finally(() => analyzer.stop());
 } else {
   logger.info(msg.startingSwarm);
@@ -29,5 +38,6 @@ if (config.command === "plan") {
   swarm
     .start()
     .then(() => swarm.execute())
+    .catch(showLogOnError)
     .finally(() => swarm.stop());
 }

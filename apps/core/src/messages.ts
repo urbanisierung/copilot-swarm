@@ -6,6 +6,7 @@ export const msg = {
   configLoaded: (model: string, review: string, verbose: boolean) =>
     `⚙️  Config: primary=${model}, review=${review}, verbose=${verbose}`,
   pipelineSource: (source: string) => `📋 Pipeline: ${source}`,
+  repoAnalysisLoaded: "📚 Repository analysis found — using as context for all phases",
 
   // --- PM Phase ---
   pmPhaseStart: "🚀 Starting PM Phase...",
@@ -64,7 +65,8 @@ export const msg = {
   planningEngPhase: "\n[Planning: Technical Analysis]",
   planningComplete: "\n✅ Planning complete.",
   planSaved: (path: string) => `📄 Plan saved to ${path}`,
-  planningUserPrompt: "\n💬 Your answer (or press Enter to skip): ",
+  planningUserPrompt: "\n💬 Your answer (empty line to send, or press Enter to skip):\n",
+  planningInputContinue: "   ... ",
 
   // --- Analyze Mode ---
   analyzeStart: "🔍 Starting Repository Analysis...",
@@ -88,4 +90,7 @@ export const msg = {
     `\n🔁 Auto-resuming from checkpoint (attempt ${attempt}/${max})...`,
   autoResumeExhausted: (max: number) =>
     `\n❌ All ${max} auto-resume attempts exhausted. Use --resume to retry manually.`,
+
+  // --- Log File ---
+  logFileHint: (path: string) => `📋 Full log: ${path}`,
 } as const;

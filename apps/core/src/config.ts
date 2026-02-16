@@ -39,6 +39,7 @@ interface CliArgs {
   planFile: string | undefined;
   promptFile: string | undefined;
   resume: boolean;
+  noTui: boolean;
 }
 
 function readVersion(): string {
@@ -60,6 +61,7 @@ Options:
   -p, --plan <file>    Use a plan file as input (reads the refined requirements section)
   -f, --file <file>    Read prompt from a file instead of inline text
   -r, --resume         Resume from the last checkpoint (skip completed phases)
+  --no-tui             Disable TUI dashboard (use plain log output)
   -V, --version        Show version number
   -h, --help           Show this help message
 
@@ -84,6 +86,7 @@ function parseCliArgs(): CliArgs {
       help: { type: "boolean", short: "h", default: false },
       version: { type: "boolean", short: "V", default: false },
       resume: { type: "boolean", short: "r", default: false },
+      "no-tui": { type: "boolean", default: false },
       plan: { type: "string", short: "p" },
       file: { type: "string", short: "f" },
     },
@@ -117,6 +120,7 @@ function parseCliArgs(): CliArgs {
     planFile: values.plan as string | undefined,
     promptFile: values.file as string | undefined,
     resume: values.resume as boolean,
+    noTui: values["no-tui"] as boolean,
   };
 }
 
@@ -163,6 +167,7 @@ export interface SwarmConfig {
   readonly repoRoot: string;
   readonly verbose: boolean;
   readonly resume: boolean;
+  readonly tui: boolean;
   readonly issueBody: string;
   readonly agentsDir: string;
   readonly swarmDir: string;
@@ -198,6 +203,7 @@ export function loadConfig(): SwarmConfig {
     repoRoot,
     verbose: cli.verbose || readEnvBoolean("VERBOSE", false),
     resume: cli.resume,
+    tui: cli.command === "run" && !cli.noTui && !cli.verbose && process.stdout.isTTY === true,
     issueBody: issueBody ?? "",
     agentsDir: readEnvString("AGENTS_DIR", ".github/agents"),
     swarmDir,

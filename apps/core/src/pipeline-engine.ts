@@ -4,7 +4,7 @@ import { clearCheckpoint, loadCheckpoint, saveCheckpoint } from "./checkpoint.js
 import type { SwarmConfig } from "./config.js";
 import type { Logger } from "./logger.js";
 import { msg } from "./messages.js";
-import { latestPointerPath, runDir, swarmRoot } from "./paths.js";
+import { analysisFilePath, latestPointerPath, runDir, swarmRoot } from "./paths.js";
 import type {
   CrossModelReviewPhaseConfig,
   DecomposePhaseConfig,
@@ -14,11 +14,13 @@ import type {
   ReviewStepConfig,
   SpecPhaseConfig,
 } from "./pipeline-types.js";
+import type { ProgressTracker } from "./progress-tracker.js";
 import { SessionManager } from "./session.js";
 import { hasFrontendWork, isFrontendTask, parseJsonArray, responseContains, writeRoleSummary } from "./utils.js";
 
 /** Shared context that flows between phases. */
 interface PipelineContext {
+  repoAnalysis: string;
   spec: string;
   tasks: string[];
   designSpec: string;
@@ -33,6 +35,7 @@ export class PipelineEngine {
     private readonly config: SwarmConfig,
     private readonly pipeline: PipelineConfig,
     private readonly logger: Logger,
+    private readonly tracker?: ProgressTracker,
   ) {
     this.effectiveConfig = config;
     this.sessions = new SessionManager(config, pipeline, logger);
@@ -49,8 +52,16 @@ export class PipelineEngine {
   async execute(): Promise<void> {
     this.logger.info(msg.configLoaded(this.pipeline.primaryModel, this.pipeline.reviewModel, this.config.verbose));
 
-    let ctx: PipelineContext = { spec: "", tasks: [], designSpec: "", streamResults: [] };
+    let ctx: PipelineContext = { repoAnalysis: "", spec: "", tasks: [], designSpec: "", streamResults: [] };
     let completedPhases: Set<string> = new Set();
+
+    // Load repo analysis if available — provides context for all phases
+    try {
+      ctx.repoAnalysis = await fs.readFile(analysisFilePath(this.config), "utf-8");
+      this.logger.info(msg.repoAnalysisLoaded);
+    } catch {
+      // No analysis file — agents will explore the repo themselves
+    }
 
     // Resume from checkpoint if requested
     if (this.config.resume) {
@@ -61,6 +72,7 @@ export class PipelineEngine {
           this.effectiveConfig = { ...this.config, runId: checkpoint.runId };
         }
         ctx = {
+          repoAnalysis: ctx.repoAnalysis,
           spec: checkpoint.spec,
           tasks: checkpoint.tasks,
           designSpec: checkpoint.designSpec,
@@ -73,17 +85,26 @@ export class PipelineEngine {
       }
     }
 
+    // Initialize progress tracker with pipeline phases
+    this.tracker?.initPhases(this.pipeline.pipeline);
+    for (const key of completedPhases) {
+      this.tracker?.skipPhase(key);
+    }
+
     for (const phase of this.pipeline.pipeline) {
       const phaseKey = `${phase.phase}-${this.pipeline.pipeline.indexOf(phase)}`;
 
       if (completedPhases.has(phaseKey)) {
         this.logger.info(msg.phaseSkipped(phase.phase));
+        this.tracker?.skipPhase(phaseKey);
         continue;
       }
 
+      this.tracker?.activatePhase(phaseKey);
+
       switch (phase.phase) {
         case "spec":
-          ctx.spec = await this.executeSpec(phase);
+          ctx.spec = await this.executeSpec(phase, ctx);
           break;
         case "decompose":
           ctx.tasks = await this.executeDecompose(phase, ctx);
@@ -100,6 +121,7 @@ export class PipelineEngine {
       }
 
       completedPhases.add(phaseKey);
+      this.tracker?.completePhase(phaseKey);
       await saveCheckpoint(this.effectiveConfig, {
         completedPhases: [...completedPhases],
         spec: ctx.spec,
@@ -133,11 +155,14 @@ export class PipelineEngine {
 
   // --- SPEC PHASE ---
 
-  private async executeSpec(phase: SpecPhaseConfig): Promise<string> {
+  private async executeSpec(phase: SpecPhaseConfig, ctx: PipelineContext): Promise<string> {
     this.logger.info(msg.pmPhaseStart);
     this.logger.info(msg.pmDrafting);
 
-    let spec = await this.sessions.callIsolated(phase.agent, this.config.issueBody);
+    const prompt = ctx.repoAnalysis
+      ? `## Repository Context\n\n${ctx.repoAnalysis}\n\n## Task\n\n${this.config.issueBody}`
+      : this.config.issueBody;
+    let spec = await this.sessions.callIsolated(phase.agent, prompt);
 
     for (const review of phase.reviews) {
       this.logger.info(msg.reviewPhase(review.agent));
@@ -249,6 +274,7 @@ export class PipelineEngine {
 
   private async executeImplement(phase: ImplementPhaseConfig, ctx: PipelineContext): Promise<string[]> {
     this.logger.info(msg.launchingStreams(ctx.tasks.length));
+    this.tracker?.initStreams(ctx.tasks);
 
     // Pre-fill with any existing partial results from a previous run
     const results: string[] =
@@ -258,6 +284,7 @@ export class PipelineEngine {
       // Skip streams that already have results (from a resumed checkpoint)
       if (results[idx]) {
         this.logger.info(msg.streamSkipped(msg.streamLabel(idx)));
+        this.tracker?.updateStream(idx, "skipped");
         return results[idx];
       }
 
@@ -267,6 +294,7 @@ export class PipelineEngine {
       const session = await this.sessions.createAgentSession(phase.agent);
       try {
         this.logger.info(msg.streamEngineering(label));
+        this.tracker?.updateStream(idx, "engineering");
         const engineeringPrompt = isFrontendTask(task)
           ? `Spec:\n${ctx.spec}\n\nDesign:\n${ctx.designSpec}\n\nTask:\n${task}\n\nImplement this task.`
           : `Spec:\n${ctx.spec}\n\nTask:\n${task}\n\nImplement this task.`;
@@ -275,6 +303,7 @@ export class PipelineEngine {
         // Reviews
         for (const review of phase.reviews) {
           this.logger.info(msg.streamCodeReview(label, review.agent));
+          this.tracker?.updateStream(idx, "reviewing");
           const maxIter = review.maxIterations;
           for (let i = 1; i <= maxIter; i++) {
             this.logger.info(msg.reviewIteration(i, maxIter));
@@ -295,6 +324,7 @@ export class PipelineEngine {
         // QA
         if (phase.qa) {
           this.logger.info(msg.streamQa(label));
+          this.tracker?.updateStream(idx, "testing");
           const maxQa = phase.qa.maxIterations;
           for (let i = 1; i <= maxQa; i++) {
             this.logger.info(msg.qaIteration(i, maxQa));
@@ -316,6 +346,7 @@ export class PipelineEngine {
         }
 
         await writeRoleSummary(this.effectiveConfig, `engineer-stream-${idx + 1}`, code);
+        this.tracker?.updateStream(idx, "done");
 
         // Save intermediate progress so completed streams survive a crash
         results[idx] = code;
