@@ -14,6 +14,7 @@ function makeConfig(runId: string): SwarmConfig {
     verbose: false,
     resume: false,
     tui: false,
+    planProvided: false,
     issueBody: "test",
     agentsDir: ".github/agents",
     swarmDir: ".swarm",

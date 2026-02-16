@@ -124,7 +124,7 @@ function parseCliArgs(): CliArgs {
   };
 }
 
-/** Extract the "Refined Requirements" section from a plan file. */
+/** Extract the "Refined Requirements" section (and optional Engineering/Design Decisions) from a plan file. */
 function readPlanFile(filePath: string): string {
   const resolved = path.isAbsolute(filePath) ? filePath : path.join(repoRoot, filePath);
   if (!fs.existsSync(resolved)) {
@@ -140,11 +140,27 @@ function readPlanFile(filePath: string): string {
     process.exit(1);
   }
 
-  // Extract from marker to the next ## heading or end of file
+  const sections: string[] = [];
+
+  // Extract Refined Requirements
   const afterMarker = content.substring(start + marker.length);
   const nextHeading = afterMarker.indexOf("\n## ");
-  const section = nextHeading !== -1 ? afterMarker.substring(0, nextHeading) : afterMarker;
-  return section.trim();
+  sections.push((nextHeading !== -1 ? afterMarker.substring(0, nextHeading) : afterMarker).trim());
+
+  // Also include Engineering Decisions and Design Decisions if present
+  for (const section of ["## Engineering Decisions", "## Design Decisions"]) {
+    const sStart = content.indexOf(section);
+    if (sStart !== -1) {
+      const afterSection = content.substring(sStart + section.length);
+      const sNext = afterSection.indexOf("\n## ");
+      const body = (sNext !== -1 ? afterSection.substring(0, sNext) : afterSection).trim();
+      if (body) {
+        sections.push(`${section.replace("## ", "### ")}\n\n${body}`);
+      }
+    }
+  }
+
+  return sections.join("\n\n");
 }
 
 /** Read the entire contents of a file as the prompt. */
@@ -168,6 +184,7 @@ export interface SwarmConfig {
   readonly verbose: boolean;
   readonly resume: boolean;
   readonly tui: boolean;
+  readonly planProvided: boolean;
   readonly issueBody: string;
   readonly agentsDir: string;
   readonly swarmDir: string;
@@ -204,6 +221,7 @@ export function loadConfig(): SwarmConfig {
     verbose: cli.verbose || readEnvBoolean("VERBOSE", false),
     resume: cli.resume,
     tui: !cli.noTui && !cli.verbose && process.stdout.isTTY === true,
+    planProvided: cli.planFile !== undefined,
     issueBody: issueBody ?? "",
     agentsDir: readEnvString("AGENTS_DIR", ".github/agents"),
     swarmDir,

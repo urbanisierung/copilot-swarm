@@ -196,6 +196,26 @@ describe("parsePipelineConfig", () => {
     }
   });
 
+  it("parses spec phase with condition", () => {
+    const config = parsePipelineConfig(
+      makeConfig({
+        pipeline: [
+          {
+            phase: "spec",
+            condition: "noPlanProvided",
+            agent: "pm",
+            reviews: [{ agent: "reviewer", maxIterations: 2, approvalKeyword: "APPROVED" }],
+          },
+        ],
+      }),
+    );
+    const phase = config.pipeline[0];
+    expect(phase.phase).toBe("spec");
+    if (phase.phase === "spec") {
+      expect(phase.condition).toBe("noPlanProvided");
+    }
+  });
+
   it("rejects non-object input", () => {
     expect(() => parsePipelineConfig("not an object")).toThrow("YAML object");
     expect(() => parsePipelineConfig(null)).toThrow("YAML object");

@@ -47,12 +47,77 @@ Given a set of requirements, analyze the codebase and produce a structured asses
 3. Be specific. Reference actual file paths and code structures you found in the repo.
 4. Do not implement anything — analysis only.`;
 
+const ENGINEER_CLARIFIER_INSTRUCTIONS = `You are a Senior Software Engineer reviewing requirements before implementation.
+Your goal is to identify and resolve any technical ambiguities, missing details, or potential blockers BEFORE implementation begins.
+
+**Rules:**
+1. Use \`list_dir\`, \`read_file\`, and \`run_terminal\` to explore the codebase and understand the current state.
+2. Think about what you would need to know to implement this. Ask about:
+   - API contracts, data models, or interfaces that aren't specified
+   - Error handling and edge cases
+   - Integration points with existing code
+   - Testing expectations (unit, integration, e2e)
+   - Performance or security requirements
+3. Ask at most 3–5 focused questions at a time. Number them clearly.
+4. After the user answers, assess whether you have enough clarity. Ask follow-ups only if genuinely needed.
+5. When you have sufficient information to implement, respond with **ENGINEERING_CLEAR** on its own line, followed by a summary of the technical decisions and assumptions.
+6. Do NOT identify "blockers" that prevent implementation — your job is to resolve ambiguities so implementation can proceed without hesitation.`;
+
+const DESIGNER_CLARIFIER_INSTRUCTIONS = `You are a Senior UI/UX Designer reviewing requirements before design work begins.
+Your goal is to clarify visual, interaction, and accessibility details.
+
+**Rules:**
+1. Use \`list_dir\` and \`read_file\` to understand the existing UI patterns, components, and design system in use.
+2. Ask about:
+   - Layout and component hierarchy preferences
+   - Interaction patterns (hover, click, drag, etc.)
+   - Responsive behavior and breakpoints
+   - Accessibility requirements
+   - Visual style (match existing patterns, or new direction?)
+3. Ask at most 3–5 focused questions at a time. Number them clearly.
+4. After the user answers, assess whether you have enough clarity. Ask follow-ups only if genuinely needed.
+5. When you have sufficient information, respond with **DESIGN_CLEAR** on its own line, followed by a summary of the design decisions and assumptions.`;
+
+const ENGINEERING_CLEAR_KEYWORD = "ENGINEERING_CLEAR";
+const DESIGN_CLEAR_KEYWORD = "DESIGN_CLEAR";
+const PLAN_APPROVED_KEYWORD = "PLAN_APPROVED";
+const MAX_REVIEW_ITERATIONS = 3;
+
+const STEP_REVIEWER_INSTRUCTIONS = `You are a Senior Technical Reviewer evaluating one section of a project plan.
+Your goal is to verify the section is clear, complete, and actionable enough for implementation.
+
+**Rules:**
+1. Read the section carefully. Check for:
+   - **Clarity:** Would an engineer know exactly what to build from this alone?
+   - **Completeness:** Are acceptance criteria testable? Are edge cases covered?
+   - **Consistency:** Does it contradict other sections or make conflicting assumptions?
+   - **Actionability:** Are there vague phrases like "as appropriate", "if needed", or "etc." that should be specified?
+2. Decision:
+   - If the section is clear, complete, and actionable, respond with **PLAN_APPROVED**.
+   - If there are issues, provide a numbered list of specific improvements needed. Be precise about what's wrong and what the fix should be.
+3. Do NOT rewrite the section yourself. Only provide feedback.`;
+
+const CROSS_MODEL_PLAN_REVIEWER_INSTRUCTIONS = `You are a Senior Technical Reviewer performing a final quality check on a complete project plan.
+You are a different AI model from the one that produced this plan. Your fresh perspective helps catch blind spots.
+
+**Rules:**
+1. Use \`list_dir\` and \`read_file\` to verify claims about the codebase.
+2. Check the ENTIRE plan for:
+   - **Accuracy:** Are file paths, component names, and technical details correct?
+   - **Feasibility:** Can this actually be implemented as described?
+   - **Completeness:** Are there missing requirements, edge cases, or integration points?
+   - **Conflicts:** Do different sections contradict each other?
+   - **Implementation readiness:** Could an engineer start implementing from this plan without further clarification?
+3. Decision:
+   - If the plan is ready for implementation, respond with **PLAN_APPROVED**.
+   - If there are issues, provide a numbered list of specific improvements. Be precise.`;
+
 export class PlanningEngine {
   private readonly sessions: SessionManager;
 
   constructor(
     private readonly config: SwarmConfig,
-    pipeline: PipelineConfig,
+    private readonly pipeline: PipelineConfig,
     private readonly logger: Logger,
     private readonly tracker?: ProgressTracker,
     private readonly renderer?: TuiRenderer,
@@ -70,39 +135,183 @@ export class PlanningEngine {
 
   async execute(): Promise<void> {
     this.logger.info(msg.planningStart);
-    this.tracker?.initPhases([{ phase: "plan-clarify" }, { phase: "plan-analyze" }]);
+
+    const useCrossModel = this.pipeline.reviewModel !== this.pipeline.primaryModel;
+
+    const phases: { phase: string }[] = [
+      { phase: "plan-clarify" },
+      { phase: "plan-review" },
+      { phase: "plan-eng-clarify" },
+      { phase: "plan-review" },
+      { phase: "plan-design-clarify" },
+      { phase: "plan-review" },
+      { phase: "plan-analyze" },
+    ];
+    if (useCrossModel) {
+      phases.push({ phase: "plan-cross-review" });
+    }
+    this.tracker?.initPhases(phases);
+
+    let phaseIdx = 0;
 
     // Phase 1: PM clarifies requirements interactively
-    this.tracker?.activatePhase("plan-clarify-0");
-    const spec = await this.clarifyRequirements();
-    this.tracker?.completePhase("plan-clarify-0");
+    this.tracker?.activatePhase(`plan-clarify-${phaseIdx}`);
+    let spec = await this.clarifyRequirements();
+    this.tracker?.completePhase(`plan-clarify-${phaseIdx}`);
+    phaseIdx++;
 
-    // Phase 2: Engineering analyst assesses codebase
-    this.tracker?.activatePhase("plan-analyze-1");
+    // Phase 2: Review PM output
+    this.tracker?.activatePhase(`plan-review-${phaseIdx}`);
+    spec = await this.reviewStep(spec, "Refined Requirements", "PM is revising requirements…");
+    this.tracker?.completePhase(`plan-review-${phaseIdx}`);
+    phaseIdx++;
+
+    // Phase 3: Engineer clarifies technical questions
+    this.tracker?.activatePhase(`plan-eng-clarify-${phaseIdx}`);
+    let engDecisions = await this.clarifyWithRole(
+      ENGINEER_CLARIFIER_INSTRUCTIONS,
+      ENGINEERING_CLEAR_KEYWORD,
+      spec,
+      "Engineer is reviewing requirements…",
+      msg.planningEngClarifyPhase,
+    );
+    this.tracker?.completePhase(`plan-eng-clarify-${phaseIdx}`);
+    phaseIdx++;
+
+    // Phase 4: Review engineer output
+    this.tracker?.activatePhase(`plan-review-${phaseIdx}`);
+    engDecisions = await this.reviewStep(engDecisions, "Engineering Decisions", "Engineer is revising decisions…");
+    this.tracker?.completePhase(`plan-review-${phaseIdx}`);
+    phaseIdx++;
+
+    // Phase 5: Designer clarifies UI/UX
+    this.tracker?.activatePhase(`plan-design-clarify-${phaseIdx}`);
+    let designDecisions = await this.clarifyWithRole(
+      DESIGNER_CLARIFIER_INSTRUCTIONS,
+      DESIGN_CLEAR_KEYWORD,
+      spec,
+      "Designer is reviewing requirements…",
+      msg.planningDesignClarifyPhase,
+    );
+    this.tracker?.completePhase(`plan-design-clarify-${phaseIdx}`);
+    phaseIdx++;
+
+    // Phase 6: Review designer output
+    this.tracker?.activatePhase(`plan-review-${phaseIdx}`);
+    designDecisions = await this.reviewStep(designDecisions, "Design Decisions", "Designer is revising decisions…");
+    this.tracker?.completePhase(`plan-review-${phaseIdx}`);
+    phaseIdx++;
+
+    // Phase 7: Engineering analyst assesses codebase
+    this.tracker?.activatePhase(`plan-analyze-${phaseIdx}`);
     const analysis = await this.analyzeCodebase(spec);
-    this.tracker?.completePhase("plan-analyze-1");
+    this.tracker?.completePhase(`plan-analyze-${phaseIdx}`);
+    phaseIdx++;
 
-    // Assemble and save plan
+    // Assemble full plan
+    let plan =
+      `## Refined Requirements\n\n${spec}\n\n` +
+      `## Engineering Decisions\n\n${engDecisions}\n\n` +
+      `## Design Decisions\n\n${designDecisions}\n\n` +
+      `## Technical Analysis\n\n${analysis}`;
+
+    // Phase 8: Cross-model review of the full plan
+    if (useCrossModel) {
+      this.tracker?.activatePhase(`plan-cross-review-${phaseIdx}`);
+      plan = await this.crossModelReview(plan);
+      this.tracker?.completePhase(`plan-cross-review-${phaseIdx}`);
+    }
+
+    // Save
     const timestamp = new Date().toISOString();
     const fileTimestamp = timestamp.replace(/[:.]/g, "-");
-    const plan =
-      `# Plan\n\n**Timestamp:** ${timestamp}\n\n` +
-      `## Original Request\n\n${this.config.issueBody}\n\n` +
-      `## Refined Requirements\n\n${spec}\n\n` +
-      `## Technical Analysis\n\n${analysis}\n`;
+    const fullPlan = `# Plan\n\n**Timestamp:** ${timestamp}\n\n## Original Request\n\n${this.config.issueBody}\n\n${plan}\n`;
 
     const dir = plansDir(this.config);
     await fs.mkdir(dir, { recursive: true });
 
     const timestampedPath = path.join(dir, `plan-${fileTimestamp}.md`);
     const latestPath = path.join(dir, "plan-latest.md");
-    await fs.writeFile(timestampedPath, plan);
+    await fs.writeFile(timestampedPath, fullPlan);
     await fs.copyFile(timestampedPath, latestPath);
 
     this.logger.info(msg.planningComplete);
     this.logger.info(msg.planSaved(path.relative(this.config.repoRoot, timestampedPath)));
     this.logger.info(`📌 Latest plan: ${path.relative(this.config.repoRoot, latestPath)}`);
     this.logger.info(`\n💡 Run the pipeline with: swarm --plan ${path.relative(this.config.repoRoot, latestPath)}`);
+  }
+
+  /**
+   * Review a plan section with a reviewer agent. If issues found, send feedback
+   * back to the original agent (via isolated session) for revision.
+   */
+  private async reviewStep(content: string, sectionName: string, reviseSpinner: string): Promise<string> {
+    this.logger.info(msg.planningReviewPhase(sectionName));
+    let revised = content;
+
+    for (let i = 1; i <= MAX_REVIEW_ITERATIONS; i++) {
+      this.logger.info(msg.planReviewIteration(i, MAX_REVIEW_ITERATIONS));
+
+      const feedback = await this.sessions.callIsolatedWithInstructions(
+        STEP_REVIEWER_INSTRUCTIONS,
+        `Review this "${sectionName}" section of a project plan:\n\n${revised}`,
+        `Reviewing ${sectionName} (${i}/${MAX_REVIEW_ITERATIONS})…`,
+      );
+
+      if (responseContains(feedback, PLAN_APPROVED_KEYWORD)) {
+        this.logger.info(msg.planReviewApproved(sectionName));
+        break;
+      }
+
+      this.logger.info(msg.planReviewFeedback(feedback.substring(0, 80)));
+
+      // Have the original role revise based on feedback
+      revised = await this.sessions.callIsolatedWithInstructions(
+        `You are the author of a "${sectionName}" section in a project plan. ` +
+          "A reviewer has provided feedback. Revise the section to address all issues. " +
+          "Output ONLY the revised section content.",
+        `Original section:\n\n${revised}\n\nReviewer feedback:\n\n${feedback}\n\nRevise the section to address all feedback.`,
+        reviseSpinner,
+      );
+    }
+
+    return revised;
+  }
+
+  /**
+   * Cross-model review of the full assembled plan using the review model.
+   */
+  private async crossModelReview(plan: string): Promise<string> {
+    this.logger.info(msg.planCrossModelPhase(this.pipeline.reviewModel));
+    let revised = plan;
+
+    for (let i = 1; i <= MAX_REVIEW_ITERATIONS; i++) {
+      this.logger.info(msg.planReviewIteration(i, MAX_REVIEW_ITERATIONS));
+
+      const feedback = await this.sessions.callIsolatedWithInstructions(
+        CROSS_MODEL_PLAN_REVIEWER_INSTRUCTIONS,
+        `Review this complete project plan:\n\n${revised}`,
+        `Cross-model review (${this.pipeline.reviewModel}, ${i}/${MAX_REVIEW_ITERATIONS})…`,
+        this.pipeline.reviewModel,
+      );
+
+      if (responseContains(feedback, PLAN_APPROVED_KEYWORD)) {
+        this.logger.info(msg.planCrossModelApproved);
+        break;
+      }
+
+      this.logger.info(msg.planReviewFeedback(feedback.substring(0, 80)));
+
+      // Revise with the primary model
+      revised = await this.sessions.callIsolatedWithInstructions(
+        "You are revising a project plan based on feedback from a cross-model reviewer. " +
+          "Address all issues raised. Output the complete revised plan.",
+        `Current plan:\n\n${revised}\n\nCross-model reviewer feedback:\n\n${feedback}\n\nRevise the plan.`,
+        "Revising plan…",
+      );
+    }
+
+    return revised;
   }
 
   private async clarifyRequirements(): Promise<string> {
@@ -158,6 +367,67 @@ export class PlanningEngine {
       this.renderer?.resume();
 
       return spec;
+    } finally {
+      rl.close();
+      await session.destroy();
+    }
+  }
+
+  /**
+   * Generic interactive clarification round for any role.
+   * The agent asks questions, user answers, until the agent signals the keyword.
+   */
+  private async clarifyWithRole(
+    instructions: string,
+    clearKeyword: string,
+    spec: string,
+    spinnerLabel: string,
+    phaseLabel: string,
+  ): Promise<string> {
+    this.logger.info(phaseLabel);
+
+    const session = await this.sessions.createSessionWithInstructions(instructions);
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+
+    try {
+      let response = await this.sessions.send(
+        session,
+        `Here are the refined requirements:\n\n${spec}\n\n` +
+          `Review these requirements from your perspective. If everything is clear, respond with ${clearKeyword} followed by your summary. ` +
+          "If you need more information, ask your clarifying questions.",
+        spinnerLabel,
+      );
+
+      for (let round = 0; round < MAX_CLARIFICATION_ROUNDS; round++) {
+        if (responseContains(response, clearKeyword)) {
+          break;
+        }
+
+        this.renderer?.pause();
+        console.log(`\n${response}`);
+
+        const answer = await this.readMultiLineInput(rl);
+        this.renderer?.resume();
+        if (!answer.trim()) {
+          response = await this.sessions.send(
+            session,
+            `The user skipped this round. Use your best judgment for any open questions and produce your final summary. Respond with ${clearKeyword} followed by the summary.`,
+            spinnerLabel,
+          );
+        } else {
+          response = await this.sessions.send(session, `User's answers:\n\n${answer}`, spinnerLabel);
+        }
+      }
+
+      const idx = response.toUpperCase().indexOf(clearKeyword);
+      const result = idx !== -1 ? response.substring(idx + clearKeyword.length).trim() : response;
+
+      this.renderer?.pause();
+      console.log(`\n${phaseLabel}\n`);
+      console.log(result);
+      this.renderer?.resume();
+
+      return result;
     } finally {
       rl.close();
       await session.destroy();

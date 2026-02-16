@@ -26,6 +26,7 @@ export interface QaStepConfig {
 /** Phase: specification drafting with reviews. */
 export interface SpecPhaseConfig {
   readonly phase: "spec";
+  readonly condition?: string;
   readonly agent: string;
   readonly reviews: readonly ReviewStepConfig[];
 }

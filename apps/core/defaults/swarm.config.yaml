@@ -18,6 +18,7 @@ agents:
 
 pipeline:
   - phase: spec
+    condition: noPlanProvided
     agent: pm
     reviews:
       - agent: pm-reviewer
