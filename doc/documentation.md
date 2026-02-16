@@ -55,7 +55,7 @@ swarm plan "Add a dark mode toggle"
 ```
 
 The planning mode runs two phases:
-1. **Requirements Clarification** — A PM agent asks targeted questions to fill in gaps. You answer interactively in the terminal. Press Enter to skip a round.
+1. **Requirements Clarification** — A PM agent asks targeted questions to fill in gaps. You answer interactively in the terminal. Multi-line answers are supported: type your response across multiple lines and press Enter on an empty line to send. Literal `\n` sequences are converted to real newlines. Press Enter immediately to skip a round.
 2. **Technical Analysis** — An engineering agent analyzes the codebase and reports complexity, affected files, risks, and suggested approach.
 
 Output files:

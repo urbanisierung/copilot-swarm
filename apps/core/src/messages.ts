@@ -65,7 +65,8 @@ export const msg = {
   planningEngPhase: "\n[Planning: Technical Analysis]",
   planningComplete: "\n✅ Planning complete.",
   planSaved: (path: string) => `📄 Plan saved to ${path}`,
-  planningUserPrompt: "\n💬 Your answer (or press Enter to skip): ",
+  planningUserPrompt: "\n💬 Your answer (empty line to send, or press Enter to skip):\n",
+  planningInputContinue: "   ... ",
 
   // --- Analyze Mode ---
   analyzeStart: "🔍 Starting Repository Analysis...",
