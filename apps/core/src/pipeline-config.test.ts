@@ -153,6 +153,49 @@ describe("parsePipelineConfig", () => {
     }
   });
 
+  it("parses implement phase with clarification agent", () => {
+    const config = parsePipelineConfig(
+      makeConfig({
+        pipeline: [
+          {
+            phase: "implement",
+            parallel: true,
+            agent: "engineer",
+            clarificationAgent: "pm",
+            clarificationKeyword: "CLARIFICATION_NEEDED",
+            reviews: [{ agent: "code-reviewer", maxIterations: 3, approvalKeyword: "APPROVED" }],
+          },
+        ],
+      }),
+    );
+    const phase = config.pipeline[0];
+    expect(phase.phase).toBe("implement");
+    if (phase.phase === "implement") {
+      expect(phase.clarificationAgent).toBe("pm");
+      expect(phase.clarificationKeyword).toBe("CLARIFICATION_NEEDED");
+    }
+  });
+
+  it("allows implement phase without clarification fields", () => {
+    const config = parsePipelineConfig(
+      makeConfig({
+        pipeline: [
+          {
+            phase: "implement",
+            parallel: false,
+            agent: "engineer",
+            reviews: [],
+          },
+        ],
+      }),
+    );
+    const phase = config.pipeline[0];
+    if (phase.phase === "implement") {
+      expect(phase.clarificationAgent).toBeUndefined();
+      expect(phase.clarificationKeyword).toBeUndefined();
+    }
+  });
+
   it("rejects non-object input", () => {
     expect(() => parsePipelineConfig("not an object")).toThrow("YAML object");
     expect(() => parsePipelineConfig(null)).toThrow("YAML object");

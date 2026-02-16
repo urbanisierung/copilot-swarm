@@ -53,10 +53,8 @@ export class SwarmOrchestrator {
       success = true;
     } finally {
       this.renderer?.stop();
-      if (this.tracker) {
-        this.logger.setTracker(null);
-        this.printPostTuiSummary(success);
-      }
+      if (this.tracker) this.logger.setTracker(null);
+      this.printPostTuiSummary(success);
     }
   }
 
@@ -94,19 +92,30 @@ export class SwarmOrchestrator {
   }
 
   private printPostTuiSummary(success: boolean): void {
-    if (!this.tracker) return;
-    const elapsed = this.fmtElapsed(this.tracker.elapsedMs);
+    const elapsed = this.fmtElapsed(this.tracker?.elapsedMs ?? 0);
     const outputDir = path.relative(this.config.repoRoot, runDir(this.config));
-    if (success) {
-      console.log(`\n✅ Copilot Swarm completed in ${elapsed}`);
-      console.log(`📁 Output: ${outputDir}`);
-    } else {
-      console.log(`\n❌ Copilot Swarm failed after ${elapsed}`);
-      console.log(`📁 Partial output: ${outputDir}`);
+
+    console.log("");
+    console.log(msg.summaryDivider);
+    console.log(success ? msg.summaryRunSuccess(elapsed) : msg.summaryRunFailed(elapsed));
+
+    if (this.tracker) {
+      const done = this.tracker.phases.filter((p) => p.status === "done").length;
+      const skipped = this.tracker.phases.filter((p) => p.status === "skipped").length;
+      console.log(msg.summaryPhases(done, this.tracker.totalPhaseCount, skipped));
+
+      if (this.tracker.streams.length > 0) {
+        const sDone = this.tracker.streams.filter((s) => s.status === "done").length;
+        const sFailed = this.tracker.streams.filter((s) => s.status === "failed").length;
+        console.log(msg.summaryStreams(sDone, sFailed, this.tracker.streams.length));
+      }
     }
+
+    console.log(msg.summaryOutput(outputDir));
     if (this.logger.logFilePath) {
       console.log(msg.logFileHint(this.logger.logFilePath));
     }
+    console.log(msg.summaryDivider);
   }
 
   private fmtElapsed(ms: number): string {

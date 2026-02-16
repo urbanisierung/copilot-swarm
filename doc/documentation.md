@@ -95,7 +95,7 @@ Output:
 
 ### Checkpoint & Resume
 
-Long-running pipeline executions are checkpointed after each phase. If a run fails (e.g., due to a timeout), you can resume from where it stopped:
+Long-running pipeline executions are checkpointed at multiple granularity levels. If a run fails (e.g., due to a timeout), it resumes from the exact point of failure:
 
 ```bash
 # Resume a failed run
@@ -107,9 +107,11 @@ swarm -r -v
 ```
 
 How it works:
-- After each pipeline phase completes, progress is saved to `.swarm/runs/<runId>/checkpoint.json`.
-- During the `implement` phase, each completed stream is saved individually — if 2 of 3 streams finish before a timeout, those 2 are preserved.
-- On `--resume`, completed phases and streams are skipped. Only failed/incomplete work is retried.
+- **Phase-level:** After each pipeline phase completes, full progress is saved to `.swarm/runs/<runId>/checkpoint.json`.
+- **Iteration-level:** Within review and QA feedback loops, progress is saved after each iteration. On resume, completed iterations are skipped and the latest revised content is used as the starting point.
+- **Stream-level:** During the `implement` phase, each completed stream is saved individually — if 2 of 3 streams finish before a timeout, those 2 are preserved. Draft code and review progress within each stream are also checkpointed.
+- **Draft-level:** The initial output of each agent (spec draft, design draft, engineering code) is saved before review loops begin, so it doesn't need to be regenerated on resume.
+- On `--resume`, completed phases, iterations, and streams are skipped. Only the remaining work is executed.
 - The checkpoint file is automatically deleted on successful completion.
 - Add `.swarm/runs/` and `.swarm/latest` to your `.gitignore`.
 
@@ -122,16 +124,17 @@ By default, the orchestrator automatically retries from the last checkpoint up t
 
 ### TUI Dashboard
 
-In `run` mode, a full-screen terminal dashboard displays pipeline progress when running in a TTY (interactive terminal). The dashboard shows:
+A full-screen terminal dashboard displays progress for all modes (`run`, `plan`, `analyze`) when running in a TTY (interactive terminal). The dashboard shows:
 
 - **Header** — Tool name and elapsed time
-- **Phase progress** — Status of each pipeline phase (pending, active, done, skipped)
-- **Stream status** — Per-stream status during the implementation phase (queued, coding, review, testing, done, failed)
+- **Phase progress** — Status of each phase (pending, active, done, skipped)
+- **Stream status** — Per-stream status during implementation (queued, coding, review, testing, done, failed) — `run` mode only
 - **Active agent** — Which agent is currently working
 - **Activity log** — Recent log entries
 
+In `plan` mode, the TUI automatically pauses to show agent questions and accept user input, then resumes after each answer.
+
 The TUI is automatically enabled when:
-- Command is `run`
 - stdout is a TTY (not piped or CI)
 - Verbose mode (`-v`) is not active
 
@@ -139,9 +142,10 @@ To disable the TUI and use plain log output:
 
 ```bash
 swarm --no-tui "Add a dark mode toggle"
+swarm --no-tui plan "Add a dark mode toggle"
 ```
 
-After the TUI exits, a brief summary is printed with elapsed time and output directory.
+After the TUI exits, a completion summary is printed with elapsed time, phase stats, and output directory.
 
 ### Log Files
 
@@ -225,6 +229,27 @@ pipeline:
         approvalKeyword: APPROVED
   # ... more phases
 ```
+
+### Engineer-to-PM Clarification
+
+During the `implement` phase, engineers may encounter ambiguities not covered by the spec. The pipeline supports automatic clarification routing:
+
+```yaml
+pipeline:
+  - phase: implement
+    agent: engineer
+    clarificationAgent: pm            # Agent to answer questions
+    clarificationKeyword: CLARIFICATION_NEEDED  # Trigger keyword
+    reviews: [...]
+```
+
+When an engineer's output contains the `clarificationKeyword`, the pipeline automatically:
+1. Extracts the engineer's questions
+2. Routes them to the PM agent (isolated session) along with the original spec
+3. Sends the PM's answers back to the engineer session
+4. The engineer continues implementation with the clarified requirements
+
+This is fully automatic — no user interaction required. Both fields are optional; if omitted, no clarification routing occurs.
 
 ### Agent Source Resolution
 

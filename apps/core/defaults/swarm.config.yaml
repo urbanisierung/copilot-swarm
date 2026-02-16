@@ -45,6 +45,8 @@ pipeline:
   - phase: implement
     parallel: true
     agent: engineer
+    clarificationAgent: pm
+    clarificationKeyword: CLARIFICATION_NEEDED
     reviews:
       - agent: code-reviewer
         maxIterations: 3

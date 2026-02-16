@@ -5,6 +5,7 @@ import type { Logger } from "./logger.js";
 import { msg } from "./messages.js";
 import { analysisDir } from "./paths.js";
 import type { PipelineConfig } from "./pipeline-types.js";
+import type { ProgressTracker } from "./progress-tracker.js";
 import { SessionManager } from "./session.js";
 import { responseContains } from "./utils.js";
 
@@ -79,6 +80,7 @@ export class AnalysisEngine {
     private readonly config: SwarmConfig,
     private readonly pipeline: PipelineConfig,
     private readonly logger: Logger,
+    private readonly tracker?: ProgressTracker,
   ) {
     this.sessions = new SessionManager(config, pipeline, logger);
   }
@@ -94,12 +96,24 @@ export class AnalysisEngine {
   async execute(): Promise<void> {
     this.logger.info(msg.analyzeStart);
 
+    const phases: { phase: string }[] = [{ phase: "analyze-architect" }, { phase: "analyze-review" }];
+    if (this.pipeline.reviewModel !== this.pipeline.primaryModel) {
+      phases.push({ phase: "analyze-architect" }, { phase: "analyze-review" });
+    }
+    this.tracker?.initPhases(phases);
+
     // Phase 1: Primary model — architect drafts, senior engineer reviews
+    this.tracker?.activatePhase("analyze-architect-0");
     let analysis = await this.runArchitectReviewLoop(this.pipeline.primaryModel);
+    this.tracker?.completePhase("analyze-architect-0");
+    this.tracker?.completePhase("analyze-review-1");
 
     // Phase 2: Cross-model — same flow with the review model
     if (this.pipeline.reviewModel !== this.pipeline.primaryModel) {
+      this.tracker?.activatePhase("analyze-architect-2");
       analysis = await this.runArchitectReviewLoop(this.pipeline.reviewModel, analysis);
+      this.tracker?.completePhase("analyze-architect-2");
+      this.tracker?.completePhase("analyze-review-3");
     }
 
     // Save result
