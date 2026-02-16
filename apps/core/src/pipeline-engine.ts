@@ -14,6 +14,7 @@ import type {
   ReviewStepConfig,
   SpecPhaseConfig,
 } from "./pipeline-types.js";
+import type { ProgressTracker } from "./progress-tracker.js";
 import { SessionManager } from "./session.js";
 import { hasFrontendWork, isFrontendTask, parseJsonArray, responseContains, writeRoleSummary } from "./utils.js";
 
@@ -34,6 +35,7 @@ export class PipelineEngine {
     private readonly config: SwarmConfig,
     private readonly pipeline: PipelineConfig,
     private readonly logger: Logger,
+    private readonly tracker?: ProgressTracker,
   ) {
     this.effectiveConfig = config;
     this.sessions = new SessionManager(config, pipeline, logger);
@@ -83,13 +85,22 @@ export class PipelineEngine {
       }
     }
 
+    // Initialize progress tracker with pipeline phases
+    this.tracker?.initPhases(this.pipeline.pipeline);
+    for (const key of completedPhases) {
+      this.tracker?.skipPhase(key);
+    }
+
     for (const phase of this.pipeline.pipeline) {
       const phaseKey = `${phase.phase}-${this.pipeline.pipeline.indexOf(phase)}`;
 
       if (completedPhases.has(phaseKey)) {
         this.logger.info(msg.phaseSkipped(phase.phase));
+        this.tracker?.skipPhase(phaseKey);
         continue;
       }
+
+      this.tracker?.activatePhase(phaseKey);
 
       switch (phase.phase) {
         case "spec":
@@ -110,6 +121,7 @@ export class PipelineEngine {
       }
 
       completedPhases.add(phaseKey);
+      this.tracker?.completePhase(phaseKey);
       await saveCheckpoint(this.effectiveConfig, {
         completedPhases: [...completedPhases],
         spec: ctx.spec,
@@ -262,6 +274,7 @@ export class PipelineEngine {
 
   private async executeImplement(phase: ImplementPhaseConfig, ctx: PipelineContext): Promise<string[]> {
     this.logger.info(msg.launchingStreams(ctx.tasks.length));
+    this.tracker?.initStreams(ctx.tasks);
 
     // Pre-fill with any existing partial results from a previous run
     const results: string[] =
@@ -271,6 +284,7 @@ export class PipelineEngine {
       // Skip streams that already have results (from a resumed checkpoint)
       if (results[idx]) {
         this.logger.info(msg.streamSkipped(msg.streamLabel(idx)));
+        this.tracker?.updateStream(idx, "skipped");
         return results[idx];
       }
 
@@ -280,6 +294,7 @@ export class PipelineEngine {
       const session = await this.sessions.createAgentSession(phase.agent);
       try {
         this.logger.info(msg.streamEngineering(label));
+        this.tracker?.updateStream(idx, "engineering");
         const engineeringPrompt = isFrontendTask(task)
           ? `Spec:\n${ctx.spec}\n\nDesign:\n${ctx.designSpec}\n\nTask:\n${task}\n\nImplement this task.`
           : `Spec:\n${ctx.spec}\n\nTask:\n${task}\n\nImplement this task.`;
@@ -288,6 +303,7 @@ export class PipelineEngine {
         // Reviews
         for (const review of phase.reviews) {
           this.logger.info(msg.streamCodeReview(label, review.agent));
+          this.tracker?.updateStream(idx, "reviewing");
           const maxIter = review.maxIterations;
           for (let i = 1; i <= maxIter; i++) {
             this.logger.info(msg.reviewIteration(i, maxIter));
@@ -308,6 +324,7 @@ export class PipelineEngine {
         // QA
         if (phase.qa) {
           this.logger.info(msg.streamQa(label));
+          this.tracker?.updateStream(idx, "testing");
           const maxQa = phase.qa.maxIterations;
           for (let i = 1; i <= maxQa; i++) {
             this.logger.info(msg.qaIteration(i, maxQa));
@@ -329,6 +346,7 @@ export class PipelineEngine {
         }
 
         await writeRoleSummary(this.effectiveConfig, `engineer-stream-${idx + 1}`, code);
+        this.tracker?.updateStream(idx, "done");
 
         // Save intermediate progress so completed streams survive a crash
         results[idx] = code;

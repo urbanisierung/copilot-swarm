@@ -120,6 +120,29 @@ By default, the orchestrator automatically retries from the last checkpoint up t
 - Configure via `MAX_AUTO_RESUME` env var (default: `3`, set to `0` to disable)
 - The `--resume` flag is still available for manual retries after all auto-resume attempts are exhausted
 
+### TUI Dashboard
+
+In `run` mode, a full-screen terminal dashboard displays pipeline progress when running in a TTY (interactive terminal). The dashboard shows:
+
+- **Header** — Tool name and elapsed time
+- **Phase progress** — Status of each pipeline phase (pending, active, done, skipped)
+- **Stream status** — Per-stream status during the implementation phase (queued, coding, review, testing, done, failed)
+- **Active agent** — Which agent is currently working
+- **Activity log** — Recent log entries
+
+The TUI is automatically enabled when:
+- Command is `run`
+- stdout is a TTY (not piped or CI)
+- Verbose mode (`-v`) is not active
+
+To disable the TUI and use plain log output:
+
+```bash
+swarm --no-tui "Add a dark mode toggle"
+```
+
+After the TUI exits, a brief summary is printed with elapsed time and output directory.
+
 ### Local Development
 
 ```bash
