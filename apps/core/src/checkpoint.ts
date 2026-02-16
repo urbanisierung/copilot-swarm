@@ -17,8 +17,8 @@ export interface PipelineCheckpoint {
   streamResults: string[];
   issueBody: string;
   runId: string;
-  /** Distinguishes run-mode vs plan-mode checkpoints. */
-  mode?: "run" | "plan";
+  /** Distinguishes run-mode, plan-mode, or analyze-mode checkpoints. */
+  mode?: "run" | "plan" | "analyze";
   /** Phase key that was actively executing when the checkpoint was saved. */
   activePhase?: string;
   /** Draft content produced by the main agent before review loops began. */

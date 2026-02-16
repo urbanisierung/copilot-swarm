@@ -1,5 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { clearCheckpoint, type IterationSnapshot, loadCheckpoint, saveCheckpoint } from "./checkpoint.js";
 import type { SwarmConfig } from "./config.js";
 import type { Logger } from "./logger.js";
 import { msg } from "./messages.js";
@@ -75,6 +76,8 @@ Your goal is to verify the analysis is accurate, complete, and useful for an LLM
 
 export class AnalysisEngine {
   private readonly sessions: SessionManager;
+  private activePhaseKey: string | null = null;
+  private iterationProgress: Record<string, IterationSnapshot> = {};
 
   constructor(
     private readonly config: SwarmConfig,
@@ -96,24 +99,92 @@ export class AnalysisEngine {
   async execute(): Promise<void> {
     this.logger.info(msg.analyzeStart);
 
+    const useCrossModel = this.pipeline.reviewModel !== this.pipeline.primaryModel;
+
     const phases: { phase: string }[] = [{ phase: "analyze-architect" }, { phase: "analyze-review" }];
-    if (this.pipeline.reviewModel !== this.pipeline.primaryModel) {
+    if (useCrossModel) {
       phases.push({ phase: "analyze-architect" }, { phase: "analyze-review" });
     }
     this.tracker?.initPhases(phases);
 
+    // State
+    const completedPhases = new Set<string>();
+    let analysis = "";
+    let resumedPhaseKey: string | null = null;
+
+    // Resume from checkpoint
+    if (this.config.resume) {
+      const cp = await loadCheckpoint(this.config);
+      if (cp?.mode === "analyze") {
+        this.logger.info(msg.resuming(cp.completedPhases.length));
+        for (const p of cp.completedPhases) {
+          completedPhases.add(p);
+          this.tracker?.completePhase(p);
+        }
+        analysis = cp.analysis || "";
+        if (cp.activePhase) {
+          resumedPhaseKey = cp.activePhase;
+          this.iterationProgress = cp.iterationProgress ?? {};
+        }
+      } else {
+        this.logger.info(msg.noCheckpoint);
+      }
+    }
+
+    const saveProgress = async () => {
+      await saveCheckpoint(this.config, {
+        mode: "analyze",
+        completedPhases: [...completedPhases],
+        analysis,
+        issueBody: "",
+        runId: this.config.runId,
+        spec: "",
+        tasks: [],
+        designSpec: "",
+        streamResults: [],
+        activePhase: this.activePhaseKey ?? undefined,
+        iterationProgress: Object.keys(this.iterationProgress).length > 0 ? this.iterationProgress : undefined,
+      });
+    };
+
     // Phase 1: Primary model — architect drafts, senior engineer reviews
-    this.tracker?.activatePhase("analyze-architect-0");
-    let analysis = await this.runArchitectReviewLoop(this.pipeline.primaryModel);
-    this.tracker?.completePhase("analyze-architect-0");
-    this.tracker?.completePhase("analyze-review-1");
+    const archKey0 = "analyze-architect-0";
+    const reviewKey1 = "analyze-review-1";
+    if (completedPhases.has(archKey0)) {
+      this.logger.info(msg.phaseSkipped("analyze-architect"));
+    } else {
+      this.tracker?.activatePhase(archKey0);
+      this.activePhaseKey = archKey0;
+      if (archKey0 !== resumedPhaseKey) this.iterationProgress = {};
+      analysis = await this.runArchitectReviewLoop(this.pipeline.primaryModel, archKey0, saveProgress);
+      this.activePhaseKey = null;
+      this.iterationProgress = {};
+      completedPhases.add(archKey0);
+      completedPhases.add(reviewKey1);
+      this.tracker?.completePhase(archKey0);
+      this.tracker?.completePhase(reviewKey1);
+      await saveProgress();
+    }
 
     // Phase 2: Cross-model — same flow with the review model
-    if (this.pipeline.reviewModel !== this.pipeline.primaryModel) {
-      this.tracker?.activatePhase("analyze-architect-2");
-      analysis = await this.runArchitectReviewLoop(this.pipeline.reviewModel, analysis);
-      this.tracker?.completePhase("analyze-architect-2");
-      this.tracker?.completePhase("analyze-review-3");
+    if (useCrossModel) {
+      const archKey2 = "analyze-architect-2";
+      const reviewKey3 = "analyze-review-3";
+      if (completedPhases.has(archKey2)) {
+        this.logger.info(msg.phaseSkipped("analyze-architect"));
+      } else {
+        this.tracker?.activatePhase(archKey2);
+        this.activePhaseKey = archKey2;
+        if (archKey2 !== resumedPhaseKey) this.iterationProgress = {};
+        analysis = await this.runArchitectReviewLoop(this.pipeline.reviewModel, archKey2, saveProgress, analysis);
+        this.activePhaseKey = null;
+        this.iterationProgress = {};
+        completedPhases.add(archKey2);
+        completedPhases.add(reviewKey3);
+        this.tracker?.completePhase(archKey2);
+        this.tracker?.completePhase(reviewKey3);
+        await saveProgress();
+      }
     }
 
     // Save result
@@ -122,62 +193,100 @@ export class AnalysisEngine {
     const outputPath = path.join(dir, "repo-analysis.md");
     await fs.writeFile(outputPath, analysis);
 
+    // Clear checkpoint on success
+    await clearCheckpoint(this.config);
+
     this.logger.info(msg.analyzeComplete);
     this.logger.info(msg.analyzeSaved(path.relative(this.config.repoRoot, outputPath)));
   }
 
-  private async runArchitectReviewLoop(model: string, existingAnalysis?: string): Promise<string> {
+  private async runArchitectReviewLoop(
+    model: string,
+    phaseKey: string,
+    saveProgress: () => Promise<void>,
+    existingAnalysis?: string,
+  ): Promise<string> {
     // Architect produces or refines the analysis
     this.logger.info(msg.analyzeArchitectPhase(model));
 
-    const architectSession = await this.sessions.createSessionWithInstructions(ARCHITECT_INSTRUCTIONS, model);
+    // Resume: check for draft from a previous run
+    const draftProgress = this.iterationProgress[`${phaseKey}-draft`];
     let analysis: string;
 
-    try {
-      if (existingAnalysis) {
-        analysis = await this.sessions.send(
-          architectSession,
-          "Here is a repository analysis produced by a different model. " +
-            "Independently explore the repository and verify, correct, and improve this analysis. " +
-            "Produce the final revised document.\n\n" +
-            `Existing analysis:\n\n${existingAnalysis}`,
-          `Architect is analyzing repository (${model})…`,
-        );
-      } else {
-        analysis = await this.sessions.send(
-          architectSession,
-          "Explore this repository thoroughly and produce a complete repository analysis document following your instructions.",
-          `Architect is analyzing repository (${model})…`,
-        );
-      }
-
-      // Review loop
-      this.logger.info(msg.analyzeReviewPhase(model));
-
-      for (let i = 1; i <= MAX_REVIEW_ITERATIONS; i++) {
-        this.logger.info(msg.analyzeIteration(i, MAX_REVIEW_ITERATIONS));
-
-        const feedback = await this.sessions.callIsolatedWithInstructions(
-          REVIEWER_INSTRUCTIONS,
-          `Review this repository analysis document:\n\n${analysis}`,
-          `Senior engineer is reviewing (${model})…`,
-          model,
-        );
-
-        if (responseContains(feedback, APPROVAL_KEYWORD)) {
-          this.logger.info(msg.analyzeApproved);
-          break;
+    if (draftProgress) {
+      analysis = draftProgress.content;
+      this.logger.info(msg.iterationResumed(0, MAX_REVIEW_ITERATIONS));
+    } else {
+      const architectSession = await this.sessions.createSessionWithInstructions(ARCHITECT_INSTRUCTIONS, model);
+      try {
+        if (existingAnalysis) {
+          analysis = await this.sessions.send(
+            architectSession,
+            "Here is a repository analysis produced by a different model. " +
+              "Independently explore the repository and verify, correct, and improve this analysis. " +
+              "Produce the final revised document.\n\n" +
+              `Existing analysis:\n\n${existingAnalysis}`,
+            `Architect is analyzing repository (${model})…`,
+          );
+        } else {
+          analysis = await this.sessions.send(
+            architectSession,
+            "Explore this repository thoroughly and produce a complete repository analysis document following your instructions.",
+            `Architect is analyzing repository (${model})…`,
+          );
         }
-
-        this.logger.info(msg.analyzeFeedback(feedback.substring(0, 80)));
-        analysis = await this.sessions.send(
-          architectSession,
-          `Senior engineer review feedback:\n\n${feedback}\n\nRevise the analysis to address all issues.`,
-          `Architect is revising analysis (${model})…`,
-        );
+      } finally {
+        await architectSession.destroy();
       }
-    } finally {
-      await architectSession.destroy();
+
+      // Save draft checkpoint
+      this.iterationProgress[`${phaseKey}-draft`] = { content: analysis, completedIterations: 0 };
+      await saveProgress();
+    }
+
+    // Review loop
+    this.logger.info(msg.analyzeReviewPhase(model));
+
+    const reviewProgressKey = `${phaseKey}-review`;
+    const progress = this.iterationProgress[reviewProgressKey];
+    let startIteration = 1;
+    if (progress) {
+      analysis = progress.content;
+      startIteration = progress.completedIterations + 1;
+      this.logger.info(msg.iterationResumed(progress.completedIterations, MAX_REVIEW_ITERATIONS));
+    }
+
+    for (let i = startIteration; i <= MAX_REVIEW_ITERATIONS; i++) {
+      this.logger.info(msg.analyzeIteration(i, MAX_REVIEW_ITERATIONS));
+
+      const feedback = await this.sessions.callIsolatedWithInstructions(
+        REVIEWER_INSTRUCTIONS,
+        `Review this repository analysis document:\n\n${analysis}`,
+        `Senior engineer is reviewing (${model})…`,
+        model,
+      );
+
+      if (responseContains(feedback, APPROVAL_KEYWORD)) {
+        this.logger.info(msg.analyzeApproved);
+        break;
+      }
+
+      this.logger.info(msg.analyzeFeedback(feedback.substring(0, 80)));
+
+      const revision = await this.sessions.callIsolatedWithInstructions(
+        ARCHITECT_INSTRUCTIONS +
+          "\n\n**CRITICAL:** You are revising an existing analysis based on reviewer feedback. " +
+          "Output the COMPLETE revised document — do NOT output a summary or changelog.",
+        `Current analysis:\n\n${analysis}\n\nReviewer feedback:\n\n${feedback}\n\nRevise the analysis to address all issues. Output the COMPLETE document.`,
+        `Architect is revising analysis (${model})…`,
+        model,
+      );
+
+      analysis = revision;
+
+      // Save iteration progress
+      this.iterationProgress[reviewProgressKey] = { content: analysis, completedIterations: i };
+      await saveProgress();
     }
 
     return analysis;

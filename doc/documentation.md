@@ -154,16 +154,21 @@ swarm -r
 swarm plan --resume
 swarm plan -r
 
+# Resume a failed analysis
+swarm analyze --resume
+swarm analyze -r
+
 # Resume with verbose output
 swarm -r -v
 ```
 
 How it works:
-- **Phase-level:** After each pipeline phase completes, full progress is saved to `.swarm/runs/<runId>/checkpoint.json`. This applies to both `run` and `plan` modes.
+- **Phase-level:** After each pipeline phase completes, full progress is saved to `.swarm/runs/<runId>/checkpoint.json`. This applies to `run`, `plan`, and `analyze` modes.
 - **Iteration-level:** Within review and QA feedback loops, progress is saved after each iteration. On resume, completed iterations are skipped and the latest revised content is used as the starting point.
 - **Stream-level:** During the `implement` phase, each completed stream is saved individually — if 2 of 3 streams finish before a timeout, those 2 are preserved. Draft code and review progress within each stream are also checkpointed.
-- **Draft-level:** The initial output of each agent (spec draft, design draft, engineering code) is saved before review loops begin, so it doesn't need to be regenerated on resume.
+- **Draft-level:** The initial output of each agent (spec draft, design draft, engineering code, architecture analysis) is saved before review loops begin, so it doesn't need to be regenerated on resume.
 - **Plan mode:** Each of the 8 planning phases (clarification, review, analysis, cross-model) is checkpointed individually. Interactive Q&A results are preserved — if a crash happens during engineer review, the PM and engineer clarification phases don't need to be repeated. Review iteration progress within plan mode is also tracked.
+- **Analyze mode:** The architect draft and each review iteration are checkpointed. Cross-model analysis phases are tracked independently. If a failure occurs mid-review, the architect's initial analysis is preserved and the review loop resumes from the last completed iteration.
 - On `--resume`, completed phases, iterations, and streams are skipped. Only the remaining work is executed.
 - The checkpoint file is automatically deleted on successful completion.
 - Add `.swarm/runs/` and `.swarm/latest` to your `.gitignore`.
