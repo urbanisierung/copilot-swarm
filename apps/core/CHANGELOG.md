@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.10
+
+### Patch Changes
+
+- d4b5b74: Further input options.
+
 ## 0.0.9
 
 ### Patch Changes
