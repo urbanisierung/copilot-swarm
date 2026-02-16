@@ -113,6 +113,17 @@ You are a different AI model from the one that produced this plan. Your fresh pe
    - If the plan is ready for implementation, respond with **PLAN_APPROVED**.
    - If there are issues, provide a numbered list of specific improvements. Be precise.`;
 
+/** Section headers that must be present in a valid assembled plan. */
+const PLAN_SECTION_HEADERS = [
+  "## Refined Requirements",
+  "## Engineering Decisions",
+  "## Design Decisions",
+  "## Technical Analysis",
+];
+
+/** Minimum ratio of revised-to-original length before we consider the revision suspicious. */
+const MIN_REVISION_LENGTH_RATIO = 0.3;
+
 export class PlanningEngine {
   private readonly sessions: SessionManager;
   private activePhaseKey: string | null = null;
@@ -427,13 +438,22 @@ export class PlanningEngine {
       this.logger.info(msg.planReviewFeedback(feedback.substring(0, 80)));
 
       // Have the original role revise based on feedback
-      revised = await this.sessions.callIsolatedWithInstructions(
+      const revision = await this.sessions.callIsolatedWithInstructions(
         `You are the author of a "${sectionName}" section in a project plan. ` +
-          "A reviewer has provided feedback. Revise the section to address all issues. " +
-          "Output ONLY the revised section content.",
-        `Original section:\n\n${revised}\n\nReviewer feedback:\n\n${feedback}\n\nRevise the section to address all feedback.`,
+          "A reviewer has provided feedback. Revise the section to address all issues.\n\n" +
+          "**CRITICAL:** Output the COMPLETE revised section — every requirement, criterion, " +
+          "and detail. Do NOT output a summary, changelog, or description of your changes. " +
+          "The output must be the full section content, ready to replace the original.",
+        `Original section:\n\n${revised}\n\nReviewer feedback:\n\n${feedback}\n\nRevise the section to address all feedback. Output the COMPLETE revised section.`,
         reviseSpinner,
       );
+
+      // Guard: if revision is suspiciously short, keep original
+      if (revision.length >= revised.length * MIN_REVISION_LENGTH_RATIO) {
+        revised = revision;
+      } else {
+        this.logger.info("  ⚠️  Revision too short — keeping previous version");
+      }
 
       // Save iteration progress
       this.iterationProgress[phaseKey] = { content: revised, completedIterations: i };
@@ -477,12 +497,25 @@ export class PlanningEngine {
       this.logger.info(msg.planReviewFeedback(feedback.substring(0, 80)));
 
       // Revise with the primary model
-      revised = await this.sessions.callIsolatedWithInstructions(
+      const revision = await this.sessions.callIsolatedWithInstructions(
         "You are revising a project plan based on feedback from a cross-model reviewer. " +
-          "Address all issues raised. Output the complete revised plan.",
-        `Current plan:\n\n${revised}\n\nCross-model reviewer feedback:\n\n${feedback}\n\nRevise the plan.`,
+          "Address all issues raised.\n\n" +
+          "**CRITICAL:** Output the COMPLETE revised plan with ALL sections preserved:\n" +
+          "## Refined Requirements\n## Engineering Decisions\n## Design Decisions\n## Technical Analysis\n\n" +
+          "Do NOT output a summary, changelog, or description of your changes. " +
+          "The output must be the full plan document, ready to replace the original.",
+        `Current plan:\n\n${revised}\n\nCross-model reviewer feedback:\n\n${feedback}\n\nRevise the plan. Output the COMPLETE plan with all sections.`,
         "Revising plan…",
       );
+
+      // Guard: verify the revision preserves plan structure
+      const hasAllSections = PLAN_SECTION_HEADERS.every((h) => revision.includes(h));
+      const isLongEnough = revision.length >= revised.length * MIN_REVISION_LENGTH_RATIO;
+      if (hasAllSections && isLongEnough) {
+        revised = revision;
+      } else {
+        this.logger.info("  ⚠️  Revision lost plan structure — keeping previous version");
+      }
 
       // Save iteration progress
       this.iterationProgress[phaseKey] = { content: revised, completedIterations: i };
