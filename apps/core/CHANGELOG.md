@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.9
+
+### Patch Changes
+
+- 981b7d0: Improve plan and run mode.
+
 ## 0.0.8
 
 ### Patch Changes
