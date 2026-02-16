@@ -9,7 +9,7 @@ import { PlanningEngine } from "./planning-engine.js";
 import { ProgressTracker } from "./progress-tracker.js";
 import { TuiRenderer } from "./tui-renderer.js";
 
-const config = loadConfig();
+const config = await loadConfig();
 const logger = new Logger(config.verbose, config.runId);
 
 const showLogOnError = (err: unknown) => {

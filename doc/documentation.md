@@ -37,14 +37,56 @@ Commands:
 
 Options:
   -v, --verbose        Enable verbose streaming output
+  -e, --editor         Open an interactive text editor to enter the prompt
   -p, --plan <file>    Use a plan file as input (reads the refined requirements section)
   -f, --file <file>    Read prompt from a file instead of inline text
   -r, --resume         Resume from the last checkpoint (skip completed phases)
+  --no-tui             Disable TUI dashboard (use plain log output)
   -V, --version        Show version number
   -h, --help           Show this help message
 ```
 
 The prompt can be passed as the last argument or via the `ISSUE_BODY` environment variable. CLI arguments take precedence over env vars.
+
+### Prompt Sources
+
+The CLI supports multiple ways to provide the task description (first match wins):
+
+| Source | Example | Description |
+|---|---|---|
+| `--plan <file>` | `swarm --plan .swarm/plans/plan-latest.md` | Extract refined requirements from a plan file |
+| `--file <file>` | `swarm -f requirements.md` | Read entire file as prompt |
+| `--editor` | `swarm -e` | Open interactive multi-line editor |
+| Inline text | `swarm "Add dark mode"` | Pass prompt as a positional argument |
+| GitHub issue | `swarm "gh:owner/repo#123"` | Fetch issue from GitHub (requires `gh` CLI) |
+| GitHub issue (current repo) | `swarm "gh:#42"` | Fetch issue from the current repo |
+| GitHub issue (URL) | `swarm "https://github.com/owner/repo/issues/123"` | Fetch issue via full URL |
+| `ISSUE_BODY` env var | `ISSUE_BODY="Add dark mode" swarm` | Fallback environment variable |
+
+#### Interactive Editor (`--editor` / `-e`)
+
+Opens a full-screen bordered text area in the terminal. Use arrow keys to navigate, Enter for new lines, Ctrl+Enter (or Ctrl+D) to submit, Esc to cancel. Requires an interactive TTY.
+
+```bash
+swarm -e
+swarm run --editor
+swarm plan -e
+```
+
+#### GitHub Issue Input
+
+Reference a GitHub issue directly — the CLI fetches the issue title and body using the `gh` CLI. Requires `gh` to be installed and authenticated (`gh auth login`).
+
+Supported formats:
+- `gh:owner/repo#123` — full reference
+- `gh:#123` — issue in the current repository (detected from git remote)
+- `https://github.com/owner/repo/issues/123` — full URL
+
+```bash
+swarm "gh:owner/repo#123"
+swarm plan "gh:#42"
+swarm "https://github.com/my-org/my-repo/issues/7"
+```
 
 ### Planning Mode
 

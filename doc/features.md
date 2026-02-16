@@ -26,6 +26,8 @@ High-level feature list for Copilot Swarm.
 | **TUI dashboard** | 2026-02-16 | Full-screen terminal dashboard for all modes (`run`, `plan`, `analyze`) showing phase progress, active agent, and activity log. Auto-pauses for interactive input in `plan` mode. Auto-enabled on TTY, disable with `--no-tui` |
 | **Debug log files** | 2026-02-16 | Every run writes a debug log to `os.tmpdir()/copilot-swarm/swarm-<runId>.log`. Captures all levels including debug. Log path shown on error. Non-blocking (failures silently ignored) |
 | **Completion summary** | 2026-02-16 | Every mode (`run`, `plan`, `analyze`) prints a completion summary after finishing — shows elapsed time, phases completed/skipped, stream stats (run mode), output directory, and log file path |
+| **Interactive editor input** | 2026-02-16 | `--editor` / `-e` flag opens a full-screen bordered text area for multi-line prompt entry. Arrow key navigation, Ctrl+Enter to submit, Esc to cancel. Zero dependencies |
+| **GitHub issue input** | 2026-02-16 | Reference a GitHub issue as prompt: `gh:owner/repo#123`, `gh:#123`, or a full GitHub URL. Fetches title + body via the `gh` CLI. Requires `gh auth login` |
 | **Engineer-to-PM clarification** | 2026-02-16 | During `implement` phase, engineers can signal `CLARIFICATION_NEEDED` to route questions to the PM agent autonomously. PM answers with context from the spec. Fully automatic — no user interaction. Configurable via `clarificationAgent` and `clarificationKeyword` in pipeline config |
 | **Verbose streaming mode** | 2026-02 | `VERBOSE=true` streams agent deltas, tool calls, and intent updates to stdout |
 | **Role summaries** | 2026-02 | Each agent writes a timestamped summary to `.swarm/runs/<runId>/roles/` for audit trail |
