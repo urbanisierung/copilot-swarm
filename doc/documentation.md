@@ -145,7 +145,7 @@ swarm --no-tui "Add a dark mode toggle"
 swarm --no-tui plan "Add a dark mode toggle"
 ```
 
-After the TUI exits, a brief summary is printed with elapsed time and output directory.
+After the TUI exits, a completion summary is printed with elapsed time, phase stats, and output directory.
 
 ### Log Files
 
@@ -229,6 +229,27 @@ pipeline:
         approvalKeyword: APPROVED
   # ... more phases
 ```
+
+### Engineer-to-PM Clarification
+
+During the `implement` phase, engineers may encounter ambiguities not covered by the spec. The pipeline supports automatic clarification routing:
+
+```yaml
+pipeline:
+  - phase: implement
+    agent: engineer
+    clarificationAgent: pm            # Agent to answer questions
+    clarificationKeyword: CLARIFICATION_NEEDED  # Trigger keyword
+    reviews: [...]
+```
+
+When an engineer's output contains the `clarificationKeyword`, the pipeline automatically:
+1. Extracts the engineer's questions
+2. Routes them to the PM agent (isolated session) along with the original spec
+3. Sends the PM's answers back to the engineer session
+4. The engineer continues implementation with the clarified requirements
+
+This is fully automatic — no user interaction required. Both fields are optional; if omitted, no clarification routing occurs.
 
 ### Agent Source Resolution
 

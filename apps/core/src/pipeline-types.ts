@@ -51,6 +51,8 @@ export interface ImplementPhaseConfig {
   readonly phase: "implement";
   readonly parallel: boolean;
   readonly agent: string;
+  readonly clarificationAgent?: string;
+  readonly clarificationKeyword?: string;
   readonly reviews: readonly ReviewStepConfig[];
   readonly qa?: QaStepConfig;
 }

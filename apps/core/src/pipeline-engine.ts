@@ -397,6 +397,24 @@ export class PipelineEngine {
           code = await this.sessions.send(session, engineeringPrompt, `${phase.agent} (${label}) is implementing…`);
           sessionPrimed = true;
 
+          // Engineer-to-PM clarification: if the engineer signals ambiguity, consult the PM
+          if (
+            phase.clarificationAgent &&
+            phase.clarificationKeyword &&
+            responseContains(code, phase.clarificationKeyword)
+          ) {
+            this.logger.info(msg.streamClarification(label));
+            const clarification = await this.sessions.callIsolated(
+              phase.clarificationAgent,
+              `Spec:\n${ctx.spec}\n\nThe engineer working on task "${task}" needs clarification:\n\n${code}`,
+            );
+            code = await this.sessions.send(
+              session,
+              `PM Clarification:\n${clarification}\n\nProceed with the implementation using this clarification.`,
+              `${phase.agent} (${label}) is implementing with clarification…`,
+            );
+          }
+
           this.iterationProgress[`${streamKey}-code`] = { content: code, completedIterations: 0 };
           await save();
         }

@@ -26,6 +26,7 @@ export const msg = {
   streamLabel: (idx: number) => `Stream ${idx + 1}`,
   streamStart: (label: string, task: string) => `\n[${label}: ${task.substring(0, 60)}...]`,
   streamEngineering: (label: string) => `  [${label}: Engineering]`,
+  streamClarification: (label: string) => `  🔍 ${label}: Engineer needs clarification — consulting PM...`,
   streamCodeReview: (label: string, agent: string) => `  [${label}: Review by ${agent}]`,
   streamQa: (label: string) => `  [${label}: QA]`,
 
@@ -95,4 +96,22 @@ export const msg = {
 
   // --- Log File ---
   logFileHint: (path: string) => `📋 Full log: ${path}`,
+
+  // --- Completion Summary ---
+  summaryDivider: "─".repeat(48),
+  summaryRunSuccess: (elapsed: string) => `✅ Copilot Swarm completed in ${elapsed}`,
+  summaryRunFailed: (elapsed: string) => `❌ Copilot Swarm failed after ${elapsed}`,
+  summaryPlanComplete: (elapsed: string) => `✅ Planning completed in ${elapsed}`,
+  summaryAnalyzeComplete: (elapsed: string) => `✅ Analysis completed in ${elapsed}`,
+  summaryPhases: (done: number, total: number, skipped: number) => {
+    const parts = [`${done}/${total} phases completed`];
+    if (skipped > 0) parts.push(`${skipped} skipped`);
+    return `📊 ${parts.join(", ")}`;
+  },
+  summaryStreams: (done: number, failed: number, total: number) => {
+    const parts = [`${done}/${total} streams completed`];
+    if (failed > 0) parts.push(`${failed} failed`);
+    return `🔀 ${parts.join(", ")}`;
+  },
+  summaryOutput: (path: string) => `📁 Output: ${path}`,
 } as const;

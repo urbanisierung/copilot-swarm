@@ -112,6 +112,8 @@ function validatePhase(raw: unknown, index: number): PhaseConfig {
         phase: "implement",
         parallel,
         agent: requireString(obj, "agent", ctx),
+        clarificationAgent: optionalString(obj, "clarificationAgent"),
+        clarificationKeyword: optionalString(obj, "clarificationKeyword"),
         reviews: validateReviews(obj.reviews, ctx),
         qa: obj.qa !== undefined ? validateQa(obj.qa, ctx) : undefined,
       } satisfies ImplementPhaseConfig;
@@ -182,6 +184,7 @@ function validateAgentReferences(config: PipelineConfig): void {
         break;
       case "implement":
         check(phase.agent, ctx);
+        if (phase.clarificationAgent) check(phase.clarificationAgent, `${ctx} clarification`);
         for (const r of phase.reviews) check(r.agent, `${ctx} review`);
         if (phase.qa) check(phase.qa.agent, `${ctx} qa`);
         break;
