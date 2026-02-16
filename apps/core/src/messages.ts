@@ -6,6 +6,7 @@ export const msg = {
   configLoaded: (model: string, review: string, verbose: boolean) =>
     `⚙️  Config: primary=${model}, review=${review}, verbose=${verbose}`,
   pipelineSource: (source: string) => `📋 Pipeline: ${source}`,
+  repoAnalysisLoaded: "📚 Repository analysis found — using as context for all phases",
 
   // --- PM Phase ---
   pmPhaseStart: "🚀 Starting PM Phase...",

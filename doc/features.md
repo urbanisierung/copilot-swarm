@@ -9,6 +9,7 @@ High-level feature list for Copilot Swarm.
 | **Multi-agent orchestration** | 2026-02 | Coordinates PM, designer, engineer, reviewer, and tester agents through a structured pipeline |
 | **Interactive planning mode** | 2026-02-14 | `swarm plan` — PM agent clarifies requirements interactively, then engineering agent analyzes codebase complexity and scope |
 | **Repository analysis** | 2026-02-15 | `swarm analyze` — Architect explores repo, senior engineer reviews, cross-model verification; outputs `.swarm/analysis/repo-analysis.md` |
+| **Analysis-aware pipeline** | 2026-02-16 | If repo analysis exists, it's automatically injected as context into the spec phase so agents understand the codebase before implementing |
 | **Declarative pipeline config** | 2026-02-14 | `swarm.config.yaml` defines agents, phases, review loops, and conditions — zero code changes to customize |
 | **Cross-model review** | 2026-02 | Optional phase where a different AI model reviews all output, catching model-specific blind spots |
 | **Isolated session strategy** | 2026-02 | Reviews use fresh sessions to prevent self-review bias; implementation streams use long-lived sessions for context |

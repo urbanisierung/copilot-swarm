@@ -4,7 +4,7 @@ import { clearCheckpoint, loadCheckpoint, saveCheckpoint } from "./checkpoint.js
 import type { SwarmConfig } from "./config.js";
 import type { Logger } from "./logger.js";
 import { msg } from "./messages.js";
-import { latestPointerPath, runDir, swarmRoot } from "./paths.js";
+import { analysisFilePath, latestPointerPath, runDir, swarmRoot } from "./paths.js";
 import type {
   CrossModelReviewPhaseConfig,
   DecomposePhaseConfig,
@@ -19,6 +19,7 @@ import { hasFrontendWork, isFrontendTask, parseJsonArray, responseContains, writ
 
 /** Shared context that flows between phases. */
 interface PipelineContext {
+  repoAnalysis: string;
   spec: string;
   tasks: string[];
   designSpec: string;
@@ -49,8 +50,16 @@ export class PipelineEngine {
   async execute(): Promise<void> {
     this.logger.info(msg.configLoaded(this.pipeline.primaryModel, this.pipeline.reviewModel, this.config.verbose));
 
-    let ctx: PipelineContext = { spec: "", tasks: [], designSpec: "", streamResults: [] };
+    let ctx: PipelineContext = { repoAnalysis: "", spec: "", tasks: [], designSpec: "", streamResults: [] };
     let completedPhases: Set<string> = new Set();
+
+    // Load repo analysis if available — provides context for all phases
+    try {
+      ctx.repoAnalysis = await fs.readFile(analysisFilePath(this.config), "utf-8");
+      this.logger.info(msg.repoAnalysisLoaded);
+    } catch {
+      // No analysis file — agents will explore the repo themselves
+    }
 
     // Resume from checkpoint if requested
     if (this.config.resume) {
@@ -61,6 +70,7 @@ export class PipelineEngine {
           this.effectiveConfig = { ...this.config, runId: checkpoint.runId };
         }
         ctx = {
+          repoAnalysis: ctx.repoAnalysis,
           spec: checkpoint.spec,
           tasks: checkpoint.tasks,
           designSpec: checkpoint.designSpec,
@@ -83,7 +93,7 @@ export class PipelineEngine {
 
       switch (phase.phase) {
         case "spec":
-          ctx.spec = await this.executeSpec(phase);
+          ctx.spec = await this.executeSpec(phase, ctx);
           break;
         case "decompose":
           ctx.tasks = await this.executeDecompose(phase, ctx);
@@ -133,11 +143,14 @@ export class PipelineEngine {
 
   // --- SPEC PHASE ---
 
-  private async executeSpec(phase: SpecPhaseConfig): Promise<string> {
+  private async executeSpec(phase: SpecPhaseConfig, ctx: PipelineContext): Promise<string> {
     this.logger.info(msg.pmPhaseStart);
     this.logger.info(msg.pmDrafting);
 
-    let spec = await this.sessions.callIsolated(phase.agent, this.config.issueBody);
+    const prompt = ctx.repoAnalysis
+      ? `## Repository Context\n\n${ctx.repoAnalysis}\n\n## Task\n\n${this.config.issueBody}`
+      : this.config.issueBody;
+    let spec = await this.sessions.callIsolated(phase.agent, prompt);
 
     for (const review of phase.reviews) {
       this.logger.info(msg.reviewPhase(review.agent));
