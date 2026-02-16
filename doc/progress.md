@@ -5,7 +5,7 @@ All notable changes to this project are documented here, in reverse chronologica
 ## 2026-02-16
 
 ### Added
-- **TUI dashboard** — Full-screen terminal dashboard for `run` mode showing phase progress, stream status, active agent, and scrolling activity log. Uses ANSI alternate screen buffer (zero external dependencies). Auto-enabled on interactive TTY; `--no-tui` flag or piped/CI output falls back to plain log mode. Verbose mode (`-v`) and TUI are mutually exclusive. Post-run summary printed after TUI exits.
+- **TUI dashboard** — Full-screen terminal dashboard for all modes (`run`, `plan`, `analyze`) showing phase progress, active agent, and scrolling activity log. Uses ANSI alternate screen buffer (zero external dependencies). Auto-pauses for interactive user input in `plan` mode. Auto-enabled on interactive TTY; `--no-tui` flag or piped/CI output falls back to plain log mode. Verbose mode (`-v`) and TUI are mutually exclusive. Post-run summary printed after TUI exits.
 - **Debug log files** — Every run writes a timestamped log to the system temp directory (`/tmp/copilot-swarm/swarm-<runId>.log`). Captures all log levels including debug regardless of verbose/TUI mode. On error, the log file path is printed for debugging. Non-blocking — write failures are silently ignored.
 - **Multi-line plan input** — Interactive planning mode now supports multi-line answers (press Enter on empty line to send). Literal `\n` escape sequences converted to real newlines.
 - **Analysis-aware pipeline** — If `.swarm/analysis/repo-analysis.md` exists, it is automatically loaded and provided as context to the spec phase, giving agents full repo understanding before implementation.

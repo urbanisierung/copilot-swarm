@@ -7,7 +7,9 @@ import type { Logger } from "./logger.js";
 import { msg } from "./messages.js";
 import { plansDir } from "./paths.js";
 import type { PipelineConfig } from "./pipeline-types.js";
+import type { ProgressTracker } from "./progress-tracker.js";
 import { SessionManager } from "./session.js";
+import type { TuiRenderer } from "./tui-renderer.js";
 import { responseContains } from "./utils.js";
 
 const MAX_CLARIFICATION_ROUNDS = 10;
@@ -52,6 +54,8 @@ export class PlanningEngine {
     private readonly config: SwarmConfig,
     pipeline: PipelineConfig,
     private readonly logger: Logger,
+    private readonly tracker?: ProgressTracker,
+    private readonly renderer?: TuiRenderer,
   ) {
     this.sessions = new SessionManager(config, pipeline, logger);
   }
@@ -66,12 +70,17 @@ export class PlanningEngine {
 
   async execute(): Promise<void> {
     this.logger.info(msg.planningStart);
+    this.tracker?.initPhases([{ phase: "plan-clarify" }, { phase: "plan-analyze" }]);
 
     // Phase 1: PM clarifies requirements interactively
+    this.tracker?.activatePhase("plan-clarify-0");
     const spec = await this.clarifyRequirements();
+    this.tracker?.completePhase("plan-clarify-0");
 
     // Phase 2: Engineering analyst assesses codebase
+    this.tracker?.activatePhase("plan-analyze-1");
     const analysis = await this.analyzeCodebase(spec);
+    this.tracker?.completePhase("plan-analyze-1");
 
     // Assemble and save plan
     const timestamp = new Date().toISOString();
@@ -116,11 +125,13 @@ export class PlanningEngine {
           break;
         }
 
-        // Show agent's questions
+        // Show agent's questions — pause TUI for interactive I/O
+        this.renderer?.pause();
         console.log(`\n${response}`);
 
         // Read multi-line user answer
         const answer = await this.readMultiLineInput(rl);
+        this.renderer?.resume();
         if (!answer.trim()) {
           response = await this.sessions.send(
             session,
@@ -141,8 +152,10 @@ export class PlanningEngine {
       const idx = response.toUpperCase().indexOf(marker);
       const spec = idx !== -1 ? response.substring(idx + marker.length).trim() : response;
 
+      this.renderer?.pause();
       console.log("\n📋 Refined Requirements:\n");
       console.log(spec);
+      this.renderer?.resume();
 
       return spec;
     } finally {
@@ -188,8 +201,10 @@ export class PlanningEngine {
         "Engineer is analyzing codebase…",
       );
 
+      this.renderer?.pause();
       console.log("\n🔍 Technical Analysis:\n");
       console.log(analysis);
+      this.renderer?.resume();
 
       return analysis;
     } finally {

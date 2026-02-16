@@ -49,6 +49,26 @@ export class TuiRenderer {
     this.cleanup();
   }
 
+  /** Temporarily leave TUI (e.g. for interactive user input). */
+  pause(): void {
+    if (this.interval) {
+      clearInterval(this.interval);
+      this.interval = null;
+    }
+    process.stdout.write("\x1b[?25h"); // Show cursor
+    process.stdout.write("\x1b[?1049l"); // Leave alternate screen
+  }
+
+  /** Re-enter TUI after a pause. */
+  resume(): void {
+    process.stdout.write("\x1b[?1049h"); // Alternate screen
+    process.stdout.write("\x1b[?25l"); // Hide cursor
+    this.interval = setInterval(() => {
+      this.frame = (this.frame + 1) % SPINNER.length;
+      this.render();
+    }, RENDER_INTERVAL_MS);
+  }
+
   private cleanup(): void {
     if (this.cleanedUp) return;
     this.cleanedUp = true;

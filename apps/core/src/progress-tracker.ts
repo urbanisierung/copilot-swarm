@@ -26,6 +26,10 @@ const PHASE_NAMES: Record<string, string> = {
   design: "Design",
   implement: "Implementation",
   "cross-model-review": "Cross-Model Review",
+  "plan-clarify": "Requirements Clarification",
+  "plan-analyze": "Technical Analysis",
+  "analyze-architect": "Architecture Analysis",
+  "analyze-review": "Peer Review",
 };
 
 const MAX_LOG_ENTRIES = 100;

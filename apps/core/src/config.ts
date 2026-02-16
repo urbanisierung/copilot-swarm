@@ -203,7 +203,7 @@ export function loadConfig(): SwarmConfig {
     repoRoot,
     verbose: cli.verbose || readEnvBoolean("VERBOSE", false),
     resume: cli.resume,
-    tui: cli.command === "run" && !cli.noTui && !cli.verbose && process.stdout.isTTY === true,
+    tui: !cli.noTui && !cli.verbose && process.stdout.isTTY === true,
     issueBody: issueBody ?? "",
     agentsDir: readEnvString("AGENTS_DIR", ".github/agents"),
     swarmDir,
