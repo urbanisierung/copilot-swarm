@@ -17,12 +17,20 @@ export interface PipelineCheckpoint {
   streamResults: string[];
   issueBody: string;
   runId: string;
+  /** Distinguishes run-mode vs plan-mode checkpoints. */
+  mode?: "run" | "plan";
   /** Phase key that was actively executing when the checkpoint was saved. */
   activePhase?: string;
   /** Draft content produced by the main agent before review loops began. */
   phaseDraft?: string;
   /** Iteration progress within review/QA loops, keyed by stable identifiers. */
   iterationProgress?: Record<string, IterationSnapshot>;
+  /** Plan-mode: refined engineering decisions. */
+  engDecisions?: string;
+  /** Plan-mode: refined design decisions. */
+  designDecisions?: string;
+  /** Plan-mode: technical analysis output. */
+  analysis?: string;
 }
 
 /** Resolve checkpoint path — inside the run dir for new runs, or from latest pointer on resume. */
