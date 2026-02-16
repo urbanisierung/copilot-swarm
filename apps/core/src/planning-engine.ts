@@ -1,6 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as readline from "node:readline/promises";
+import { clearCheckpoint, type IterationSnapshot, loadCheckpoint, saveCheckpoint } from "./checkpoint.js";
 import type { SwarmConfig } from "./config.js";
 import { ResponseKeyword } from "./constants.js";
 import type { Logger } from "./logger.js";
@@ -112,8 +113,21 @@ You are a different AI model from the one that produced this plan. Your fresh pe
    - If the plan is ready for implementation, respond with **PLAN_APPROVED**.
    - If there are issues, provide a numbered list of specific improvements. Be precise.`;
 
+/** Section headers that must be present in a valid assembled plan. */
+const PLAN_SECTION_HEADERS = [
+  "## Refined Requirements",
+  "## Engineering Decisions",
+  "## Design Decisions",
+  "## Technical Analysis",
+];
+
+/** Minimum ratio of revised-to-original length before we consider the revision suspicious. */
+const MIN_REVISION_LENGTH_RATIO = 0.3;
+
 export class PlanningEngine {
   private readonly sessions: SessionManager;
+  private activePhaseKey: string | null = null;
+  private iterationProgress: Record<string, IterationSnapshot> = {};
 
   constructor(
     private readonly config: SwarmConfig,
@@ -152,60 +166,189 @@ export class PlanningEngine {
     }
     this.tracker?.initPhases(phases);
 
+    // State
+    const completedPhases = new Set<string>();
+    let spec = "";
+    let engDecisions = "";
+    let designDecisions = "";
+    let analysis = "";
+    let resumedPhaseKey: string | null = null;
+    let effectiveIssueBody = this.config.issueBody;
+
+    // Resume from checkpoint
+    if (this.config.resume) {
+      const cp = await loadCheckpoint(this.config);
+      if (cp?.mode === "plan") {
+        this.logger.info(msg.resuming(cp.completedPhases.length));
+        for (const p of cp.completedPhases) {
+          completedPhases.add(p);
+          this.tracker?.completePhase(p);
+        }
+        spec = cp.spec || "";
+        engDecisions = cp.engDecisions || "";
+        designDecisions = cp.designDecisions || "";
+        analysis = cp.analysis || "";
+        effectiveIssueBody = cp.issueBody || this.config.issueBody;
+        if (cp.activePhase) {
+          resumedPhaseKey = cp.activePhase;
+          this.iterationProgress = cp.iterationProgress ?? {};
+        }
+      } else {
+        this.logger.info(msg.noCheckpoint);
+      }
+    }
+
+    const saveProgress = async () => {
+      await saveCheckpoint(this.config, {
+        mode: "plan",
+        completedPhases: [...completedPhases],
+        spec,
+        engDecisions,
+        designDecisions,
+        analysis,
+        issueBody: effectiveIssueBody,
+        runId: this.config.runId,
+        tasks: [],
+        designSpec: "",
+        streamResults: [],
+        activePhase: this.activePhaseKey ?? undefined,
+        iterationProgress: Object.keys(this.iterationProgress).length > 0 ? this.iterationProgress : undefined,
+      });
+    };
+
     let phaseIdx = 0;
 
     // Phase 1: PM clarifies requirements interactively
-    this.tracker?.activatePhase(`plan-clarify-${phaseIdx}`);
-    let spec = await this.clarifyRequirements();
-    this.tracker?.completePhase(`plan-clarify-${phaseIdx}`);
+    const clarifyKey = `plan-clarify-${phaseIdx}`;
+    if (completedPhases.has(clarifyKey)) {
+      this.logger.info(msg.phaseSkipped("plan-clarify"));
+    } else {
+      this.tracker?.activatePhase(clarifyKey);
+      spec = await this.clarifyRequirements(effectiveIssueBody);
+      completedPhases.add(clarifyKey);
+      this.tracker?.completePhase(clarifyKey);
+      await saveProgress();
+    }
     phaseIdx++;
 
     // Phase 2: Review PM output
-    this.tracker?.activatePhase(`plan-review-${phaseIdx}`);
-    spec = await this.reviewStep(spec, "Refined Requirements", "PM is revising requirements…");
-    this.tracker?.completePhase(`plan-review-${phaseIdx}`);
+    const pmReviewKey = `plan-review-${phaseIdx}`;
+    if (completedPhases.has(pmReviewKey)) {
+      this.logger.info(msg.phaseSkipped("plan-review"));
+    } else {
+      this.tracker?.activatePhase(pmReviewKey);
+      this.activePhaseKey = pmReviewKey;
+      if (pmReviewKey !== resumedPhaseKey) this.iterationProgress = {};
+      spec = await this.reviewStep(
+        spec,
+        "Refined Requirements",
+        "PM is revising requirements…",
+        pmReviewKey,
+        saveProgress,
+      );
+      this.activePhaseKey = null;
+      this.iterationProgress = {};
+      completedPhases.add(pmReviewKey);
+      this.tracker?.completePhase(pmReviewKey);
+      await saveProgress();
+    }
     phaseIdx++;
 
     // Phase 3: Engineer clarifies technical questions
-    this.tracker?.activatePhase(`plan-eng-clarify-${phaseIdx}`);
-    let engDecisions = await this.clarifyWithRole(
-      ENGINEER_CLARIFIER_INSTRUCTIONS,
-      ENGINEERING_CLEAR_KEYWORD,
-      spec,
-      "Engineer is reviewing requirements…",
-      msg.planningEngClarifyPhase,
-    );
-    this.tracker?.completePhase(`plan-eng-clarify-${phaseIdx}`);
+    const engClarifyKey = `plan-eng-clarify-${phaseIdx}`;
+    if (completedPhases.has(engClarifyKey)) {
+      this.logger.info(msg.phaseSkipped("plan-eng-clarify"));
+    } else {
+      this.tracker?.activatePhase(engClarifyKey);
+      engDecisions = await this.clarifyWithRole(
+        ENGINEER_CLARIFIER_INSTRUCTIONS,
+        ENGINEERING_CLEAR_KEYWORD,
+        spec,
+        "Engineer is reviewing requirements…",
+        msg.planningEngClarifyPhase,
+      );
+      completedPhases.add(engClarifyKey);
+      this.tracker?.completePhase(engClarifyKey);
+      await saveProgress();
+    }
     phaseIdx++;
 
     // Phase 4: Review engineer output
-    this.tracker?.activatePhase(`plan-review-${phaseIdx}`);
-    engDecisions = await this.reviewStep(engDecisions, "Engineering Decisions", "Engineer is revising decisions…");
-    this.tracker?.completePhase(`plan-review-${phaseIdx}`);
+    const engReviewKey = `plan-review-${phaseIdx}`;
+    if (completedPhases.has(engReviewKey)) {
+      this.logger.info(msg.phaseSkipped("plan-review"));
+    } else {
+      this.tracker?.activatePhase(engReviewKey);
+      this.activePhaseKey = engReviewKey;
+      if (engReviewKey !== resumedPhaseKey) this.iterationProgress = {};
+      engDecisions = await this.reviewStep(
+        engDecisions,
+        "Engineering Decisions",
+        "Engineer is revising decisions…",
+        engReviewKey,
+        saveProgress,
+      );
+      this.activePhaseKey = null;
+      this.iterationProgress = {};
+      completedPhases.add(engReviewKey);
+      this.tracker?.completePhase(engReviewKey);
+      await saveProgress();
+    }
     phaseIdx++;
 
     // Phase 5: Designer clarifies UI/UX
-    this.tracker?.activatePhase(`plan-design-clarify-${phaseIdx}`);
-    let designDecisions = await this.clarifyWithRole(
-      DESIGNER_CLARIFIER_INSTRUCTIONS,
-      DESIGN_CLEAR_KEYWORD,
-      spec,
-      "Designer is reviewing requirements…",
-      msg.planningDesignClarifyPhase,
-    );
-    this.tracker?.completePhase(`plan-design-clarify-${phaseIdx}`);
+    const designClarifyKey = `plan-design-clarify-${phaseIdx}`;
+    if (completedPhases.has(designClarifyKey)) {
+      this.logger.info(msg.phaseSkipped("plan-design-clarify"));
+    } else {
+      this.tracker?.activatePhase(designClarifyKey);
+      designDecisions = await this.clarifyWithRole(
+        DESIGNER_CLARIFIER_INSTRUCTIONS,
+        DESIGN_CLEAR_KEYWORD,
+        spec,
+        "Designer is reviewing requirements…",
+        msg.planningDesignClarifyPhase,
+      );
+      completedPhases.add(designClarifyKey);
+      this.tracker?.completePhase(designClarifyKey);
+      await saveProgress();
+    }
     phaseIdx++;
 
     // Phase 6: Review designer output
-    this.tracker?.activatePhase(`plan-review-${phaseIdx}`);
-    designDecisions = await this.reviewStep(designDecisions, "Design Decisions", "Designer is revising decisions…");
-    this.tracker?.completePhase(`plan-review-${phaseIdx}`);
+    const designReviewKey = `plan-review-${phaseIdx}`;
+    if (completedPhases.has(designReviewKey)) {
+      this.logger.info(msg.phaseSkipped("plan-review"));
+    } else {
+      this.tracker?.activatePhase(designReviewKey);
+      this.activePhaseKey = designReviewKey;
+      if (designReviewKey !== resumedPhaseKey) this.iterationProgress = {};
+      designDecisions = await this.reviewStep(
+        designDecisions,
+        "Design Decisions",
+        "Designer is revising decisions…",
+        designReviewKey,
+        saveProgress,
+      );
+      this.activePhaseKey = null;
+      this.iterationProgress = {};
+      completedPhases.add(designReviewKey);
+      this.tracker?.completePhase(designReviewKey);
+      await saveProgress();
+    }
     phaseIdx++;
 
     // Phase 7: Engineering analyst assesses codebase
-    this.tracker?.activatePhase(`plan-analyze-${phaseIdx}`);
-    const analysis = await this.analyzeCodebase(spec);
-    this.tracker?.completePhase(`plan-analyze-${phaseIdx}`);
+    const analyzeKey = `plan-analyze-${phaseIdx}`;
+    if (completedPhases.has(analyzeKey)) {
+      this.logger.info(msg.phaseSkipped("plan-analyze"));
+    } else {
+      this.tracker?.activatePhase(analyzeKey);
+      analysis = await this.analyzeCodebase(spec);
+      completedPhases.add(analyzeKey);
+      this.tracker?.completePhase(analyzeKey);
+      await saveProgress();
+    }
     phaseIdx++;
 
     // Assemble full plan
@@ -217,15 +360,26 @@ export class PlanningEngine {
 
     // Phase 8: Cross-model review of the full plan
     if (useCrossModel) {
-      this.tracker?.activatePhase(`plan-cross-review-${phaseIdx}`);
-      plan = await this.crossModelReview(plan);
-      this.tracker?.completePhase(`plan-cross-review-${phaseIdx}`);
+      const crossKey = `plan-cross-review-${phaseIdx}`;
+      if (completedPhases.has(crossKey)) {
+        this.logger.info(msg.phaseSkipped("plan-cross-review"));
+      } else {
+        this.tracker?.activatePhase(crossKey);
+        this.activePhaseKey = crossKey;
+        if (crossKey !== resumedPhaseKey) this.iterationProgress = {};
+        plan = await this.crossModelReview(plan, crossKey, saveProgress);
+        this.activePhaseKey = null;
+        this.iterationProgress = {};
+        completedPhases.add(crossKey);
+        this.tracker?.completePhase(crossKey);
+        await saveProgress();
+      }
     }
 
-    // Save
+    // Save plan output
     const timestamp = new Date().toISOString();
     const fileTimestamp = timestamp.replace(/[:.]/g, "-");
-    const fullPlan = `# Plan\n\n**Timestamp:** ${timestamp}\n\n## Original Request\n\n${this.config.issueBody}\n\n${plan}\n`;
+    const fullPlan = `# Plan\n\n**Timestamp:** ${timestamp}\n\n## Original Request\n\n${effectiveIssueBody}\n\n${plan}\n`;
 
     const dir = plansDir(this.config);
     await fs.mkdir(dir, { recursive: true });
@@ -234,6 +388,9 @@ export class PlanningEngine {
     const latestPath = path.join(dir, "plan-latest.md");
     await fs.writeFile(timestampedPath, fullPlan);
     await fs.copyFile(timestampedPath, latestPath);
+
+    // Clear checkpoint on success
+    await clearCheckpoint(this.config);
 
     this.logger.info(msg.planningComplete);
     this.logger.info(msg.planSaved(path.relative(this.config.repoRoot, timestampedPath)));
@@ -245,11 +402,26 @@ export class PlanningEngine {
    * Review a plan section with a reviewer agent. If issues found, send feedback
    * back to the original agent (via isolated session) for revision.
    */
-  private async reviewStep(content: string, sectionName: string, reviseSpinner: string): Promise<string> {
+  private async reviewStep(
+    content: string,
+    sectionName: string,
+    reviseSpinner: string,
+    phaseKey: string,
+    saveProgress: () => Promise<void>,
+  ): Promise<string> {
     this.logger.info(msg.planningReviewPhase(sectionName));
     let revised = content;
 
-    for (let i = 1; i <= MAX_REVIEW_ITERATIONS; i++) {
+    // Resume: skip completed iterations
+    const progress = this.iterationProgress[phaseKey];
+    let startIteration = 1;
+    if (progress) {
+      revised = progress.content;
+      startIteration = progress.completedIterations + 1;
+      this.logger.info(msg.iterationResumed(progress.completedIterations, MAX_REVIEW_ITERATIONS));
+    }
+
+    for (let i = startIteration; i <= MAX_REVIEW_ITERATIONS; i++) {
       this.logger.info(msg.planReviewIteration(i, MAX_REVIEW_ITERATIONS));
 
       const feedback = await this.sessions.callIsolatedWithInstructions(
@@ -266,13 +438,26 @@ export class PlanningEngine {
       this.logger.info(msg.planReviewFeedback(feedback.substring(0, 80)));
 
       // Have the original role revise based on feedback
-      revised = await this.sessions.callIsolatedWithInstructions(
+      const revision = await this.sessions.callIsolatedWithInstructions(
         `You are the author of a "${sectionName}" section in a project plan. ` +
-          "A reviewer has provided feedback. Revise the section to address all issues. " +
-          "Output ONLY the revised section content.",
-        `Original section:\n\n${revised}\n\nReviewer feedback:\n\n${feedback}\n\nRevise the section to address all feedback.`,
+          "A reviewer has provided feedback. Revise the section to address all issues.\n\n" +
+          "**CRITICAL:** Output the COMPLETE revised section — every requirement, criterion, " +
+          "and detail. Do NOT output a summary, changelog, or description of your changes. " +
+          "The output must be the full section content, ready to replace the original.",
+        `Original section:\n\n${revised}\n\nReviewer feedback:\n\n${feedback}\n\nRevise the section to address all feedback. Output the COMPLETE revised section.`,
         reviseSpinner,
       );
+
+      // Guard: if revision is suspiciously short, keep original
+      if (revision.length >= revised.length * MIN_REVISION_LENGTH_RATIO) {
+        revised = revision;
+      } else {
+        this.logger.info("  ⚠️  Revision too short — keeping previous version");
+      }
+
+      // Save iteration progress
+      this.iterationProgress[phaseKey] = { content: revised, completedIterations: i };
+      await saveProgress();
     }
 
     return revised;
@@ -281,11 +466,20 @@ export class PlanningEngine {
   /**
    * Cross-model review of the full assembled plan using the review model.
    */
-  private async crossModelReview(plan: string): Promise<string> {
+  private async crossModelReview(plan: string, phaseKey: string, saveProgress: () => Promise<void>): Promise<string> {
     this.logger.info(msg.planCrossModelPhase(this.pipeline.reviewModel));
     let revised = plan;
 
-    for (let i = 1; i <= MAX_REVIEW_ITERATIONS; i++) {
+    // Resume: skip completed iterations
+    const progress = this.iterationProgress[phaseKey];
+    let startIteration = 1;
+    if (progress) {
+      revised = progress.content;
+      startIteration = progress.completedIterations + 1;
+      this.logger.info(msg.iterationResumed(progress.completedIterations, MAX_REVIEW_ITERATIONS));
+    }
+
+    for (let i = startIteration; i <= MAX_REVIEW_ITERATIONS; i++) {
       this.logger.info(msg.planReviewIteration(i, MAX_REVIEW_ITERATIONS));
 
       const feedback = await this.sessions.callIsolatedWithInstructions(
@@ -303,18 +497,35 @@ export class PlanningEngine {
       this.logger.info(msg.planReviewFeedback(feedback.substring(0, 80)));
 
       // Revise with the primary model
-      revised = await this.sessions.callIsolatedWithInstructions(
+      const revision = await this.sessions.callIsolatedWithInstructions(
         "You are revising a project plan based on feedback from a cross-model reviewer. " +
-          "Address all issues raised. Output the complete revised plan.",
-        `Current plan:\n\n${revised}\n\nCross-model reviewer feedback:\n\n${feedback}\n\nRevise the plan.`,
+          "Address all issues raised.\n\n" +
+          "**CRITICAL:** Output the COMPLETE revised plan with ALL sections preserved:\n" +
+          "## Refined Requirements\n## Engineering Decisions\n## Design Decisions\n## Technical Analysis\n\n" +
+          "Do NOT output a summary, changelog, or description of your changes. " +
+          "The output must be the full plan document, ready to replace the original.",
+        `Current plan:\n\n${revised}\n\nCross-model reviewer feedback:\n\n${feedback}\n\nRevise the plan. Output the COMPLETE plan with all sections.`,
         "Revising plan…",
       );
+
+      // Guard: verify the revision preserves plan structure
+      const hasAllSections = PLAN_SECTION_HEADERS.every((h) => revision.includes(h));
+      const isLongEnough = revision.length >= revised.length * MIN_REVISION_LENGTH_RATIO;
+      if (hasAllSections && isLongEnough) {
+        revised = revision;
+      } else {
+        this.logger.info("  ⚠️  Revision lost plan structure — keeping previous version");
+      }
+
+      // Save iteration progress
+      this.iterationProgress[phaseKey] = { content: revised, completedIterations: i };
+      await saveProgress();
     }
 
     return revised;
   }
 
-  private async clarifyRequirements(): Promise<string> {
+  private async clarifyRequirements(issueBody: string): Promise<string> {
     this.logger.info(msg.planningPmPhase);
 
     const session = await this.sessions.createSessionWithInstructions(PLANNER_INSTRUCTIONS);
@@ -323,7 +534,7 @@ export class PlanningEngine {
     try {
       let response = await this.sessions.send(
         session,
-        `Here is the user's request:\n\n${this.config.issueBody}\n\n` +
+        `Here is the user's request:\n\n${issueBody}\n\n` +
           "Analyze this request. If it's clear enough, respond with REQUIREMENTS_CLEAR followed by the structured summary. " +
           "If you need more information, ask your clarifying questions.",
         "PM is analyzing requirements…",

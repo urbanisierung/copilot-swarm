@@ -37,14 +37,56 @@ Commands:
 
 Options:
   -v, --verbose        Enable verbose streaming output
+  -e, --editor         Open an interactive text editor to enter the prompt
   -p, --plan <file>    Use a plan file as input (reads the refined requirements section)
   -f, --file <file>    Read prompt from a file instead of inline text
   -r, --resume         Resume from the last checkpoint (skip completed phases)
+  --no-tui             Disable TUI dashboard (use plain log output)
   -V, --version        Show version number
   -h, --help           Show this help message
 ```
 
 The prompt can be passed as the last argument or via the `ISSUE_BODY` environment variable. CLI arguments take precedence over env vars.
+
+### Prompt Sources
+
+The CLI supports multiple ways to provide the task description (first match wins):
+
+| Source | Example | Description |
+|---|---|---|
+| `--plan <file>` | `swarm --plan .swarm/plans/plan-latest.md` | Extract refined requirements from a plan file |
+| `--file <file>` | `swarm -f requirements.md` | Read entire file as prompt |
+| `--editor` | `swarm -e` | Open interactive multi-line editor |
+| Inline text | `swarm "Add dark mode"` | Pass prompt as a positional argument |
+| GitHub issue | `swarm "gh:owner/repo#123"` | Fetch issue from GitHub (requires `gh` CLI) |
+| GitHub issue (current repo) | `swarm "gh:#42"` | Fetch issue from the current repo |
+| GitHub issue (URL) | `swarm "https://github.com/owner/repo/issues/123"` | Fetch issue via full URL |
+| `ISSUE_BODY` env var | `ISSUE_BODY="Add dark mode" swarm` | Fallback environment variable |
+
+#### Interactive Editor (`--editor` / `-e`)
+
+Opens a full-screen bordered text area in the terminal. Use arrow keys to navigate, Enter for new lines, Ctrl+Enter (or Ctrl+D) to submit, Esc to cancel. Requires an interactive TTY.
+
+```bash
+swarm -e
+swarm run --editor
+swarm plan -e
+```
+
+#### GitHub Issue Input
+
+Reference a GitHub issue directly — the CLI fetches the issue title and body using the `gh` CLI. Requires `gh` to be installed and authenticated (`gh auth login`).
+
+Supported formats:
+- `gh:owner/repo#123` — full reference
+- `gh:#123` — issue in the current repository (detected from git remote)
+- `https://github.com/owner/repo/issues/123` — full URL
+
+```bash
+swarm "gh:owner/repo#123"
+swarm plan "gh:#42"
+swarm "https://github.com/my-org/my-repo/issues/7"
+```
 
 ### Planning Mode
 
@@ -108,15 +150,20 @@ Long-running pipeline executions are checkpointed at multiple granularity levels
 swarm --resume
 swarm -r
 
+# Resume a failed plan
+swarm plan --resume
+swarm plan -r
+
 # Resume with verbose output
 swarm -r -v
 ```
 
 How it works:
-- **Phase-level:** After each pipeline phase completes, full progress is saved to `.swarm/runs/<runId>/checkpoint.json`.
+- **Phase-level:** After each pipeline phase completes, full progress is saved to `.swarm/runs/<runId>/checkpoint.json`. This applies to both `run` and `plan` modes.
 - **Iteration-level:** Within review and QA feedback loops, progress is saved after each iteration. On resume, completed iterations are skipped and the latest revised content is used as the starting point.
 - **Stream-level:** During the `implement` phase, each completed stream is saved individually — if 2 of 3 streams finish before a timeout, those 2 are preserved. Draft code and review progress within each stream are also checkpointed.
 - **Draft-level:** The initial output of each agent (spec draft, design draft, engineering code) is saved before review loops begin, so it doesn't need to be regenerated on resume.
+- **Plan mode:** Each of the 8 planning phases (clarification, review, analysis, cross-model) is checkpointed individually. Interactive Q&A results are preserved — if a crash happens during engineer review, the PM and engineer clarification phases don't need to be repeated. Review iteration progress within plan mode is also tracked.
 - On `--resume`, completed phases, iterations, and streams are skipped. Only the remaining work is executed.
 - The checkpoint file is automatically deleted on successful completion.
 - Add `.swarm/runs/` and `.swarm/latest` to your `.gitignore`.

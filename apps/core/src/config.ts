@@ -3,6 +3,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+import { resolveGitHubIssue } from "./github-issue.js";
+import { openTextarea } from "./textarea.js";
 
 const repoRoot = execSync("git rev-parse --show-toplevel", { encoding: "utf-8" }).trim();
 
@@ -38,6 +40,7 @@ interface CliArgs {
   prompt: string | undefined;
   planFile: string | undefined;
   promptFile: string | undefined;
+  editor: boolean;
   resume: boolean;
   noTui: boolean;
 }
@@ -58,6 +61,7 @@ Commands:
 
 Options:
   -v, --verbose        Enable verbose streaming output
+  -e, --editor         Open an interactive text editor to enter the prompt
   -p, --plan <file>    Use a plan file as input (reads the refined requirements section)
   -f, --file <file>    Read prompt from a file instead of inline text
   -r, --resume         Resume from the last checkpoint (skip completed phases)
@@ -65,13 +69,26 @@ Options:
   -V, --version        Show version number
   -h, --help           Show this help message
 
+Prompt sources (first match wins):
+  --plan <file>        Extract refined requirements from a plan file
+  --file <file>        Read entire file as prompt
+  --editor             Open interactive multi-line editor (Ctrl+Enter to submit)
+  "<prompt>"           Inline text argument
+  gh:owner/repo#123    Fetch a GitHub issue (requires gh CLI)
+  gh:#123              Fetch issue from current repo
+  https://github.com/owner/repo/issues/123
+  ISSUE_BODY env var   Fallback environment variable
+
 Examples:
   swarm "Add a dark mode toggle"
   swarm plan "Add a dark mode toggle"
   swarm plan -f requirements.md
+  swarm run -e                            Open editor to describe the task
   swarm run -v "Fix the login bug"
-  swarm run --resume                   Resume a failed/timed-out run
+  swarm run --resume                      Resume a failed/timed-out run
   swarm --plan .swarm/plans/plan-latest.md
+  swarm "gh:owner/repo#123"               Fetch GitHub issue as prompt
+  swarm "gh:#42"                          Fetch issue #42 from current repo
   swarm analyze
 
 Environment variables override defaults; CLI args override env vars.
@@ -86,6 +103,7 @@ function parseCliArgs(): CliArgs {
       help: { type: "boolean", short: "h", default: false },
       version: { type: "boolean", short: "V", default: false },
       resume: { type: "boolean", short: "r", default: false },
+      editor: { type: "boolean", short: "e", default: false },
       "no-tui": { type: "boolean", default: false },
       plan: { type: "string", short: "p" },
       file: { type: "string", short: "f" },
@@ -119,6 +137,7 @@ function parseCliArgs(): CliArgs {
     prompt: promptParts.length > 0 ? promptParts.join(" ") : undefined,
     planFile: values.plan as string | undefined,
     promptFile: values.file as string | undefined,
+    editor: values.editor as boolean,
     resume: values.resume as boolean,
     noTui: values["no-tui"] as boolean,
   };
@@ -194,7 +213,7 @@ export interface SwarmConfig {
   readonly maxAutoResume: number;
 }
 
-export function loadConfig(): SwarmConfig {
+export async function loadConfig(): Promise<SwarmConfig> {
   const cli = parseCliArgs();
 
   let issueBody: string | undefined;
@@ -203,12 +222,21 @@ export function loadConfig(): SwarmConfig {
     issueBody = readPlanFile(cli.planFile);
   } else if (cli.promptFile) {
     issueBody = readPromptFile(cli.promptFile);
+  } else if (cli.editor) {
+    issueBody = await openTextarea();
+    if (!issueBody) {
+      console.error("Error: Editor cancelled — no prompt provided.");
+      process.exit(1);
+    }
   } else {
-    issueBody = cli.prompt ?? process.env.ISSUE_BODY;
+    const raw = cli.prompt ?? process.env.ISSUE_BODY;
+    issueBody = resolveGitHubIssue(raw) ?? raw;
   }
 
   if (cli.command !== "analyze" && !cli.resume && (!issueBody || issueBody === "")) {
-    console.error(`Error: No prompt provided. Pass it as an argument, use --plan, or set ISSUE_BODY.\n\n${HELP_TEXT}`);
+    console.error(
+      `Error: No prompt provided. Pass it as an argument, use --editor, --plan, or set ISSUE_BODY.\n\n${HELP_TEXT}`,
+    );
     process.exit(1);
   }
 

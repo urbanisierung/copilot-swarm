@@ -154,4 +154,35 @@ describe("checkpoint round-trip", () => {
     const loaded = await loadCheckpoint(config);
     expect(loaded).toBeNull();
   });
+
+  it("saves and loads a plan-mode checkpoint with plan-specific fields", async () => {
+    const config = makeConfig("test-plan");
+    cleanupDirs.push(config.repoRoot);
+
+    const checkpoint: PipelineCheckpoint = {
+      mode: "plan",
+      completedPhases: ["plan-clarify-0", "plan-review-1", "plan-eng-clarify-2"],
+      spec: "refined requirements",
+      engDecisions: "use REST API with pagination",
+      designDecisions: "",
+      analysis: "",
+      tasks: [],
+      designSpec: "",
+      streamResults: [],
+      issueBody: "Add search feature",
+      runId: "test-plan",
+      activePhase: "plan-review-3",
+      iterationProgress: {
+        "plan-review-3": { content: "revised eng decisions", completedIterations: 1 },
+      },
+    };
+
+    await saveCheckpoint(config, checkpoint);
+    const loaded = await loadCheckpoint(config);
+    expect(loaded).toEqual(checkpoint);
+    expect(loaded?.mode).toBe("plan");
+    expect(loaded?.engDecisions).toBe("use REST API with pagination");
+    expect(loaded?.activePhase).toBe("plan-review-3");
+    expect(loaded?.iterationProgress?.["plan-review-3"]?.completedIterations).toBe(1);
+  });
 });
