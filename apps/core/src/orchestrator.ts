@@ -104,6 +104,9 @@ export class SwarmOrchestrator {
       console.log(`\n❌ Copilot Swarm failed after ${elapsed}`);
       console.log(`📁 Partial output: ${outputDir}`);
     }
+    if (this.logger.logFilePath) {
+      console.log(msg.logFileHint(this.logger.logFilePath));
+    }
   }
 
   private fmtElapsed(ms: number): string {

@@ -143,6 +143,16 @@ swarm --no-tui "Add a dark mode toggle"
 
 After the TUI exits, a brief summary is printed with elapsed time and output directory.
 
+### Log Files
+
+Every run writes a debug log to the system temp directory:
+
+- **Linux:** `/tmp/copilot-swarm/swarm-<runId>.log`
+- **macOS:** `$TMPDIR/copilot-swarm/swarm-<runId>.log`
+- **Windows:** `%TEMP%\copilot-swarm\swarm-<runId>.log`
+
+The log file captures all messages (including debug-level) regardless of verbose mode or TUI state. If an error occurs, the log file path is printed to help with debugging. Log file creation is non-blocking — if it fails, the tool continues normally.
+
 ### Local Development
 
 ```bash

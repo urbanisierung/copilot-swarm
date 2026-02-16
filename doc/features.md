@@ -23,6 +23,7 @@ High-level feature list for Copilot Swarm.
 | **Extended timeout** | 2026-02-15 | Default session timeout increased to 30 minutes (configurable via `SESSION_TIMEOUT_MS`) for complex tasks |
 | **Structured `.swarm/` output** | 2026-02-15 | All output organized under `.swarm/` with subfolders: `plans/`, `runs/<runId>/`, `analysis/` — no conflicts with existing repo files |
 | **TUI dashboard** | 2026-02-16 | Full-screen terminal dashboard in `run` mode showing phase progress, stream status, active agent, and activity log. Auto-enabled on TTY, disable with `--no-tui` |
+| **Debug log files** | 2026-02-16 | Every run writes a debug log to `os.tmpdir()/copilot-swarm/swarm-<runId>.log`. Captures all levels including debug. Log path shown on error. Non-blocking (failures silently ignored) |
 | **Verbose streaming mode** | 2026-02 | `VERBOSE=true` streams agent deltas, tool calls, and intent updates to stdout |
 | **Role summaries** | 2026-02 | Each agent writes a timestamped summary to `.swarm/runs/<runId>/roles/` for audit trail |
 

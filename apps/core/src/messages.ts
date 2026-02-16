@@ -90,4 +90,7 @@ export const msg = {
     `\n🔁 Auto-resuming from checkpoint (attempt ${attempt}/${max})...`,
   autoResumeExhausted: (max: number) =>
     `\n❌ All ${max} auto-resume attempts exhausted. Use --resume to retry manually.`,
+
+  // --- Log File ---
+  logFileHint: (path: string) => `📋 Full log: ${path}`,
 } as const;
