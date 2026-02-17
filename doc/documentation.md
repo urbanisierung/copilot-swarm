@@ -65,7 +65,22 @@ The CLI supports multiple ways to provide the task description (first match wins
 
 #### Interactive Editor (`--editor` / `-e`)
 
-Opens a full-screen bordered text area in the terminal. Use arrow keys to navigate, Enter for new lines, Ctrl+Enter (or Ctrl+D) to submit, Esc to cancel. Requires an interactive TTY.
+Opens a full-screen bordered text area in the terminal. Requires an interactive TTY.
+
+**Navigation:**
+- Arrow keys to move cursor
+- Ctrl+Left/Right to jump between words
+- Home/End to go to line start/end
+- Ctrl+A/Ctrl+E for line start/end
+
+**Editing:**
+- Enter for new lines
+- Backspace/Delete to remove characters
+- Ctrl+W or Ctrl+Backspace to delete word backwards
+
+**Actions:**
+- Ctrl+S or Esc opens the command palette (Submit / Cancel)
+- Ctrl+D to submit directly
 
 ```bash
 swarm -e
