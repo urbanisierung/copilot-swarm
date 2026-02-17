@@ -554,9 +554,9 @@ export class PlanningEngine {
     if (phaseKey) this.sessions.recordSession(phaseKey, session, "planner", "pm");
     const savedQA = this.answeredQuestions[phaseKey] ?? [];
 
-    try {
-      let response: string;
+    let response = "";
 
+    try {
       // Replay previously answered questions on resume
       if (savedQA.length > 0) {
         this.logger.info(`  ⏭️  Replaying ${savedQA.length} previously answered question(s)`);
@@ -628,21 +628,30 @@ export class PlanningEngine {
           );
         }
       }
-
-      // Extract everything after REQUIREMENTS_CLEAR keyword
-      const marker = "REQUIREMENTS_CLEAR";
-      const idx = response.toUpperCase().indexOf(marker);
-      const spec = idx !== -1 ? response.substring(idx + marker.length).trim() : response;
-
-      this.renderer?.pause();
-      console.log("\n📋 Refined Requirements:\n");
-      console.log(spec);
-      this.renderer?.resume();
-
-      return spec;
+    } catch (_err) {
+      this.logger.stopSpinner();
+      response = await this.recoverClarification(
+        phaseKey,
+        issueBody,
+        response,
+        ResponseKeyword.REQUIREMENTS_CLEAR,
+        "PM",
+      );
     } finally {
       await session.destroy();
     }
+
+    // Extract everything after REQUIREMENTS_CLEAR keyword
+    const marker = "REQUIREMENTS_CLEAR";
+    const idx = response.toUpperCase().indexOf(marker);
+    const spec = idx !== -1 ? response.substring(idx + marker.length).trim() : response;
+
+    this.renderer?.pause();
+    console.log("\n📋 Refined Requirements:\n");
+    console.log(spec);
+    this.renderer?.resume();
+
+    return spec;
   }
 
   /**
@@ -664,9 +673,9 @@ export class PlanningEngine {
     this.sessions.recordSession(phaseKey, session, phaseKey, phaseKey);
     const savedQA = this.answeredQuestions[phaseKey] ?? [];
 
-    try {
-      let response: string;
+    let response = "";
 
+    try {
       // Replay previously answered questions on resume
       if (savedQA.length > 0) {
         this.logger.info(`  ⏭️  Replaying ${savedQA.length} previously answered question(s)`);
@@ -725,19 +734,22 @@ export class PlanningEngine {
           response = await this.sessions.send(session, `User's answers:\n\n${answer}`, spinnerLabel);
         }
       }
-
-      const idx = response.toUpperCase().indexOf(clearKeyword);
-      const result = idx !== -1 ? response.substring(idx + clearKeyword.length).trim() : response;
-
-      this.renderer?.pause();
-      console.log(`\n${phaseLabel}\n`);
-      console.log(result);
-      this.renderer?.resume();
-
-      return result;
+    } catch (_err) {
+      this.logger.stopSpinner();
+      response = await this.recoverClarification(phaseKey, spec, response, clearKeyword, phaseLabel);
     } finally {
       await session.destroy();
     }
+
+    const idx = response.toUpperCase().indexOf(clearKeyword);
+    const result = idx !== -1 ? response.substring(idx + clearKeyword.length).trim() : response;
+
+    this.renderer?.pause();
+    console.log(`\n${phaseLabel}\n`);
+    console.log(result);
+    this.renderer?.resume();
+
+    return result;
   }
 
   private async analyzeCodebase(spec: string): Promise<string> {
@@ -759,6 +771,50 @@ export class PlanningEngine {
       return analysis;
     } finally {
       await session.destroy();
+    }
+  }
+
+  /**
+   * Recover from a session timeout during clarification by creating a fresh
+   * session and asking the agent to finalize using all collected Q&A context.
+   */
+  private async recoverClarification(
+    phaseKey: string,
+    context: string,
+    lastResponse: string,
+    clearKeyword: string,
+    roleLabel: string,
+  ): Promise<string> {
+    this.logger.warn(msg.sessionExpiredRecovery);
+
+    const collectedQA = this.answeredQuestions[phaseKey] ?? [];
+    if (collectedQA.length === 0 && lastResponse) {
+      // No Q&A collected but we have a response — return it as-is
+      return lastResponse;
+    }
+
+    const qaContext = collectedQA
+      .map((qa, i) => `### Round ${i + 1}\n**Questions:**\n${qa.question}\n\n**Answers:**\n${qa.answer}`)
+      .join("\n\n");
+
+    const recoveryPrompt =
+      `The previous session expired during clarification. Here is all the context collected so far:\n\n` +
+      `## Original Request\n${context}\n\n` +
+      `## Clarification Q&A\n${qaContext}\n\n` +
+      (lastResponse ? `## Last Agent Response (before timeout)\n${lastResponse}\n\n` : "") +
+      `Based on all of this information, produce the final summary. ` +
+      `Use your best judgment for any remaining open questions. ` +
+      `Respond with ${clearKeyword} followed by the structured summary.`;
+
+    try {
+      return await this.sessions.callIsolatedWithInstructions(
+        PLANNER_INSTRUCTIONS,
+        recoveryPrompt,
+        `${roleLabel} is recovering from timeout…`,
+      );
+    } catch {
+      this.logger.warn(msg.sessionRecoveryFailed);
+      return lastResponse || context;
     }
   }
 }
