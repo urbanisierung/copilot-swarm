@@ -623,8 +623,10 @@ export class PipelineEngine {
           this.logger.info(msg.crossModelIteration(i, maxIter, this.pipeline.reviewModel));
           const feedback = await this.sessions.callIsolated(
             phase.agent,
-            `Spec:\n${ctx.spec}\n\nReview this implementation from scratch. ` +
-              `You are using a different model than the one that wrote this code — look for blind spots.\n\n` +
+            `Spec:\n${ctx.spec}\n\n` +
+              `Review this implementation for bugs, security issues, and spec compliance. ` +
+              `You are using a different model than the one that wrote this code — focus on catching real problems, ` +
+              `not style preferences.\n\n` +
               `Implementation:\n${current}`,
             this.pipeline.reviewModel,
             `cross-model/stream-${idx}/review-${i}`,
@@ -636,7 +638,13 @@ export class PipelineEngine {
           this.logger.info(msg.crossModelIssues);
           current = await this.sessions.callIsolated(
             phase.fixAgent,
-            `Cross-model review feedback:\n${feedback}\n\nOriginal implementation:\n${current}\n\nFix all reported issues.`,
+            `You are fixing specific issues found during a cross-model code review. ` +
+              `Do NOT rewrite or restructure the code. Only fix the exact issues listed below.\n\n` +
+              `Spec:\n${ctx.spec}\n\n` +
+              `Cross-model review feedback:\n${feedback}\n\n` +
+              `Current implementation:\n${current}\n\n` +
+              `Fix ONLY the issues listed in the review feedback above. ` +
+              `Keep everything that works correctly — do not refactor, rename, or reorganize anything beyond what is needed to address the reported issues.`,
             undefined,
             `cross-model/stream-${idx}/fix-${i}`,
           );
