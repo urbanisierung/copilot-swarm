@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.12
+
+### Patch Changes
+
+- 1c3dc73: Improve textarea and clarification UX
+
 ## 0.0.11
 
 ### Patch Changes
