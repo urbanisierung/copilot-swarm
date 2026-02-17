@@ -4,6 +4,9 @@ All notable changes to this project are documented here, in reverse chronologica
 
 ## 2026-02-17
 
+### Added
+- **Split-pane Q&A editor** — Plan mode interactive clarification now uses a two-column split editor: left panel for user input, right panel with scrollable agent questions (PM, engineer, designer). Tab to switch panels, PgUp/PgDown to scroll context. Submit/Skip/Cancel via command palette. All Q&A answers saved in checkpoint `answeredQuestions` field — on resume, previously answered rounds are replayed automatically without re-prompting.
+
 ### Improved
 - **Interactive editor input** — Word-jump navigation with Ctrl+Left/Right, Ctrl+A/E for line start/end, Ctrl+W and Ctrl+Backspace for word deletion. Replaced Ctrl+Enter submit with Ctrl+S command palette (Submit/Cancel menu with arrow key selection). Esc now opens the command palette instead of immediately cancelling. Flicker-free rendering: single-character edits only redraw the affected line, cursor-only movements reposition without redrawing, full redraws only on structural changes.
 - **TUI dashboard rendering** — Fixed activity log rendering when content reaches terminal bottom. Each row is now written with explicit cursor positioning and line clearing (`\x1b[K`) to prevent ghosting. Lines wider than terminal columns are truncated (ANSI-aware) to prevent wrapping that consumed extra visual rows.

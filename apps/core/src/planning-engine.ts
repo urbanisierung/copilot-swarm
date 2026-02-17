@@ -1,7 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import * as readline from "node:readline/promises";
-import { clearCheckpoint, type IterationSnapshot, loadCheckpoint, saveCheckpoint } from "./checkpoint.js";
+import { clearCheckpoint, type IterationSnapshot, loadCheckpoint, type QAPair, saveCheckpoint } from "./checkpoint.js";
 import type { SwarmConfig } from "./config.js";
 import { ResponseKeyword } from "./constants.js";
 import type { Logger } from "./logger.js";
@@ -10,6 +9,7 @@ import { plansDir } from "./paths.js";
 import type { PipelineConfig } from "./pipeline-types.js";
 import type { ProgressTracker } from "./progress-tracker.js";
 import { SessionManager } from "./session.js";
+import { openSplitEditor } from "./textarea.js";
 import type { TuiRenderer } from "./tui-renderer.js";
 import { responseContains } from "./utils.js";
 
@@ -128,6 +128,7 @@ export class PlanningEngine {
   private readonly sessions: SessionManager;
   private activePhaseKey: string | null = null;
   private iterationProgress: Record<string, IterationSnapshot> = {};
+  private answeredQuestions: Record<string, QAPair[]> = {};
 
   constructor(
     private readonly config: SwarmConfig,
@@ -193,6 +194,7 @@ export class PlanningEngine {
           resumedPhaseKey = cp.activePhase;
           this.iterationProgress = cp.iterationProgress ?? {};
         }
+        this.answeredQuestions = cp.answeredQuestions ?? {};
       } else {
         this.logger.info(msg.noCheckpoint);
       }
@@ -213,6 +215,7 @@ export class PlanningEngine {
         streamResults: [],
         activePhase: this.activePhaseKey ?? undefined,
         iterationProgress: Object.keys(this.iterationProgress).length > 0 ? this.iterationProgress : undefined,
+        answeredQuestions: Object.keys(this.answeredQuestions).length > 0 ? this.answeredQuestions : undefined,
       });
     };
 
@@ -224,7 +227,7 @@ export class PlanningEngine {
       this.logger.info(msg.phaseSkipped("plan-clarify"));
     } else {
       this.tracker?.activatePhase(clarifyKey);
-      spec = await this.clarifyRequirements(effectiveIssueBody);
+      spec = await this.clarifyRequirements(effectiveIssueBody, clarifyKey, saveProgress);
       completedPhases.add(clarifyKey);
       this.tracker?.completePhase(clarifyKey);
       await saveProgress();
@@ -266,6 +269,8 @@ export class PlanningEngine {
         spec,
         "Engineer is reviewing requirements…",
         msg.planningEngClarifyPhase,
+        engClarifyKey,
+        saveProgress,
       );
       completedPhases.add(engClarifyKey);
       this.tracker?.completePhase(engClarifyKey);
@@ -308,6 +313,8 @@ export class PlanningEngine {
         spec,
         "Designer is reviewing requirements…",
         msg.planningDesignClarifyPhase,
+        designClarifyKey,
+        saveProgress,
       );
       completedPhases.add(designClarifyKey);
       this.tracker?.completePhase(designClarifyKey);
@@ -525,40 +532,83 @@ export class PlanningEngine {
     return revised;
   }
 
-  private async clarifyRequirements(issueBody: string): Promise<string> {
+  private async clarifyRequirements(
+    issueBody: string,
+    phaseKey: string,
+    saveProgress: () => Promise<void>,
+  ): Promise<string> {
     this.logger.info(msg.planningPmPhase);
 
     const session = await this.sessions.createSessionWithInstructions(PLANNER_INSTRUCTIONS);
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    const savedQA = this.answeredQuestions[phaseKey] ?? [];
 
     try {
-      let response = await this.sessions.send(
-        session,
-        `Here is the user's request:\n\n${issueBody}\n\n` +
-          "Analyze this request. If it's clear enough, respond with REQUIREMENTS_CLEAR followed by the structured summary. " +
-          "If you need more information, ask your clarifying questions.",
-        "PM is analyzing requirements…",
-      );
+      let response: string;
 
-      for (let round = 0; round < MAX_CLARIFICATION_ROUNDS; round++) {
+      // Replay previously answered questions on resume
+      if (savedQA.length > 0) {
+        this.logger.info(`  ⏭️  Replaying ${savedQA.length} previously answered question(s)`);
+        // Send initial request
+        response = await this.sessions.send(
+          session,
+          `Here is the user's request:\n\n${issueBody}\n\n` +
+            "Analyze this request. If it's clear enough, respond with REQUIREMENTS_CLEAR followed by the structured summary. " +
+            "If you need more information, ask your clarifying questions.",
+          "PM is analyzing requirements…",
+        );
+
+        // Replay each saved Q&A
+        for (const qa of savedQA) {
+          if (responseContains(response, ResponseKeyword.REQUIREMENTS_CLEAR)) break;
+          response = await this.sessions.send(
+            session,
+            `User's answers:\n\n${qa.answer}`,
+            "PM is processing saved answers…",
+          );
+        }
+      } else {
+        response = await this.sessions.send(
+          session,
+          `Here is the user's request:\n\n${issueBody}\n\n` +
+            "Analyze this request. If it's clear enough, respond with REQUIREMENTS_CLEAR followed by the structured summary. " +
+            "If you need more information, ask your clarifying questions.",
+          "PM is analyzing requirements…",
+        );
+      }
+
+      for (let round = savedQA.length; round < MAX_CLARIFICATION_ROUNDS; round++) {
         if (responseContains(response, ResponseKeyword.REQUIREMENTS_CLEAR)) {
           break;
         }
 
-        // Show agent's questions — pause TUI for interactive I/O
+        // Open split editor with agent questions on the right
         this.renderer?.pause();
-        console.log(`\n${response}`);
-
-        // Read multi-line user answer
-        const answer = await this.readMultiLineInput(rl);
+        const answer = await openSplitEditor(response, {
+          editorTitle: "Your Answer",
+          contextTitle: "PM Questions",
+        });
         this.renderer?.resume();
-        if (!answer.trim()) {
+
+        if (answer === undefined) {
+          // User cancelled — let the agent finalize
+          response = await this.sessions.send(
+            session,
+            "The user cancelled. Use your best judgment for any open questions and produce the final requirements. Respond with REQUIREMENTS_CLEAR followed by the structured summary.",
+            "PM is finalizing requirements…",
+          );
+        } else if (!answer.trim()) {
+          // User skipped
           response = await this.sessions.send(
             session,
             "The user skipped this round. Use your best judgment for any open questions and produce the final requirements. Respond with REQUIREMENTS_CLEAR followed by the structured summary.",
             "PM is finalizing requirements…",
           );
         } else {
+          // Save Q&A pair
+          if (!this.answeredQuestions[phaseKey]) this.answeredQuestions[phaseKey] = [];
+          this.answeredQuestions[phaseKey].push({ question: response, answer });
+          await saveProgress();
+
           response = await this.sessions.send(
             session,
             `User's answers:\n\n${answer}`,
@@ -579,7 +629,6 @@ export class PlanningEngine {
 
       return spec;
     } finally {
-      rl.close();
       await session.destroy();
     }
   }
@@ -594,38 +643,72 @@ export class PlanningEngine {
     spec: string,
     spinnerLabel: string,
     phaseLabel: string,
+    phaseKey: string,
+    saveProgress: () => Promise<void>,
   ): Promise<string> {
     this.logger.info(phaseLabel);
 
     const session = await this.sessions.createSessionWithInstructions(instructions);
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    const savedQA = this.answeredQuestions[phaseKey] ?? [];
 
     try {
-      let response = await this.sessions.send(
-        session,
-        `Here are the refined requirements:\n\n${spec}\n\n` +
-          `Review these requirements from your perspective. If everything is clear, respond with ${clearKeyword} followed by your summary. ` +
-          "If you need more information, ask your clarifying questions.",
-        spinnerLabel,
-      );
+      let response: string;
 
-      for (let round = 0; round < MAX_CLARIFICATION_ROUNDS; round++) {
+      // Replay previously answered questions on resume
+      if (savedQA.length > 0) {
+        this.logger.info(`  ⏭️  Replaying ${savedQA.length} previously answered question(s)`);
+        response = await this.sessions.send(
+          session,
+          `Here are the refined requirements:\n\n${spec}\n\n` +
+            `Review these requirements from your perspective. If everything is clear, respond with ${clearKeyword} followed by your summary. ` +
+            "If you need more information, ask your clarifying questions.",
+          spinnerLabel,
+        );
+
+        for (const qa of savedQA) {
+          if (responseContains(response, clearKeyword)) break;
+          response = await this.sessions.send(session, `User's answers:\n\n${qa.answer}`, spinnerLabel);
+        }
+      } else {
+        response = await this.sessions.send(
+          session,
+          `Here are the refined requirements:\n\n${spec}\n\n` +
+            `Review these requirements from your perspective. If everything is clear, respond with ${clearKeyword} followed by your summary. ` +
+            "If you need more information, ask your clarifying questions.",
+          spinnerLabel,
+        );
+      }
+
+      for (let round = savedQA.length; round < MAX_CLARIFICATION_ROUNDS; round++) {
         if (responseContains(response, clearKeyword)) {
           break;
         }
 
         this.renderer?.pause();
-        console.log(`\n${response}`);
-
-        const answer = await this.readMultiLineInput(rl);
+        const roleName = phaseLabel.replace(/[^a-zA-Z ]/g, "").trim();
+        const answer = await openSplitEditor(response, {
+          editorTitle: "Your Answer",
+          contextTitle: `${roleName} Questions`,
+        });
         this.renderer?.resume();
-        if (!answer.trim()) {
+
+        if (answer === undefined) {
+          response = await this.sessions.send(
+            session,
+            `The user cancelled. Use your best judgment for any open questions and produce your final summary. Respond with ${clearKeyword} followed by the summary.`,
+            spinnerLabel,
+          );
+        } else if (!answer.trim()) {
           response = await this.sessions.send(
             session,
             `The user skipped this round. Use your best judgment for any open questions and produce your final summary. Respond with ${clearKeyword} followed by the summary.`,
             spinnerLabel,
           );
         } else {
+          if (!this.answeredQuestions[phaseKey]) this.answeredQuestions[phaseKey] = [];
+          this.answeredQuestions[phaseKey].push({ question: response, answer });
+          await saveProgress();
+
           response = await this.sessions.send(session, `User's answers:\n\n${answer}`, spinnerLabel);
         }
       }
@@ -640,35 +723,8 @@ export class PlanningEngine {
 
       return result;
     } finally {
-      rl.close();
       await session.destroy();
     }
-  }
-
-  /**
-   * Reads multi-line input from the user. Lines are collected until the user
-   * submits an empty line (presses Enter twice). Literal `\n` sequences typed
-   * by the user are converted to real newlines.
-   */
-  private async readMultiLineInput(rl: readline.Interface): Promise<string> {
-    const lines: string[] = [];
-    const firstLine = await rl.question(msg.planningUserPrompt);
-    if (!firstLine.trim()) {
-      return "";
-    }
-    lines.push(firstLine);
-
-    // Continue reading until empty line
-    while (true) {
-      const line = await rl.question(msg.planningInputContinue);
-      if (!line.trim()) {
-        break;
-      }
-      lines.push(line);
-    }
-
-    // Join and convert literal \n sequences to real newlines
-    return lines.join("\n").replace(/\\n/g, "\n");
   }
 
   private async analyzeCodebase(spec: string): Promise<string> {
