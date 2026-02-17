@@ -245,6 +245,41 @@ By default, the orchestrator automatically retries from the last checkpoint up t
 - Configure via `MAX_AUTO_RESUME` env var (default: `3`, set to `0` to disable)
 - The `--resume` flag is still available for manual retries after all auto-resume attempts are exhausted
 
+### Sessions (Feature Grouping)
+
+Sessions group related runs (analyze, plan, run, review) under a single logical feature/project. This preserves context across modes and makes it easy to track all work for a given feature.
+
+**Structure:**
+```
+.swarm/
+  sessions/
+    <sessionId>/
+      session.json          # metadata (id, name, created, description)
+      runs/<runId>/          # run output directories
+      plans/                # plan outputs
+      analysis/             # analysis outputs
+      latest                # latest run pointer within session
+  active-session            # pointer to the active session ID
+```
+
+**Commands:**
+```bash
+# Create a new session
+swarm session create "Dark mode feature"
+
+# List all sessions
+swarm session list
+
+# Switch to a specific session
+swarm session use <sessionId>
+```
+
+**Automatic behavior:**
+- All commands (`run`, `plan`, `analyze`, `review`) automatically use the active session
+- Override with `--session <id>` flag
+- If no session exists, a default session is auto-created
+- Legacy `.swarm/runs/`, `plans/`, `analysis/` directories are automatically migrated into the default session on first use
+
 ### TUI Dashboard
 
 A full-screen terminal dashboard displays progress for all modes (`run`, `plan`, `analyze`) when running in a TTY (interactive terminal). The dashboard shows:

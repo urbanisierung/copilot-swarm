@@ -7,9 +7,57 @@ import { SwarmOrchestrator } from "./orchestrator.js";
 import { analysisDir, plansDir } from "./paths.js";
 import { PlanningEngine } from "./planning-engine.js";
 import { ProgressTracker } from "./progress-tracker.js";
+import { resolveSessionId } from "./session-store.js";
 import { TuiRenderer } from "./tui-renderer.js";
 
 const config = await loadConfig();
+
+// Handle session subcommand before resolving session
+if (config.command === "session") {
+  const { createSession, listSessions, setActiveSession, getActiveSessionId, getSession } = await import(
+    "./session-store.js"
+  );
+  const subcommand = config.issueBody.split(" ")[0];
+  const args = config.issueBody.substring(subcommand.length).trim();
+
+  if (subcommand === "create") {
+    const name = args || "Unnamed session";
+    const session = await createSession(config, name);
+    console.log(`✅ Created session: ${session.id} — "${session.name}"`);
+    console.log(`   Active session set to: ${session.id}`);
+  } else if (subcommand === "list") {
+    const sessions = await listSessions(config);
+    const activeId = await getActiveSessionId(config);
+    if (sessions.length === 0) {
+      console.log("No sessions found.");
+    } else {
+      for (const s of sessions) {
+        const marker = s.id === activeId ? " (active)" : "";
+        console.log(`  ${s.id}  ${s.name}${marker}  — ${s.created}`);
+      }
+    }
+  } else if (subcommand === "use") {
+    if (!args) {
+      console.error("Error: session use requires a session ID");
+      process.exit(1);
+    }
+    const session = await getSession(config, args);
+    if (!session) {
+      console.error(`Error: Session not found: ${args}`);
+      process.exit(1);
+    }
+    await setActiveSession(config, args);
+    console.log(`✅ Active session: ${session.id} — "${session.name}"`);
+  } else {
+    console.error(`Unknown session subcommand: "${subcommand}". Use: create, list, use`);
+    process.exit(1);
+  }
+  process.exit(0);
+}
+
+// Resolve session for all other commands
+config.resolvedSessionId = await resolveSessionId(config);
+
 const logger = new Logger(config.verbose, config.runId);
 
 const showLogOnError = (err: unknown) => {

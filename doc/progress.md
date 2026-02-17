@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here, in reverse chronological order.
 
+## 2026-02-18
+
+### Added
+- **Sessions (feature grouping)** — New `swarm session` command to group related runs under a logical feature. `swarm session create "Feature X"` creates a session, `swarm session list` shows all sessions, `swarm session use <id>` switches active session. All commands auto-use the active session; override with `--session <id>`. Output is scoped per-session under `.swarm/sessions/<id>/`. Legacy `.swarm/runs/` layout auto-migrated to a default session on first use.
+
 ## 2026-02-17
 
 ### Added
