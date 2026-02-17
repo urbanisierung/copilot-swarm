@@ -15,6 +15,14 @@ export interface QAPair {
   answer: string;
 }
 
+/** Record of a Copilot SDK session used during a phase or stream. */
+export interface SessionRecord {
+  sessionId: string;
+  agent: string;
+  /** The phase/stream role, e.g. "spec", "implement", "review", "qa". */
+  role: string;
+}
+
 export interface PipelineCheckpoint {
   completedPhases: string[];
   spec: string;
@@ -39,6 +47,8 @@ export interface PipelineCheckpoint {
   analysis?: string;
   /** Answered Q&A pairs from interactive clarification rounds, keyed by phase. */
   answeredQuestions?: Record<string, QAPair[]>;
+  /** Copilot SDK session IDs used during the run, keyed by phase/stream key. */
+  sessionLog?: Record<string, SessionRecord>;
 }
 
 /** Resolve checkpoint path — inside the run dir for new runs, or from latest pointer on resume. */

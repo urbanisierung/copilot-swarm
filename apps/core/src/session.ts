@@ -3,6 +3,7 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { CopilotSession } from "@github/copilot-sdk";
 import { CopilotClient } from "@github/copilot-sdk";
+import type { SessionRecord } from "./checkpoint.js";
 import type { SwarmConfig } from "./config.js";
 import { BUILTIN_AGENT_PREFIX, SessionEvent, SYSTEM_MESSAGE_MODE } from "./constants.js";
 import type { Logger } from "./logger.js";
@@ -15,6 +16,7 @@ const BUNDLED_AGENTS_DIR = path.join(PACKAGE_DIR, "defaults", "agents");
 export class SessionManager {
   private readonly client: CopilotClient;
   private readonly instructionCache = new Map<string, string>();
+  private readonly _sessionLog: Record<string, SessionRecord> = {};
 
   constructor(
     private readonly config: SwarmConfig,
@@ -24,6 +26,16 @@ export class SessionManager {
     this.client = new CopilotClient({
       logLevel: config.verbose ? "debug" : "warning",
     });
+  }
+
+  /** All Copilot SDK sessions created during this run, keyed by context. */
+  get sessionLog(): Record<string, SessionRecord> {
+    return this._sessionLog;
+  }
+
+  /** Record a session with a context key (e.g. "spec-0", "implement-3/stream-1"). */
+  recordSession(key: string, session: CopilotSession, agent: string, role: string): void {
+    this._sessionLog[key] = { sessionId: session.sessionId, agent, role };
   }
 
   async start(): Promise<void> {
@@ -85,9 +97,11 @@ export class SessionManager {
     );
   }
 
-  async createAgentSession(agentName: string, model?: string): Promise<CopilotSession> {
+  async createAgentSession(agentName: string, model?: string, sessionKey?: string): Promise<CopilotSession> {
     const instructions = await this.loadAgentInstructions(agentName);
-    return this.createSessionWithInstructions(instructions, model);
+    const session = await this.createSessionWithInstructions(instructions, model);
+    if (sessionKey) this.recordSession(sessionKey, session, agentName, agentName);
+    return session;
   }
 
   async createSessionWithInstructions(instructions: string, model?: string): Promise<CopilotSession> {
@@ -119,11 +133,12 @@ export class SessionManager {
     return response?.data.content ?? "";
   }
 
-  async callIsolated(agentName: string, prompt: string, model?: string): Promise<string> {
+  async callIsolated(agentName: string, prompt: string, model?: string, sessionKey?: string): Promise<string> {
     const maxAttempts = this.config.maxRetries;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const session = await this.createAgentSession(agentName, model);
+      if (sessionKey) this.recordSession(sessionKey, session, agentName, agentName);
       try {
         const content = await this.send(session, prompt, `${agentName} is working…`);
         if (!content && attempt < maxAttempts) {
@@ -147,11 +162,13 @@ export class SessionManager {
     prompt: string,
     spinnerLabel: string,
     model?: string,
+    sessionKey?: string,
   ): Promise<string> {
     const maxAttempts = this.config.maxRetries;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const session = await this.createSessionWithInstructions(instructions, model);
+      if (sessionKey) this.recordSession(sessionKey, session, "inline-agent", "inline-agent");
       try {
         const content = await this.send(session, prompt, spinnerLabel);
         if (!content && attempt < maxAttempts) {

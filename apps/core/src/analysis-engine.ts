@@ -125,6 +125,9 @@ export class AnalysisEngine {
         if (cp.activePhase) {
           resumedPhaseKey = cp.activePhase;
           this.iterationProgress = cp.iterationProgress ?? {};
+          if (cp.sessionLog) {
+            Object.assign(this.sessions.sessionLog, cp.sessionLog);
+          }
         }
       } else {
         this.logger.info(msg.noCheckpoint);
@@ -144,6 +147,7 @@ export class AnalysisEngine {
         streamResults: [],
         activePhase: this.activePhaseKey ?? undefined,
         iterationProgress: Object.keys(this.iterationProgress).length > 0 ? this.iterationProgress : undefined,
+        sessionLog: Object.keys(this.sessions.sessionLog).length > 0 ? this.sessions.sessionLog : undefined,
       });
     };
 
@@ -264,6 +268,7 @@ export class AnalysisEngine {
         `Review this repository analysis document:\n\n${analysis}`,
         `Senior engineer is reviewing (${model})…`,
         model,
+        `${reviewProgressKey}/reviewer-${i}`,
       );
 
       if (responseContains(feedback, APPROVAL_KEYWORD)) {
@@ -280,6 +285,7 @@ export class AnalysisEngine {
         `Current analysis:\n\n${analysis}\n\nReviewer feedback:\n\n${feedback}\n\nRevise the analysis to address all issues. Output the COMPLETE document.`,
         `Architect is revising analysis (${model})…`,
         model,
+        `${reviewProgressKey}/revision-${i}`,
       );
 
       analysis = revision;
