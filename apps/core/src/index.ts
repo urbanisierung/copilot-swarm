@@ -55,6 +55,43 @@ if (config.command === "session") {
   process.exit(0);
 }
 
+// Handle finish command before resolving session (resolves its own)
+if (config.command === "finish") {
+  const { resolveSessionId, getSession } = await import("./session-store.js");
+  const { buildChangelogEntry, appendChangelog, cleanupCheckpoints, markSessionFinished } = await import("./finish.js");
+
+  let sessionId: string;
+  try {
+    sessionId = await resolveSessionId(config);
+  } catch {
+    console.error(msg.finishNoSession);
+    process.exit(1);
+  }
+
+  const session = await getSession(config, sessionId);
+  if (!session) {
+    console.error(msg.finishNoSession);
+    process.exit(1);
+  }
+
+  console.log(msg.finishStart(sessionId, session.name));
+
+  const entry = await buildChangelogEntry(config, sessionId);
+  if (entry) {
+    const changelogPath = await appendChangelog(config, entry);
+    console.log(msg.finishChangelogSaved(path.relative(config.repoRoot, changelogPath)));
+  }
+
+  const cleaned = await cleanupCheckpoints(config, sessionId);
+  if (cleaned > 0) {
+    console.log(msg.finishCheckpointsCleaned(cleaned));
+  }
+
+  await markSessionFinished(config, sessionId);
+  console.log(msg.finishComplete);
+  process.exit(0);
+}
+
 // Resolve session for all other commands
 config.resolvedSessionId = await resolveSessionId(config);
 

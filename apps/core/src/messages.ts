@@ -111,6 +111,13 @@ export const msg = {
   reviewNoPreviousRun: "❌ No previous run found. Run 'swarm run' first, then use 'swarm review' to provide feedback.",
   summaryReviewComplete: (elapsed: string) => `✅ Review completed in ${elapsed}`,
 
+  // --- Finish Command ---
+  finishStart: (sessionId: string, name: string) => `📦 Finalizing session ${sessionId} — "${name}"`,
+  finishNoSession: "❌ No active session found. Create one with 'swarm session create' first.",
+  finishChangelogSaved: (path: string) => `📝 Changelog updated: ${path}`,
+  finishCheckpointsCleaned: (count: number) => `🧹 Cleaned up ${count} checkpoint file(s)`,
+  finishComplete: "✅ Session finalized successfully.",
+
   // --- Log File ---
   logFileHint: (path: string) => `📋 Full log: ${path}`,
 

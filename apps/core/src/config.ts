@@ -32,7 +32,7 @@ function readEnvPositiveInt(key: string, fallback: number): number {
   return parsed;
 }
 
-export type SwarmCommand = "run" | "plan" | "analyze" | "review" | "session";
+export type SwarmCommand = "run" | "plan" | "analyze" | "review" | "session" | "finish";
 
 interface CliArgs {
   command: SwarmCommand;
@@ -62,6 +62,7 @@ Commands:
   analyze          Analyze the repository and generate a context document
   review           Review a previous run — provide feedback for agents to fix/improve
   session          Manage sessions: create, list, use (group related runs)
+  finish           Finalize the active session — summarize, log to changelog, clean up
 
 Options:
   -v, --verbose        Enable verbose streaming output
@@ -101,6 +102,8 @@ Examples:
   swarm session create "Dark mode feature" Create a new session
   swarm session list                      List all sessions
   swarm session use <id>                  Switch active session
+  swarm finish                            Finalize active session
+  swarm finish --session <id>             Finalize a specific session
 
 Environment variables override defaults; CLI args override env vars.
 See documentation for all env var options.`;
@@ -142,7 +145,8 @@ function parseCliArgs(): CliArgs {
       positionals[0] === "run" ||
       positionals[0] === "analyze" ||
       positionals[0] === "review" ||
-      positionals[0] === "session")
+      positionals[0] === "session" ||
+      positionals[0] === "finish")
   ) {
     command = positionals[0] as SwarmCommand;
     promptParts = positionals.slice(1);
@@ -258,7 +262,13 @@ export async function loadConfig(): Promise<SwarmConfig> {
     issueBody = resolveGitHubIssue(raw) ?? raw;
   }
 
-  if (cli.command !== "analyze" && cli.command !== "session" && !cli.resume && (!issueBody || issueBody === "")) {
+  if (
+    cli.command !== "analyze" &&
+    cli.command !== "session" &&
+    cli.command !== "finish" &&
+    !cli.resume &&
+    (!issueBody || issueBody === "")
+  ) {
     console.error(
       `Error: No prompt provided. Pass it as an argument, use --editor, --plan, or set ISSUE_BODY.\n\n${HELP_TEXT}`,
     );

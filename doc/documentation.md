@@ -280,6 +280,27 @@ swarm session use <sessionId>
 - If no session exists, a default session is auto-created
 - Legacy `.swarm/runs/`, `plans/`, `analysis/` directories are automatically migrated into the default session on first use
 
+### Finish Command
+
+Finalize a session when you're done with a feature. This summarizes all work, appends an entry to a central changelog, cleans up checkpoint files, and marks the session as finished.
+
+```bash
+# Finalize the active session
+swarm finish
+
+# Finalize a specific session
+swarm finish --session <id>
+```
+
+**What it does:**
+1. Collects artifacts from all runs, plans, and analyses in the session
+2. Builds a structured summary (original request, phases, tasks, stream counts)
+3. Appends the summary to `.swarm/changelog.md` (newest first)
+4. Deletes `checkpoint.json` files from all runs (role summaries are preserved)
+5. Marks the session as finished in `session.json`
+
+The changelog serves as a persistent record of completed features across the project.
+
 ### TUI Dashboard
 
 A full-screen terminal dashboard displays progress for all modes (`run`, `plan`, `analyze`) when running in a TTY (interactive terminal). The dashboard shows:
