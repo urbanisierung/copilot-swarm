@@ -193,6 +193,9 @@ export class PlanningEngine {
         if (cp.activePhase) {
           resumedPhaseKey = cp.activePhase;
           this.iterationProgress = cp.iterationProgress ?? {};
+          if (cp.sessionLog) {
+            Object.assign(this.sessions.sessionLog, cp.sessionLog);
+          }
         }
         this.answeredQuestions = cp.answeredQuestions ?? {};
       } else {
@@ -216,6 +219,7 @@ export class PlanningEngine {
         activePhase: this.activePhaseKey ?? undefined,
         iterationProgress: Object.keys(this.iterationProgress).length > 0 ? this.iterationProgress : undefined,
         answeredQuestions: Object.keys(this.answeredQuestions).length > 0 ? this.answeredQuestions : undefined,
+        sessionLog: Object.keys(this.sessions.sessionLog).length > 0 ? this.sessions.sessionLog : undefined,
       });
     };
 
@@ -435,6 +439,8 @@ export class PlanningEngine {
         STEP_REVIEWER_INSTRUCTIONS,
         `Review this "${sectionName}" section of a project plan:\n\n${revised}`,
         `Reviewing ${sectionName} (${i}/${MAX_REVIEW_ITERATIONS})…`,
+        undefined,
+        `${phaseKey}/reviewer-${i}`,
       );
 
       if (responseContains(feedback, PLAN_APPROVED_KEYWORD)) {
@@ -453,6 +459,8 @@ export class PlanningEngine {
           "The output must be the full section content, ready to replace the original.",
         `Original section:\n\n${revised}\n\nReviewer feedback:\n\n${feedback}\n\nRevise the section to address all feedback. Output the COMPLETE revised section.`,
         reviseSpinner,
+        undefined,
+        `${phaseKey}/revision-${i}`,
       );
 
       // Guard: if revision is suspiciously short, keep original
@@ -494,6 +502,7 @@ export class PlanningEngine {
         `Review this complete project plan:\n\n${revised}`,
         `Cross-model review (${this.pipeline.reviewModel}, ${i}/${MAX_REVIEW_ITERATIONS})…`,
         this.pipeline.reviewModel,
+        `${phaseKey}/reviewer-${i}`,
       );
 
       if (responseContains(feedback, PLAN_APPROVED_KEYWORD)) {
@@ -513,6 +522,8 @@ export class PlanningEngine {
           "The output must be the full plan document, ready to replace the original.",
         `Current plan:\n\n${revised}\n\nCross-model reviewer feedback:\n\n${feedback}\n\nRevise the plan. Output the COMPLETE plan with all sections.`,
         "Revising plan…",
+        undefined,
+        `${phaseKey}/revision-${i}`,
       );
 
       // Guard: verify the revision preserves plan structure
@@ -540,6 +551,7 @@ export class PlanningEngine {
     this.logger.info(msg.planningPmPhase);
 
     const session = await this.sessions.createSessionWithInstructions(PLANNER_INSTRUCTIONS);
+    if (phaseKey) this.sessions.recordSession(phaseKey, session, "planner", "pm");
     const savedQA = this.answeredQuestions[phaseKey] ?? [];
 
     try {
@@ -649,6 +661,7 @@ export class PlanningEngine {
     this.logger.info(phaseLabel);
 
     const session = await this.sessions.createSessionWithInstructions(instructions);
+    this.sessions.recordSession(phaseKey, session, phaseKey, phaseKey);
     const savedQA = this.answeredQuestions[phaseKey] ?? [];
 
     try {

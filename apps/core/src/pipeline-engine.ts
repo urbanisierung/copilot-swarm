@@ -100,6 +100,10 @@ export class PipelineEngine {
           resumedPhaseKey = checkpoint.activePhase;
           this.phaseDraft = checkpoint.phaseDraft ?? null;
           this.iterationProgress = checkpoint.iterationProgress ?? {};
+          // Restore previous session log entries
+          if (checkpoint.sessionLog) {
+            Object.assign(this.sessions.sessionLog, checkpoint.sessionLog);
+          }
         }
       } else {
         this.logger.warn(msg.noCheckpoint);
@@ -135,6 +139,7 @@ export class PipelineEngine {
         activePhase: this.activePhaseKey ?? undefined,
         phaseDraft: this.phaseDraft ?? undefined,
         iterationProgress: Object.keys(this.iterationProgress).length > 0 ? this.iterationProgress : undefined,
+        sessionLog: Object.keys(this.sessions.sessionLog).length > 0 ? this.sessions.sessionLog : undefined,
       });
     };
 
@@ -232,7 +237,7 @@ export class PipelineEngine {
       const prompt = ctx.repoAnalysis
         ? `## Repository Context\n\n${ctx.repoAnalysis}\n\n## Task\n\n${this.config.issueBody}`
         : this.config.issueBody;
-      spec = await this.sessions.callIsolated(phase.agent, prompt);
+      spec = await this.sessions.callIsolated(phase.agent, prompt, undefined, `spec`);
       this.phaseDraft = spec;
       await save();
     }
@@ -262,7 +267,7 @@ export class PipelineEngine {
     const prompt =
       `Break this spec into 2-3 independent JSON tasks. Mark frontend tasks with ${marker}. ` +
       `Respond with ONLY a JSON array, no other text. Format: ["${marker} Task 1", "Task 2"]\nSpec:\n${ctx.spec}`;
-    const raw = await this.sessions.callIsolated(phase.agent, prompt);
+    const raw = await this.sessions.callIsolated(phase.agent, prompt, undefined, `decompose`);
     const tasks = parseJsonArray(raw);
     this.logger.info(msg.tasksResult(tasks));
 
@@ -286,7 +291,7 @@ export class PipelineEngine {
     }
 
     this.logger.info(msg.designPhaseStart);
-    const session = await this.sessions.createAgentSession(phase.agent);
+    const session = await this.sessions.createAgentSession(phase.agent, undefined, `design`);
     let sessionPrimed = false;
 
     try {
@@ -309,6 +314,8 @@ export class PipelineEngine {
           const clarification = await this.sessions.callIsolated(
             phase.clarificationAgent,
             `The designer needs clarification:\n${design}`,
+            undefined,
+            `design/clarify`,
           );
           design = await this.sessions.send(
             session,
@@ -339,6 +346,8 @@ export class PipelineEngine {
           const feedback = await this.sessions.callIsolated(
             review.agent,
             `Review this design specification:\n${design}`,
+            undefined,
+            `design/review-${ri}-${i}`,
           );
           if (responseContains(feedback, review.approvalKeyword)) {
             this.logger.info(msg.approved(review.agent));
@@ -355,6 +364,8 @@ export class PipelineEngine {
               const clar = await this.sessions.callIsolated(
                 clarAgent,
                 `The design reviewer needs clarification:\n${feedback}`,
+                undefined,
+                `design/review-${ri}-${i}/clarify`,
               );
               design = await this.sessions.send(
                 session,
@@ -410,7 +421,7 @@ export class PipelineEngine {
       const streamKey = `stream-${idx}`;
       this.logger.info(msg.streamStart(label, task));
 
-      const session = await this.sessions.createAgentSession(phase.agent);
+      const session = await this.sessions.createAgentSession(phase.agent, undefined, `implement/${streamKey}`);
       let sessionPrimed = false;
 
       try {
@@ -454,6 +465,8 @@ export class PipelineEngine {
             const clarification = await this.sessions.callIsolated(
               phase.clarificationAgent,
               `Spec:\n${ctx.spec}\n\nThe engineer working on task "${task}" needs clarification:\n\n${code}`,
+              undefined,
+              `implement/${streamKey}/clarify`,
             );
             code = await this.sessions.send(
               session,
@@ -483,7 +496,12 @@ export class PipelineEngine {
           const maxIter = review.maxIterations;
           for (let i = startIter; i <= maxIter; i++) {
             this.logger.info(msg.reviewIteration(i, maxIter));
-            const feedback = await this.sessions.callIsolated(review.agent, `Review this implementation:\n${code}`);
+            const feedback = await this.sessions.callIsolated(
+              review.agent,
+              `Review this implementation:\n${code}`,
+              undefined,
+              `implement/${streamKey}/review-${ri}-${i}`,
+            );
             if (responseContains(feedback, review.approvalKeyword)) {
               this.logger.info(msg.codeApproved);
               break;
@@ -521,6 +539,8 @@ export class PipelineEngine {
             const testReport = await this.sessions.callIsolated(
               phase.qa.agent,
               `Spec:\n${ctx.spec}\n\nImplementation:\n${code}\n\nValidate the implementation against the spec.`,
+              undefined,
+              `implement/${streamKey}/qa-${i}`,
             );
             if (responseContains(testReport, phase.qa.approvalKeyword)) {
               this.logger.info(msg.allTestsPassed);
@@ -607,6 +627,7 @@ export class PipelineEngine {
               `You are using a different model than the one that wrote this code — look for blind spots.\n\n` +
               `Implementation:\n${current}`,
             this.pipeline.reviewModel,
+            `cross-model/stream-${idx}/review-${i}`,
           );
           if (responseContains(feedback, phase.approvalKeyword)) {
             this.logger.info(msg.crossModelApproved);
@@ -616,6 +637,8 @@ export class PipelineEngine {
           current = await this.sessions.callIsolated(
             phase.fixAgent,
             `Cross-model review feedback:\n${feedback}\n\nOriginal implementation:\n${current}\n\nFix all reported issues.`,
+            undefined,
+            `cross-model/stream-${idx}/fix-${i}`,
           );
 
           this.iterationProgress[cmKey] = { content: current, completedIterations: i };
@@ -656,7 +679,12 @@ export class PipelineEngine {
 
     for (let i = startIter; i <= maxIter; i++) {
       this.logger.info(msg.reviewIteration(i, maxIter));
-      const feedback = await this.sessions.callIsolated(review.agent, buildPrompt(current));
+      const feedback = await this.sessions.callIsolated(
+        review.agent,
+        buildPrompt(current),
+        undefined,
+        `${progressKey}/reviewer`,
+      );
       if (responseContains(feedback, review.approvalKeyword)) {
         this.logger.info(msg.approved(review.agent));
         break;
@@ -665,6 +693,8 @@ export class PipelineEngine {
       current = await this.sessions.callIsolated(
         authorAgent,
         `Previous content:\n${current}\n\nReview feedback:\n${feedback}\n\nRevise accordingly.`,
+        undefined,
+        `${progressKey}/revision-${i}`,
       );
 
       this.iterationProgress[progressKey] = { content: current, completedIterations: i };
