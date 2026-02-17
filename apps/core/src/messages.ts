@@ -103,6 +103,12 @@ export const msg = {
   autoResumeExhausted: (max: number) =>
     `\n❌ All ${max} auto-resume attempts exhausted. Use --resume to retry manually.`,
 
+  // --- Review Mode ---
+  reviewStart: "🔄 Starting Review Mode...",
+  reviewLoadedContext: (runId: string) => `📦 Loaded previous run context from ${runId}`,
+  reviewNoPreviousRun: "❌ No previous run found. Run 'swarm run' first, then use 'swarm review' to provide feedback.",
+  summaryReviewComplete: (elapsed: string) => `✅ Review completed in ${elapsed}`,
+
   // --- Log File ---
   logFileHint: (path: string) => `📋 Full log: ${path}`,
 

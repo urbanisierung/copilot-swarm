@@ -24,7 +24,7 @@ export interface PipelineCheckpoint {
   issueBody: string;
   runId: string;
   /** Distinguishes run-mode, plan-mode, or analyze-mode checkpoints. */
-  mode?: "run" | "plan" | "analyze";
+  mode?: "run" | "plan" | "analyze" | "review";
   /** Phase key that was actively executing when the checkpoint was saved. */
   activePhase?: string;
   /** Draft content produced by the main agent before review loops began. */
@@ -89,4 +89,81 @@ export async function clearCheckpoint(config: SwarmConfig): Promise<void> {
   } catch {
     // File may not exist
   }
+}
+
+/** Context loaded from a previous run's output files. */
+export interface PreviousRunContext {
+  runId: string;
+  spec: string;
+  tasks: string[];
+  designSpec: string;
+  streamResults: string[];
+}
+
+/**
+ * Load context from a previous run directory.
+ * Reads the summary.md and individual role files to reconstruct the pipeline context.
+ * If runId is not provided, reads from the latest pointer.
+ */
+export async function loadPreviousRun(config: SwarmConfig, runId?: string): Promise<PreviousRunContext | null> {
+  const resolvedRunId = runId ?? (await resolveLatestRunId(config));
+  if (!resolvedRunId) return null;
+
+  const dir = path.join(swarmRoot(config), "runs", resolvedRunId);
+  const rolesPath = path.join(dir, "roles");
+
+  // Try to load the checkpoint first — it has structured data
+  const checkpointFile = path.join(dir, "checkpoint.json");
+  try {
+    const content = await fs.readFile(checkpointFile, "utf-8");
+    const cp = JSON.parse(content) as PipelineCheckpoint;
+    return {
+      runId: resolvedRunId,
+      spec: cp.spec,
+      tasks: cp.tasks,
+      designSpec: cp.designSpec,
+      streamResults: cp.streamResults,
+    };
+  } catch {
+    // No checkpoint — reconstruct from output files
+  }
+
+  // Reconstruct from role summary files
+  const readRole = async (name: string): Promise<string> => {
+    try {
+      return await fs.readFile(path.join(rolesPath, `${name}.md`), "utf-8");
+    } catch {
+      return "";
+    }
+  };
+
+  const spec = await readRole("pm");
+  const designSpec = await readRole("designer");
+
+  // Read stream results
+  const streamResults: string[] = [];
+  for (let i = 1; ; i++) {
+    const content = await readRole(`engineer-stream-${i}`);
+    if (!content) break;
+    streamResults.push(content);
+  }
+
+  // Try to reconstruct tasks from decompose output
+  const decomposeContent = await readRole("decompose-agent-tasks");
+  const tasks: string[] = [];
+  if (decomposeContent) {
+    const lines = decomposeContent.split("\n");
+    for (const line of lines) {
+      const match = line.match(/^\d+\.\s+(.+)$/);
+      if (match) tasks.push(match[1]);
+    }
+  }
+  // Ensure tasks array matches streamResults length
+  while (tasks.length < streamResults.length) {
+    tasks.push(`Task ${tasks.length + 1}`);
+  }
+
+  if (!spec && streamResults.length === 0) return null;
+
+  return { runId: resolvedRunId, spec, tasks, designSpec, streamResults };
 }

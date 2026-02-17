@@ -34,6 +34,7 @@ Commands:
   run              Run the full orchestration pipeline (default)
   plan             Interactive planning mode — clarify requirements before running
   analyze          Analyze the repository and generate a context document
+  review           Review a previous run — provide feedback for agents to fix/improve
 
 Options:
   -v, --verbose        Enable verbose streaming output
@@ -41,6 +42,7 @@ Options:
   -p, --plan <file>    Use a plan file as input (reads the refined requirements section)
   -f, --file <file>    Read prompt from a file instead of inline text
   -r, --resume         Resume from the last checkpoint (skip completed phases)
+  --run <runId>        Specify which run to review (default: latest)
   --no-tui             Disable TUI dashboard (use plain log output)
   -V, --version        Show version number
   -h, --help           Show this help message
@@ -174,6 +176,34 @@ The analyze mode runs a dual-model review process:
 
 Output:
 - `.swarm/analysis/repo-analysis.md` — The final analysis document (overwritten on each run)
+
+### Review Mode
+
+Use `swarm review` to provide feedback on a previous run. The agents receive the original spec, tasks, design, and their previous implementation alongside your feedback, then fix only what needs to change:
+
+```bash
+# Review the latest run with inline feedback
+swarm review "Fix the auth bug in stream 1, add error handling in stream 2"
+
+# Use the editor for detailed feedback
+swarm review -e
+
+# Read feedback from a file
+swarm review -f review-notes.md
+
+# Review a specific run (not the latest)
+swarm review --run 2026-02-17T08-00-00-000Z "Fix the login form"
+```
+
+**How it works:**
+1. Loads the previous run's context (spec, tasks, design spec, stream results) from `.swarm/runs/<runId>/`
+2. Skips spec, decompose, and design phases (they were already done)
+3. Re-runs the implement phase — each engineer stream sees its previous output + your review feedback
+4. Engineers are instructed to keep what works and only fix what's described in the feedback
+5. Code review and QA loops run normally on the revised output
+6. Output goes to a new run directory (new timestamp)
+
+The review mode supports checkpoint/resume (`--resume`) and auto-retry, same as regular run mode.
 
 ### Checkpoint & Resume
 

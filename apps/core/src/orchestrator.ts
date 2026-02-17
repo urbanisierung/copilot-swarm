@@ -3,6 +3,7 @@
  * On error, automatically retries from the last checkpoint up to maxAutoResume times.
  */
 import * as path from "node:path";
+import type { PreviousRunContext } from "./checkpoint.js";
 import type { SwarmConfig } from "./config.js";
 import type { Logger } from "./logger.js";
 import { msg } from "./messages.js";
@@ -21,6 +22,7 @@ export class SwarmOrchestrator {
   constructor(
     private readonly config: SwarmConfig,
     private readonly logger: Logger,
+    private readonly reviewContext?: PreviousRunContext,
   ) {
     this.pipeline = loadPipelineConfig(config.repoRoot);
 
@@ -34,7 +36,7 @@ export class SwarmOrchestrator {
       this.renderer = null;
     }
 
-    this.engine = new PipelineEngine(config, this.pipeline, logger, this.tracker ?? undefined);
+    this.engine = new PipelineEngine(config, this.pipeline, logger, this.tracker ?? undefined, reviewContext);
   }
 
   async start(): Promise<void> {
@@ -76,7 +78,13 @@ export class SwarmOrchestrator {
       // Tear down old engine and create a fresh one with resume enabled
       await this.engine.stop();
       const resumeConfig: SwarmConfig = { ...this.config, resume: true };
-      this.engine = new PipelineEngine(resumeConfig, this.pipeline, this.logger, this.tracker ?? undefined);
+      this.engine = new PipelineEngine(
+        resumeConfig,
+        this.pipeline,
+        this.logger,
+        this.tracker ?? undefined,
+        this.reviewContext,
+      );
       await this.engine.start();
 
       try {
@@ -97,7 +105,9 @@ export class SwarmOrchestrator {
 
     console.log("");
     console.log(msg.summaryDivider);
-    console.log(success ? msg.summaryRunSuccess(elapsed) : msg.summaryRunFailed(elapsed));
+    const successMsg =
+      this.config.command === "review" ? msg.summaryReviewComplete(elapsed) : msg.summaryRunSuccess(elapsed);
+    console.log(success ? successMsg : msg.summaryRunFailed(elapsed));
 
     if (this.tracker) {
       const done = this.tracker.phases.filter((p) => p.status === "done").length;

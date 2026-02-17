@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { IterationSnapshot } from "./checkpoint.js";
+import type { IterationSnapshot, PreviousRunContext } from "./checkpoint.js";
 import { clearCheckpoint, loadCheckpoint, saveCheckpoint } from "./checkpoint.js";
 import type { SwarmConfig } from "./config.js";
 import type { Logger } from "./logger.js";
@@ -37,14 +37,21 @@ export class PipelineEngine {
   private phaseDraft: string | null = null;
   private iterationProgress: Record<string, IterationSnapshot> = {};
 
+  /** Previous run context — set for review mode. */
+  private readonly reviewContext: PreviousRunContext | null;
+  private readonly reviewFeedback: string;
+
   constructor(
     private readonly config: SwarmConfig,
     private readonly pipeline: PipelineConfig,
     private readonly logger: Logger,
     private readonly tracker?: ProgressTracker,
+    reviewContext?: PreviousRunContext,
   ) {
     this.effectiveConfig = config;
     this.sessions = new SessionManager(config, pipeline, logger);
+    this.reviewContext = reviewContext ?? null;
+    this.reviewFeedback = config.command === "review" ? config.issueBody : "";
   }
 
   async start(): Promise<void> {
@@ -99,6 +106,21 @@ export class PipelineEngine {
       }
     }
 
+    // Review mode: pre-fill context from previous run, skip spec/decompose/design
+    if (this.reviewContext) {
+      this.logger.info(msg.reviewLoadedContext(this.reviewContext.runId));
+      ctx.spec = this.reviewContext.spec;
+      ctx.tasks = this.reviewContext.tasks;
+      ctx.designSpec = this.reviewContext.designSpec;
+      // streamResults are kept empty — implement phase will re-run with feedback + previous output
+      // Mark all phases before implement as completed so they're skipped
+      for (let i = 0; i < this.pipeline.pipeline.length; i++) {
+        const p = this.pipeline.pipeline[i];
+        if (p.phase === "implement") break;
+        completedPhases.add(`${p.phase}-${i}`);
+      }
+    }
+
     // Closure that saves the full checkpoint including iteration state
     const saveProgress = async () => {
       await saveCheckpoint(this.effectiveConfig, {
@@ -109,6 +131,7 @@ export class PipelineEngine {
         streamResults: ctx.streamResults,
         issueBody: this.effectiveConfig.issueBody,
         runId: this.effectiveConfig.runId,
+        mode: this.reviewContext ? "review" : "run",
         activePhase: this.activePhaseKey ?? undefined,
         phaseDraft: this.phaseDraft ?? undefined,
         iterationProgress: Object.keys(this.iterationProgress).length > 0 ? this.iterationProgress : undefined,
@@ -399,9 +422,25 @@ export class PipelineEngine {
         } else {
           this.logger.info(msg.streamEngineering(label));
           this.tracker?.updateStream(idx, "engineering");
-          const engineeringPrompt = isFrontendTask(task)
-            ? `Spec:\n${ctx.spec}\n\nDesign:\n${ctx.designSpec}\n\nTask:\n${task}\n\nImplement this task.`
-            : `Spec:\n${ctx.spec}\n\nTask:\n${task}\n\nImplement this task.`;
+
+          let engineeringPrompt: string;
+          const prevOutput = this.reviewContext?.streamResults[idx] ? this.reviewContext.streamResults[idx] : "";
+
+          if (prevOutput) {
+            // Review mode: engineer sees previous output + user feedback
+            const base = isFrontendTask(task)
+              ? `Spec:\n${ctx.spec}\n\nDesign:\n${ctx.designSpec}\n\nTask:\n${task}`
+              : `Spec:\n${ctx.spec}\n\nTask:\n${task}`;
+            engineeringPrompt =
+              `${base}\n\n## Previous Implementation\n\n${prevOutput}\n\n` +
+              `## Review Feedback\n\n${this.reviewFeedback}\n\n` +
+              "Fix the issues described in the review feedback. Keep everything that works correctly, " +
+              "only change what needs to be fixed or improved.";
+          } else {
+            engineeringPrompt = isFrontendTask(task)
+              ? `Spec:\n${ctx.spec}\n\nDesign:\n${ctx.designSpec}\n\nTask:\n${task}\n\nImplement this task.`
+              : `Spec:\n${ctx.spec}\n\nTask:\n${task}\n\nImplement this task.`;
+          }
           code = await this.sessions.send(session, engineeringPrompt, `${phase.agent} (${label}) is implementing…`);
           sessionPrimed = true;
 
