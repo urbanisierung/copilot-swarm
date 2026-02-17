@@ -9,6 +9,12 @@ export interface IterationSnapshot {
   completedIterations: number;
 }
 
+/** A question-answer pair from an interactive clarification round. */
+export interface QAPair {
+  question: string;
+  answer: string;
+}
+
 export interface PipelineCheckpoint {
   completedPhases: string[];
   spec: string;
@@ -31,6 +37,8 @@ export interface PipelineCheckpoint {
   designDecisions?: string;
   /** Plan-mode: technical analysis output. */
   analysis?: string;
+  /** Answered Q&A pairs from interactive clarification rounds, keyed by phase. */
+  answeredQuestions?: Record<string, QAPair[]>;
 }
 
 /** Resolve checkpoint path — inside the run dir for new runs, or from latest pointer on resume. */

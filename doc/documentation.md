@@ -65,13 +65,47 @@ The CLI supports multiple ways to provide the task description (first match wins
 
 #### Interactive Editor (`--editor` / `-e`)
 
-Opens a full-screen bordered text area in the terminal. Use arrow keys to navigate, Enter for new lines, Ctrl+Enter (or Ctrl+D) to submit, Esc to cancel. Requires an interactive TTY.
+Opens a full-screen bordered text area in the terminal. Requires an interactive TTY.
+
+**Navigation:**
+- Arrow keys to move cursor
+- Ctrl+Left/Right to jump between words
+- Home/End to go to line start/end
+- Ctrl+A/Ctrl+E for line start/end
+
+**Editing:**
+- Enter for new lines
+- Backspace/Delete to remove characters
+- Ctrl+W or Ctrl+Backspace to delete word backwards
+
+**Actions:**
+- Ctrl+S or Esc opens the command palette (Submit / Cancel)
+- Ctrl+D to submit directly
 
 ```bash
 swarm -e
 swarm run --editor
 swarm plan -e
 ```
+
+#### Split-Pane Editor (Interactive Q&A)
+
+During plan mode, when agents (PM, engineer, designer) ask clarifying questions, a two-column split-pane editor opens automatically:
+
+- **Left panel:** Editable text area for your answer
+- **Right panel:** Read-only scrollable context showing the agent's questions
+
+**Panel navigation:**
+- Tab to switch focus between panels
+- Arrow keys scroll the right panel when focused
+- PgUp/PgDown for page-level scrolling in the right panel
+
+**Actions (from command palette):**
+- Submit — send your answer to the agent
+- Skip — let the agent use its best judgment
+- Cancel — abort the clarification round
+
+All Q&A answers are checkpointed. On resume, previously answered rounds are replayed automatically.
 
 #### GitHub Issue Input
 
@@ -167,7 +201,7 @@ How it works:
 - **Iteration-level:** Within review and QA feedback loops, progress is saved after each iteration. On resume, completed iterations are skipped and the latest revised content is used as the starting point.
 - **Stream-level:** During the `implement` phase, each completed stream is saved individually — if 2 of 3 streams finish before a timeout, those 2 are preserved. Draft code and review progress within each stream are also checkpointed.
 - **Draft-level:** The initial output of each agent (spec draft, design draft, engineering code, architecture analysis) is saved before review loops begin, so it doesn't need to be regenerated on resume.
-- **Plan mode:** Each of the 8 planning phases (clarification, review, analysis, cross-model) is checkpointed individually. Interactive Q&A results are preserved — if a crash happens during engineer review, the PM and engineer clarification phases don't need to be repeated. Review iteration progress within plan mode is also tracked.
+- **Plan mode:** Each of the 8 planning phases (clarification, review, analysis, cross-model) is checkpointed individually. Interactive Q&A answers are saved as `answeredQuestions` — if a crash happens during engineer review, the PM and engineer clarification phases don't need to be repeated and previously answered Q&A rounds are replayed automatically. Review iteration progress within plan mode is also tracked.
 - **Analyze mode:** The architect draft and each review iteration are checkpointed. Cross-model analysis phases are tracked independently. If a failure occurs mid-review, the architect's initial analysis is preserved and the review loop resumes from the last completed iteration.
 - On `--resume`, completed phases, iterations, and streams are skipped. Only the remaining work is executed.
 - The checkpoint file is automatically deleted on successful completion.

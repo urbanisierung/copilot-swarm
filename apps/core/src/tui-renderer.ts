@@ -142,9 +142,42 @@ export class TuiRenderer {
     const fPad = width - 26 - progress.length;
     lines.push(`${hint}${this.pad(Math.max(1, fPad))}${progress}`);
 
-    // ── Write frame ──
-    process.stdout.write("\x1b[H");
-    process.stdout.write(lines.join("\n"));
+    // ── Write frame row-by-row — clear each line, truncate to cols to prevent wrapping ──
+    const out: string[] = [];
+    const maxLines = Math.min(lines.length, rows);
+    for (let i = 0; i < maxLines; i++) {
+      out.push(`\x1b[${i + 1};1H\x1b[2K${this.truncCols(lines[i], cols)}`);
+    }
+    process.stdout.write(out.join(""));
+  }
+
+  /** Truncate to terminal column width, stripping ANSI for length calculation. */
+  private truncCols(s: string, cols: number): string {
+    const vis = this.visLen(s);
+    if (vis <= cols) return s;
+    // Find the cut point accounting for ANSI escapes
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping ANSI escapes requires matching ESC
+    const ansiRe = /\x1b\[[0-9;]*m/g;
+    let visCount = 0;
+    let cutIdx = s.length;
+    let lastEnd = 0;
+    let match: RegExpExecArray | null;
+    // biome-ignore lint/suspicious/noAssignInExpressions: intentional assignment in loop condition
+    while ((match = ansiRe.exec(s)) !== null) {
+      const segLen = match.index - lastEnd;
+      if (visCount + segLen >= cols - 1) {
+        cutIdx = lastEnd + (cols - 1 - visCount);
+        return `${s.substring(0, cutIdx)}…\x1b[0m`;
+      }
+      visCount += segLen;
+      lastEnd = match.index + match[0].length;
+    }
+    // Remaining text after last escape
+    if (visCount + (s.length - lastEnd) > cols) {
+      cutIdx = lastEnd + (cols - 1 - visCount);
+      return `${s.substring(0, cutIdx)}…`;
+    }
+    return s;
   }
 
   private streamIcon(s: StreamInfo, spin: string): { icon: string; label: string } {
