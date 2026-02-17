@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.13
+
+### Patch Changes
+
+- a709bf8: Add review mode.
+
 ## 0.0.12
 
 ### Patch Changes
