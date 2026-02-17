@@ -265,7 +265,9 @@ export class PipelineEngine {
     this.logger.info(msg.taskDecomposition);
     const marker = phase.frontendMarker;
     const prompt =
-      `Break this spec into 2-3 independent JSON tasks. Mark frontend tasks with ${marker}. ` +
+      `Break this spec into independent, parallelizable JSON tasks. Use as many or as few tasks as the spec requires — ` +
+      `a simple bug fix may be 1 task, a complex feature may be 5+. Each task should be self-contained and implementable ` +
+      `independently. Mark frontend tasks with ${marker}. ` +
       `Respond with ONLY a JSON array, no other text. Format: ["${marker} Task 1", "Task 2"]\nSpec:\n${ctx.spec}`;
     const raw = await this.sessions.callIsolated(phase.agent, prompt, undefined, `decompose`);
     const tasks = parseJsonArray(raw);

@@ -42,7 +42,7 @@ High-level feature list for Copilot Swarm.
 | Phase | Description | Configurable |
 |---|---|---|
 | **Spec** | PM drafts specification, reviewed by PM-reviewer and spec-reviewer | Agents, review iterations, approval keyword |
-| **Decompose** | PM breaks spec into 2-3 independent tasks with frontend markers | Agent, frontend marker string |
+| **Decompose** | PM breaks spec into independent, parallelizable tasks with frontend markers | Agent, frontend marker string |
 | **Design** | Designer creates UI/UX spec, reviewed by design-reviewer (conditional) | Condition, agents, clarification flow |
 | **Implement** | Engineer implements each task, reviewed by code-reviewer, tested by QA. Engineers can escalate ambiguities to PM via keyword | Parallel/sequential, multiple reviewers, QA iterations, clarification agent/keyword |
 | **Cross-model review** | Different model reviews all streams (conditional) | Model, fix agent, iterations |
