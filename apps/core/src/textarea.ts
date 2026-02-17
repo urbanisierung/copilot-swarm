@@ -63,20 +63,70 @@ function wrapText(text: string, width: number): string[] {
   if (width <= 0) return [""];
   const result: string[] = [];
   for (const rawLine of text.split("\n")) {
-    if (rawLine.length <= width) {
-      result.push(rawLine);
-      continue;
-    }
-    let remaining = rawLine;
-    while (remaining.length > width) {
-      let cut = remaining.lastIndexOf(" ", width);
-      if (cut <= 0) cut = width;
-      result.push(remaining.substring(0, cut));
-      remaining = remaining.substring(cut).trimStart();
-    }
-    result.push(remaining);
+    for (const vr of wrapLine(rawLine, width)) result.push(vr);
   }
   return result;
+}
+
+/** Wrap a single line into visual rows at word boundaries. */
+function wrapLine(line: string, width: number): string[] {
+  if (width <= 0) return [line];
+  if (line.length <= width) return [line];
+  const rows: string[] = [];
+  let remaining = line;
+  while (remaining.length > width) {
+    let cut = remaining.lastIndexOf(" ", width);
+    if (cut <= 0) cut = width;
+    rows.push(remaining.substring(0, cut));
+    remaining = remaining.substring(cut === width ? cut : cut + 1);
+  }
+  rows.push(remaining);
+  return rows;
+}
+
+/**
+ * Compute the visual row count for a set of lines at a given width.
+ * Also builds a map from logical line index to starting visual row.
+ */
+function computeVisualLayout(
+  lines: string[],
+  width: number,
+): { totalVisualRows: number; lineStartRow: number[]; wrappedLines: string[][] } {
+  const lineStartRow: number[] = [];
+  const wrappedLines: string[][] = [];
+  let total = 0;
+  for (const line of lines) {
+    lineStartRow.push(total);
+    const wrapped = wrapLine(line, width);
+    wrappedLines.push(wrapped);
+    total += wrapped.length;
+  }
+  return { totalVisualRows: total, lineStartRow, wrappedLines };
+}
+
+/**
+ * Convert a logical cursor position (row, col) to a visual row offset and
+ * visual column within the wrapped layout.
+ */
+function logicalToVisual(
+  lineStartRow: number[],
+  wrappedLines: string[][],
+  logRow: number,
+  logCol: number,
+): { visualRow: number; visualCol: number } {
+  const wrapped = wrappedLines[logRow];
+  let remaining = logCol;
+  for (let i = 0; i < wrapped.length; i++) {
+    const rowLen = wrapped[i].length;
+    // Account for removed space at word-wrap boundary
+    const isLastWrapRow = i === wrapped.length - 1;
+    if (remaining <= rowLen || isLastWrapRow) {
+      return { visualRow: lineStartRow[logRow] + i, visualCol: remaining };
+    }
+    // +1 for the space that was consumed as the wrap point
+    remaining -= rowLen + 1;
+  }
+  return { visualRow: lineStartRow[logRow], visualCol: logCol };
 }
 
 // ── Menu rendering (shared) ──
@@ -160,6 +210,15 @@ function handleEditorKey(
           state.curCol = r.col;
         }
       }
+      // Shift+Enter (ESC[1;2B) → insert newline
+      if (mod === 50 && dir === 66) {
+        const after = state.lines[state.curRow].substring(state.curCol);
+        state.lines[state.curRow] = state.lines[state.curRow].substring(0, state.curCol);
+        state.lines.splice(state.curRow + 1, 0, after);
+        state.curRow++;
+        state.curCol = 0;
+        return { handled: true, newI: i + 5, needsFullRender: true, needsCursorUpdate: false };
+      }
       return { handled: true, newI: i + 5, needsFullRender: false, needsCursorUpdate: true };
     }
     if (code === 65) state.curRow--;
@@ -230,7 +289,7 @@ export async function openTextarea(): Promise<string | undefined> {
   const title = " Task Description ";
 
   const state: EditorState = { lines: [""], curRow: 0, curCol: 0 };
-  let scroll = 0;
+  let scroll = 0; // scroll in visual rows
   let menuOpen = false;
   let menuIdx = 0;
   const menuItems: MenuItem[] = [
@@ -238,17 +297,33 @@ export async function openTextarea(): Promise<string | undefined> {
     { label: "Cancel", value: "cancel" },
   ];
 
+  function getLayout() {
+    return computeVisualLayout(state.lines, innerWidth);
+  }
+
   function clamp(): void {
     if (state.curRow < 0) state.curRow = 0;
     if (state.curRow >= state.lines.length) state.curRow = state.lines.length - 1;
     if (state.curCol < 0) state.curCol = 0;
     if (state.curCol > state.lines[state.curRow].length) state.curCol = state.lines[state.curRow].length;
-    if (state.curRow < scroll) scroll = state.curRow;
-    if (state.curRow >= scroll + editorHeight) scroll = state.curRow - editorHeight + 1;
+    const layout = getLayout();
+    const vis = logicalToVisual(layout.lineStartRow, layout.wrappedLines, state.curRow, state.curCol);
+    if (vis.visualRow < scroll) scroll = vis.visualRow;
+    if (vis.visualRow >= scroll + editorHeight) scroll = vis.visualRow - editorHeight + 1;
   }
 
-  function renderLine(screenRow: number, lineIdx: number): void {
-    const text = lineIdx < state.lines.length ? state.lines[lineIdx] : "";
+  function renderVisualRow(screenRow: number, visualRowIdx: number): void {
+    const layout = getLayout();
+    // Find which logical line + wrap row this visual row belongs to
+    let text = "";
+    for (let li = 0; li < state.lines.length; li++) {
+      const startVR = layout.lineStartRow[li];
+      const wrapped = layout.wrappedLines[li];
+      if (visualRowIdx >= startVR && visualRowIdx < startVR + wrapped.length) {
+        text = wrapped[visualRowIdx - startVR];
+        break;
+      }
+    }
     const display = text.substring(0, innerWidth);
     const pad = Math.max(0, innerWidth - display.length);
     process.stdout.write(`\x1b[${screenRow};1H\x1b[2K\u2502 ${display}${" ".repeat(pad)} \u2502`);
@@ -262,15 +337,17 @@ export async function openTextarea(): Promise<string | undefined> {
 
     process.stdout.write("\x1b[?25l");
     process.stdout.write(`\x1b[1;1H\x1b[2K${top}`);
-    for (let i = 0; i < editorHeight; i++) renderLine(2 + i, scroll + i);
+    for (let i = 0; i < editorHeight; i++) renderVisualRow(2 + i, scroll + i);
     process.stdout.write(`\x1b[${2 + editorHeight};1H\x1b[2K${bottom}`);
     placeCursor();
     process.stdout.write("\x1b[?25h");
   }
 
   function placeCursor(): void {
-    const screenRow = 2 + (state.curRow - scroll);
-    const screenCol = 3 + Math.min(state.curCol, innerWidth);
+    const layout = getLayout();
+    const vis = logicalToVisual(layout.lineStartRow, layout.wrappedLines, state.curRow, state.curCol);
+    const screenRow = 2 + (vis.visualRow - scroll);
+    const screenCol = 3 + Math.min(vis.visualCol, innerWidth);
     process.stdout.write(`\x1b[${screenRow};${screenCol}H`);
   }
 
@@ -370,8 +447,7 @@ export async function openTextarea(): Promise<string | undefined> {
             state.lines[state.curRow].substring(state.curCol);
           state.curCol++;
           clamp();
-          renderLine(2 + (state.curRow - scroll), state.curRow);
-          placeCursor();
+          needsFullRender = true;
         }
       }
 
@@ -423,7 +499,7 @@ export async function openSplitEditor(contextText: string, options?: SplitEditor
 
   // Editor state (left panel)
   const state: EditorState = { lines: [""], curRow: 0, curCol: 0 };
-  let edScroll = 0;
+  let edScroll = 0; // scroll in visual rows
 
   // Context state (right panel)
   const ctxLines = wrapText(contextText, rightInner);
@@ -439,13 +515,19 @@ export async function openSplitEditor(contextText: string, options?: SplitEditor
     { label: "Cancel", value: "cancel" },
   ];
 
+  function getEdLayout() {
+    return computeVisualLayout(state.lines, leftInner);
+  }
+
   function clampEditor(): void {
     if (state.curRow < 0) state.curRow = 0;
     if (state.curRow >= state.lines.length) state.curRow = state.lines.length - 1;
     if (state.curCol < 0) state.curCol = 0;
     if (state.curCol > state.lines[state.curRow].length) state.curCol = state.lines[state.curRow].length;
-    if (state.curRow < edScroll) edScroll = state.curRow;
-    if (state.curRow >= edScroll + bodyHeight) edScroll = state.curRow - bodyHeight + 1;
+    const layout = getEdLayout();
+    const vis = logicalToVisual(layout.lineStartRow, layout.wrappedLines, state.curRow, state.curCol);
+    if (vis.visualRow < edScroll) edScroll = vis.visualRow;
+    if (vis.visualRow >= edScroll + bodyHeight) edScroll = vis.visualRow - bodyHeight + 1;
   }
 
   function clampCtx(): void {
@@ -454,8 +536,18 @@ export async function openSplitEditor(contextText: string, options?: SplitEditor
   }
 
   function renderRow(screenRow: number, bodyIdx: number): void {
-    const edLineIdx = edScroll + bodyIdx;
-    const edText = edLineIdx < state.lines.length ? state.lines[edLineIdx] : "";
+    // Left panel: get visual row from wrapped editor layout
+    const edVisIdx = edScroll + bodyIdx;
+    const layout = getEdLayout();
+    let edText = "";
+    for (let li = 0; li < state.lines.length; li++) {
+      const startVR = layout.lineStartRow[li];
+      const wrapped = layout.wrappedLines[li];
+      if (edVisIdx >= startVR && edVisIdx < startVR + wrapped.length) {
+        edText = wrapped[edVisIdx - startVR];
+        break;
+      }
+    }
     const edDisplay = edText.substring(0, leftInner);
     const edPad = Math.max(0, leftInner - edDisplay.length);
     const leftDim = focus === "right" ? "\x1b[2m" : "";
@@ -509,8 +601,10 @@ export async function openSplitEditor(contextText: string, options?: SplitEditor
 
   function placeCursorSplit(): void {
     if (focus === "left") {
-      const screenRow = 2 + (state.curRow - edScroll);
-      const screenCol = 3 + Math.min(state.curCol, leftInner);
+      const layout = getEdLayout();
+      const vis = logicalToVisual(layout.lineStartRow, layout.wrappedLines, state.curRow, state.curCol);
+      const screenRow = 2 + (vis.visualRow - edScroll);
+      const screenCol = 3 + Math.min(vis.visualCol, leftInner);
       process.stdout.write(`\x1b[?25h\x1b[${screenRow};${screenCol}H`);
     } else {
       process.stdout.write("\x1b[?25l");
@@ -680,8 +774,7 @@ export async function openSplitEditor(contextText: string, options?: SplitEditor
             state.lines[state.curRow].substring(state.curCol);
           state.curCol++;
           clampEditor();
-          renderRow(2 + (state.curRow - edScroll), state.curRow - edScroll);
-          placeCursorSplit();
+          needsFullRender = true;
         }
       }
 
