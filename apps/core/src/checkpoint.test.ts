@@ -3,7 +3,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { PipelineCheckpoint } from "./checkpoint.js";
-import { clearCheckpoint, loadCheckpoint, saveCheckpoint } from "./checkpoint.js";
+import { clearCheckpoint, loadCheckpoint, loadPreviousRun, saveCheckpoint } from "./checkpoint.js";
 import type { SwarmConfig } from "./config.js";
 
 function makeConfig(runId: string): SwarmConfig {
@@ -22,6 +22,7 @@ function makeConfig(runId: string): SwarmConfig {
     sessionTimeoutMs: 300_000,
     maxRetries: 2,
     maxAutoResume: 3,
+    reviewRunId: undefined,
   };
 }
 
@@ -221,5 +222,59 @@ describe("checkpoint round-trip", () => {
     expect(loaded?.activePhase).toBe("analyze-architect-2");
     expect(loaded?.iterationProgress?.["analyze-architect-2-draft"]?.content).toBe("cross-model draft analysis");
     expect(loaded?.iterationProgress?.["analyze-architect-2-review"]?.completedIterations).toBe(1);
+  });
+
+  it("loads previous run context from checkpoint file", async () => {
+    const config = makeConfig("test-review-source");
+    cleanupDirs.push(config.repoRoot);
+
+    const checkpoint: PipelineCheckpoint = {
+      mode: "run",
+      completedPhases: ["spec-0", "decompose-1", "implement-2"],
+      spec: "Build a login page",
+      tasks: ["Create form component", "Add validation"],
+      designSpec: "Use Carbon components",
+      streamResults: ["// stream 1 code", "// stream 2 code"],
+      issueBody: "Add login",
+      runId: "test-review-source",
+    };
+
+    await saveCheckpoint(config, checkpoint);
+
+    // Also write the latest pointer so loadPreviousRun can find it
+    const root = path.join(config.repoRoot, ".swarm");
+    await fs.mkdir(root, { recursive: true });
+    await fs.writeFile(path.join(root, "latest"), "test-review-source");
+
+    const prevRun = await loadPreviousRun(config);
+    expect(prevRun).not.toBeNull();
+    expect(prevRun?.runId).toBe("test-review-source");
+    expect(prevRun?.spec).toBe("Build a login page");
+    expect(prevRun?.tasks).toEqual(["Create form component", "Add validation"]);
+    expect(prevRun?.designSpec).toBe("Use Carbon components");
+    expect(prevRun?.streamResults).toEqual(["// stream 1 code", "// stream 2 code"]);
+  });
+
+  it("loads previous run context by explicit runId", async () => {
+    const config = makeConfig("test-explicit-run");
+    cleanupDirs.push(config.repoRoot);
+
+    const checkpoint: PipelineCheckpoint = {
+      mode: "run",
+      completedPhases: ["spec-0"],
+      spec: "Explicit spec",
+      tasks: ["Task A"],
+      designSpec: "",
+      streamResults: ["// code A"],
+      issueBody: "test",
+      runId: "test-explicit-run",
+    };
+
+    await saveCheckpoint(config, checkpoint);
+
+    const prevRun = await loadPreviousRun(config, "test-explicit-run");
+    expect(prevRun).not.toBeNull();
+    expect(prevRun?.runId).toBe("test-explicit-run");
+    expect(prevRun?.spec).toBe("Explicit spec");
   });
 });

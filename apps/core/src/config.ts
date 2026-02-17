@@ -32,7 +32,7 @@ function readEnvPositiveInt(key: string, fallback: number): number {
   return parsed;
 }
 
-export type SwarmCommand = "run" | "plan" | "analyze";
+export type SwarmCommand = "run" | "plan" | "analyze" | "review";
 
 interface CliArgs {
   command: SwarmCommand;
@@ -43,6 +43,7 @@ interface CliArgs {
   editor: boolean;
   resume: boolean;
   noTui: boolean;
+  reviewRunId: string | undefined;
 }
 
 function readVersion(): string {
@@ -58,6 +59,7 @@ Commands:
   run              Run the full orchestration pipeline (default)
   plan             Interactive planning mode — clarify requirements before running
   analyze          Analyze the repository and generate a context document
+  review           Review a previous run — provide feedback for agents to fix/improve
 
 Options:
   -v, --verbose        Enable verbose streaming output
@@ -65,6 +67,7 @@ Options:
   -p, --plan <file>    Use a plan file as input (reads the refined requirements section)
   -f, --file <file>    Read prompt from a file instead of inline text
   -r, --resume         Resume from the last checkpoint (skip completed phases)
+  --run <runId>        Specify which run to review (default: latest)
   --no-tui             Disable TUI dashboard (use plain log output)
   -V, --version        Show version number
   -h, --help           Show this help message
@@ -90,6 +93,8 @@ Examples:
   swarm "gh:owner/repo#123"               Fetch GitHub issue as prompt
   swarm "gh:#42"                          Fetch issue #42 from current repo
   swarm analyze
+  swarm review "Fix the auth bug"         Review latest run with feedback
+  swarm review -e --run 2026-02-17T08-00  Review a specific run
 
 Environment variables override defaults; CLI args override env vars.
 See documentation for all env var options.`;
@@ -107,6 +112,7 @@ function parseCliArgs(): CliArgs {
       "no-tui": { type: "boolean", default: false },
       plan: { type: "string", short: "p" },
       file: { type: "string", short: "f" },
+      run: { type: "string" },
     },
   });
 
@@ -125,7 +131,10 @@ function parseCliArgs(): CliArgs {
 
   if (
     positionals.length > 0 &&
-    (positionals[0] === "plan" || positionals[0] === "run" || positionals[0] === "analyze")
+    (positionals[0] === "plan" ||
+      positionals[0] === "run" ||
+      positionals[0] === "analyze" ||
+      positionals[0] === "review")
   ) {
     command = positionals[0] as SwarmCommand;
     promptParts = positionals.slice(1);
@@ -140,6 +149,7 @@ function parseCliArgs(): CliArgs {
     editor: values.editor as boolean,
     resume: values.resume as boolean,
     noTui: values["no-tui"] as boolean,
+    reviewRunId: values.run as string | undefined,
   };
 }
 
@@ -211,6 +221,8 @@ export interface SwarmConfig {
   readonly sessionTimeoutMs: number;
   readonly maxRetries: number;
   readonly maxAutoResume: number;
+  /** For review mode: the runId of the previous run to review (default: latest). */
+  readonly reviewRunId: string | undefined;
 }
 
 export async function loadConfig(): Promise<SwarmConfig> {
@@ -257,5 +269,6 @@ export async function loadConfig(): Promise<SwarmConfig> {
     sessionTimeoutMs: readEnvPositiveInt("SESSION_TIMEOUT_MS", 1_800_000),
     maxRetries: readEnvPositiveInt("MAX_RETRIES", 2),
     maxAutoResume: readEnvPositiveInt("MAX_AUTO_RESUME", 3),
+    reviewRunId: cli.reviewRunId,
   };
 }

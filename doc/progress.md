@@ -5,6 +5,7 @@ All notable changes to this project are documented here, in reverse chronologica
 ## 2026-02-17
 
 ### Added
+- **Review mode** — New `swarm review` command for providing feedback on a previous run. Loads the previous run's full context (spec, tasks, design spec, stream results) and re-runs the implement phase with the user's review feedback injected alongside the previous implementation. Engineers are instructed to keep what works and only fix what's described in the feedback. Supports `--run <runId>` to target a specific previous run (defaults to latest). Checkpoint/resume and auto-retry work the same as run mode. Includes `loadPreviousRun()` utility that reconstructs context from checkpoint files or role summaries.
 - **Split-pane Q&A editor** — Plan mode interactive clarification now uses a two-column split editor: left panel for user input, right panel with scrollable agent questions (PM, engineer, designer). Tab to switch panels, PgUp/PgDown to scroll context. Submit/Skip/Cancel via command palette. All Q&A answers saved in checkpoint `answeredQuestions` field — on resume, previously answered rounds are replayed automatically without re-prompting.
 
 ### Improved

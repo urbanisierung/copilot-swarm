@@ -95,6 +95,20 @@ if (config.command === "plan") {
       const outDir = path.relative(config.repoRoot, analysisDir(config));
       printSummary(msg.summaryAnalyzeComplete(elapsed), outDir, tracker);
     });
+} else if (config.command === "review") {
+  const { loadPreviousRun } = await import("./checkpoint.js");
+  const prevRun = await loadPreviousRun(config, config.reviewRunId);
+  if (!prevRun) {
+    console.error(msg.reviewNoPreviousRun);
+    process.exit(1);
+  }
+  logger.info(msg.reviewStart);
+  const swarm = new SwarmOrchestrator(config, logger, prevRun);
+  swarm
+    .start()
+    .then(() => swarm.execute())
+    .catch(showLogOnError)
+    .finally(() => swarm.stop());
 } else {
   logger.info(msg.startingSwarm);
   const swarm = new SwarmOrchestrator(config, logger);
