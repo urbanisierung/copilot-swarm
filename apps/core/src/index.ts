@@ -136,6 +136,8 @@ if (config.command === "plan") {
   if (config.tui) {
     tracker = new ProgressTracker();
     tracker.runId = config.runId;
+    tracker.primaryModel = pipeline.primaryModel;
+    tracker.reviewModel = pipeline.reviewModel;
     renderer = new TuiRenderer(tracker);
     logger.setTracker(tracker);
   }
@@ -162,6 +164,8 @@ if (config.command === "plan") {
   if (config.tui) {
     tracker = new ProgressTracker();
     tracker.runId = config.runId;
+    tracker.primaryModel = pipeline.primaryModel;
+    tracker.reviewModel = pipeline.reviewModel;
     renderer = new TuiRenderer(tracker);
     logger.setTracker(tracker);
   }

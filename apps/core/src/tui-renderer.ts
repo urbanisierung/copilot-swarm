@@ -87,8 +87,9 @@ export class TuiRenderer {
 
     // ── Header ──
     const elapsed = this.fmtElapsed(this.tracker.elapsedMs);
+    const model = this.tracker.primaryModel ? `\x1b[2m${this.tracker.primaryModel}\x1b[0m` : "";
     lines.push("");
-    lines.push(`  🐝 Copilot Swarm${this.pad(width - 20 - elapsed.length)}${elapsed}`);
+    lines.push(`  🐝 Copilot Swarm  ${model}${this.pad(width - 22 - this.visLen(model) - elapsed.length)}${elapsed}`);
     lines.push(sep);
     lines.push("");
 
