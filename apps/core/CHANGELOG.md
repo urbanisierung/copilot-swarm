@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.14
+
+### Patch Changes
+
+- eae158b: Track copilot session ids.
+
 ## 0.0.13
 
 ### Patch Changes
