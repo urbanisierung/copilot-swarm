@@ -76,6 +76,8 @@ export const msg = {
   planSaved: (path: string) => `📄 Plan saved to ${path}`,
   planningUserPrompt: "\n💬 Your answer (empty line to send, or press Enter to skip):\n",
   planningInputContinue: "   ... ",
+  sessionExpiredRecovery: "  ⚠️  Session expired — recovering with collected answers…",
+  sessionRecoveryFailed: "  ⚠️  Recovery session also failed — using last available response",
 
   // --- Analyze Mode ---
   analyzeStart: "🔍 Starting Repository Analysis...",
