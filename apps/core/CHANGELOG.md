@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.17
+
+### Patch Changes
+
+- 8056ac3: Improved loop handling. New CLI information.
+
 ## 0.0.16
 
 ### Patch Changes
