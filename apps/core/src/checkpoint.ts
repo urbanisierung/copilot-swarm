@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { SwarmConfig } from "./config.js";
-import { latestPointerPath, runDir, swarmRoot } from "./paths.js";
+import { latestPointerPath, runDir, sessionScopedRoot } from "./paths.js";
 
 /** Snapshot of a single review/QA iteration's progress. */
 export interface IterationSnapshot {
@@ -56,7 +56,7 @@ async function checkpointPath(config: SwarmConfig): Promise<string> {
   if (config.resume) {
     const latestRunId = await resolveLatestRunId(config);
     if (latestRunId) {
-      return path.join(swarmRoot(config), "runs", latestRunId, "checkpoint.json");
+      return path.join(sessionScopedRoot(config), "runs", latestRunId, "checkpoint.json");
     }
   }
   return path.join(runDir(config), "checkpoint.json");
@@ -77,7 +77,7 @@ export async function saveCheckpoint(config: SwarmConfig, checkpoint: PipelineCh
   await fs.writeFile(filePath, JSON.stringify(checkpoint, null, 2));
 
   // Update latest pointer
-  const root = swarmRoot(config);
+  const root = sessionScopedRoot(config);
   await fs.mkdir(root, { recursive: true });
   await fs.writeFile(latestPointerPath(config), config.runId);
 }
@@ -119,7 +119,7 @@ export async function loadPreviousRun(config: SwarmConfig, runId?: string): Prom
   const resolvedRunId = runId ?? (await resolveLatestRunId(config));
   if (!resolvedRunId) return null;
 
-  const dir = path.join(swarmRoot(config), "runs", resolvedRunId);
+  const dir = path.join(sessionScopedRoot(config), "runs", resolvedRunId);
   const rolesPath = path.join(dir, "roles");
 
   // Try to load the checkpoint first — it has structured data
