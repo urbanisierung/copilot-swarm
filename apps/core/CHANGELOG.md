@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.19
+
+### Patch Changes
+
+- d5b9de5: Improvements to the agent flow.
+
 ## 0.0.18
 
 ### Patch Changes
