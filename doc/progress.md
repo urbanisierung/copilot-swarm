@@ -10,7 +10,7 @@ All notable changes to this project are documented here, in reverse chronologica
 - **TUI header improvements** — TUI dashboard header now displays CLI version and active model on the title line, and the current working directory (smartly shortened with `…/` prefix) on a second dimmed line.
 
 ### Improved
-- **Review mode stream triage** — Review mode now uses a lightweight AI call to determine which implementation streams are actually affected by the review feedback. Only affected streams are re-run; unchanged streams are skipped with their previous results preserved. Previously, all streams were re-run regardless of feedback scope.
+- **Review mode single stream** — Review mode now collapses all previous implementation streams into a single review stream. One engineer sees the full prior implementation + feedback and applies all fixes in one pass. Eliminates unnecessary parallel streams and the AI triage call. Previously, review re-ran all N streams from the original run even for small feedback.
 
 ### Fixed
 - **Session-scoped paths** — `loadPreviousRun`, `resolveCheckpointPath`, and the latest-pointer write in `pipeline-engine` now use `sessionScopedRoot` instead of `swarmRoot`, fixing "no previous run found" errors when sessions are active.

@@ -118,24 +118,25 @@ export class PipelineEngine {
     if (this.reviewContext) {
       this.logger.info(msg.reviewLoadedContext(this.reviewContext.runId));
       ctx.spec = this.reviewContext.spec;
-      ctx.tasks = this.reviewContext.tasks;
       ctx.designSpec = this.reviewContext.designSpec;
-      // Pre-fill stream results from previous run — unchanged streams will be skipped
-      ctx.streamResults = [...this.reviewContext.streamResults];
+      // Collapse all previous streams into a single review task
+      const allPreviousOutput = this.reviewContext.streamResults
+        .map((r, i) => `## Stream ${i + 1}: ${this.reviewContext?.tasks[i]}\n\n${r}`)
+        .join("\n\n---\n\n");
+      ctx.tasks = [
+        `Review and fix the previous implementation based on feedback.\n\n` +
+          `## Previous Implementation\n\n${allPreviousOutput}\n\n` +
+          `## Review Feedback\n\n${this.reviewFeedback}\n\n` +
+          `Fix the issues described in the review feedback. Keep everything that works correctly, ` +
+          `only change what needs to be fixed or improved.`,
+      ];
+      ctx.streamResults = [];
       // Mark all phases before implement as completed so they're skipped
       for (let i = 0; i < this.pipeline.pipeline.length; i++) {
         const p = this.pipeline.pipeline[i];
         if (p.phase === "implement") break;
         completedPhases.add(`${p.phase}-${i}`);
       }
-      // Determine which streams are actually affected by the review feedback
-      const affected = await this.resolveAffectedStreams(ctx.tasks, this.reviewFeedback);
-      for (const idx of affected) {
-        if (idx >= 0 && idx < ctx.streamResults.length) {
-          ctx.streamResults[idx] = "";
-        }
-      }
-      this.logger.info(msg.reviewAffectedStreams(affected.length, ctx.tasks.length));
     }
 
     // Closure that saves the full checkpoint including iteration state
@@ -237,35 +238,6 @@ export class PipelineEngine {
 
     // Clean up checkpoint on successful completion
     await clearCheckpoint(this.effectiveConfig);
-  }
-
-  // --- REVIEW TRIAGE ---
-
-  /**
-   * Determine which task streams are affected by review feedback.
-   * Uses a lightweight AI call to match feedback to tasks.
-   */
-  private async resolveAffectedStreams(tasks: string[], feedback: string): Promise<number[]> {
-    if (tasks.length <= 1) return [0];
-
-    const taskList = tasks.map((t, i) => `${i}: ${t}`).join("\n");
-    const prompt =
-      `Given these implementation tasks:\n${taskList}\n\n` +
-      `And this review feedback:\n${feedback}\n\n` +
-      `Which task indices (0-based) are affected by the feedback? ` +
-      `Return ONLY a JSON array of numbers, e.g. [0, 2]. ` +
-      `If the feedback is general or unclear, return all indices.`;
-
-    try {
-      const raw = await this.sessions.callIsolated("pm", prompt, undefined, "review-triage");
-      const parsed = JSON.parse(raw.replace(/^[^[]*/, "").replace(/[^\]]*$/, ""));
-      if (Array.isArray(parsed) && parsed.every((n) => typeof n === "number")) {
-        return parsed;
-      }
-    } catch {
-      // Fallback: affect all streams
-    }
-    return tasks.map((_, i) => i);
   }
 
   // --- SPEC PHASE ---
@@ -481,24 +453,9 @@ export class PipelineEngine {
           this.logger.info(msg.streamEngineering(label));
           this.tracker?.updateStream(idx, "engineering");
 
-          let engineeringPrompt: string;
-          const prevOutput = this.reviewContext?.streamResults[idx] ? this.reviewContext.streamResults[idx] : "";
-
-          if (prevOutput) {
-            // Review mode: engineer sees previous output + user feedback
-            const base = isFrontendTask(task)
-              ? `Spec:\n${ctx.spec}\n\nDesign:\n${ctx.designSpec}\n\nTask:\n${task}`
-              : `Spec:\n${ctx.spec}\n\nTask:\n${task}`;
-            engineeringPrompt =
-              `${base}\n\n## Previous Implementation\n\n${prevOutput}\n\n` +
-              `## Review Feedback\n\n${this.reviewFeedback}\n\n` +
-              "Fix the issues described in the review feedback. Keep everything that works correctly, " +
-              "only change what needs to be fixed or improved.";
-          } else {
-            engineeringPrompt = isFrontendTask(task)
-              ? `Spec:\n${ctx.spec}\n\nDesign:\n${ctx.designSpec}\n\nTask:\n${task}\n\nImplement this task.`
-              : `Spec:\n${ctx.spec}\n\nTask:\n${task}\n\nImplement this task.`;
-          }
+          const engineeringPrompt = isFrontendTask(task)
+            ? `Spec:\n${ctx.spec}\n\nDesign:\n${ctx.designSpec}\n\nTask:\n${task}\n\nImplement this task.`
+            : `Spec:\n${ctx.spec}\n\nTask:\n${task}\n\nImplement this task.`;
           code = await this.sessions.send(session, engineeringPrompt, `${phase.agent} (${label}) is implementing…`);
           sessionPrimed = true;
 
