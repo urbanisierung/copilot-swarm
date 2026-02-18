@@ -177,12 +177,13 @@ swarm auto "Add a dark mode toggle"
 swarm auto -f requirements.md
 ```
 
-Auto mode combines planning and running into a single autonomous pipeline:
+Auto mode combines analysis, planning and running into a single autonomous pipeline:
 
-1. **Planning phase** — Runs the full planning pipeline (pre-analysis, PM clarification, engineer/designer clarification, reviews) but auto-answers all clarifying questions with the agent's best judgment instead of asking the user.
-2. **Implementation phase** — Takes the plan output and feeds it directly into the run pipeline (decomposition, implementation, cross-model review, verification).
+1. **Analysis phase** — Runs the full repository analysis (architect exploration + peer review) to generate a comprehensive context document.
+2. **Planning phase** — Runs the full planning pipeline (pre-analysis, PM clarification, engineer/designer clarification, reviews) with repo analysis as context. All clarifying questions are auto-answered with the agent's best judgment.
+3. **Implementation phase** — Takes the plan output and feeds it directly into the run pipeline (decomposition, implementation, cross-model review, verification).
 
-This is useful for well-defined tasks where interactive clarification is not needed, CI/CD pipelines, or batch processing. The plan is still saved to `.swarm/plans/` for reference.
+This is useful for well-defined tasks where interactive clarification is not needed, CI/CD pipelines, or batch processing. The analysis and plan files are still saved to `.swarm/` for reference.
 
 ### Analyze Mode
 

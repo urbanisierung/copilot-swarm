@@ -184,12 +184,34 @@ if (config.command === "plan" || config.command === "auto") {
     logger.setTracker(tracker);
   }
   const startMs = Date.now();
+
+  // Auto mode: run analyze first to generate repo context
+  if (config.command === "auto") {
+    const { AnalysisEngine } = await import("./analysis-engine.js");
+    const analyzer = new AnalysisEngine(config, pipeline, logger, tracker);
+    activeShutdown = async () => {
+      renderer?.stop();
+      await analyzer.stop();
+    };
+    renderer?.start();
+    await analyzer.start();
+    await analyzer.execute();
+    await analyzer.stop();
+    logger.info(msg.summaryAutoPhaseSwitch);
+    // Reset tracker for the plan phase
+    if (tracker) {
+      tracker.phases = [];
+      tracker.streams = [];
+      tracker.activeAgent = null;
+    }
+  }
+
   const planner = new PlanningEngine(config, pipeline, logger, tracker, renderer);
   activeShutdown = async () => {
     renderer?.stop();
     await planner.stop();
   };
-  renderer?.start();
+  if (config.command !== "auto") renderer?.start();
   planner
     .start()
     .then((v) => planner.execute().then((plan) => ({ started: v, plan })))
@@ -198,7 +220,7 @@ if (config.command === "plan" || config.command === "auto") {
 
       if (config.command !== "auto") return;
 
-      // Auto mode phase 2: run with the plan
+      // Auto mode phase 3: run with the plan
       logger.info(msg.summaryAutoPhaseSwitch);
 
       // Reset tracker for the run phase

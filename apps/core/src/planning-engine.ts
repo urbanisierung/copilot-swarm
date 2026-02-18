@@ -5,7 +5,7 @@ import type { SwarmConfig } from "./config.js";
 import { ResponseKeyword } from "./constants.js";
 import type { Logger } from "./logger.js";
 import { msg } from "./messages.js";
-import { plansDir } from "./paths.js";
+import { analysisFilePath, plansDir } from "./paths.js";
 import type { PipelineConfig } from "./pipeline-types.js";
 import type { ProgressTracker } from "./progress-tracker.js";
 import { SessionManager } from "./session.js";
@@ -193,6 +193,15 @@ export class PlanningEngine {
     let resumedPhaseKey: string | null = null;
     let effectiveIssueBody = this.config.issueBody;
 
+    // Load repo analysis if available — provides context for PM and analyst
+    let repoAnalysis = "";
+    try {
+      repoAnalysis = await fs.readFile(analysisFilePath(this.config), "utf-8");
+      this.logger.info(msg.repoAnalysisLoaded);
+    } catch {
+      // No analysis file — agents will work without it
+    }
+
     // Resume from checkpoint
     if (this.config.resume) {
       const cp = await loadCheckpoint(this.config);
@@ -264,7 +273,10 @@ export class PlanningEngine {
       this.logger.info(msg.phaseSkipped("plan-clarify"));
     } else {
       this.tracker?.activatePhase(clarifyKey);
-      spec = await this.clarifyRequirements(effectiveIssueBody, clarifyKey, saveProgress);
+      const pmInput = repoAnalysis
+        ? `## Repository Context\n\n${repoAnalysis}\n\n## Task\n\n${effectiveIssueBody}`
+        : effectiveIssueBody;
+      spec = await this.clarifyRequirements(pmInput, clarifyKey, saveProgress);
       completedPhases.add(clarifyKey);
       this.tracker?.completePhase(clarifyKey);
       await saveProgress();
@@ -388,7 +400,7 @@ export class PlanningEngine {
       this.logger.info(msg.phaseSkipped("plan-analyze"));
     } else {
       this.tracker?.activatePhase(analyzeKey);
-      analysis = await this.analyzeCodebase(spec);
+      analysis = await this.analyzeCodebase(spec, repoAnalysis);
       completedPhases.add(analyzeKey);
       this.tracker?.completePhase(analyzeKey);
       await saveProgress();
@@ -856,16 +868,15 @@ export class PlanningEngine {
     return result;
   }
 
-  private async analyzeCodebase(spec: string): Promise<string> {
+  private async analyzeCodebase(spec: string, repoAnalysis: string): Promise<string> {
     this.logger.info(msg.planningEngPhase);
 
     const session = await this.sessions.createSessionWithInstructions(ANALYST_INSTRUCTIONS);
     try {
-      const analysis = await this.sessions.send(
-        session,
-        `Analyze the codebase against these requirements and produce a technical assessment:\n\n${spec}`,
-        "Engineer is analyzing codebase…",
-      );
+      const prompt = repoAnalysis
+        ? `Use the following repository analysis as context, then assess the codebase against these requirements:\n\n## Repository Analysis\n\n${repoAnalysis}\n\n## Requirements\n\n${spec}`
+        : `Analyze the codebase against these requirements and produce a technical assessment:\n\n${spec}`;
+      const analysis = await this.sessions.send(session, prompt, "Engineer is analyzing codebase…");
 
       this.renderer?.pause();
       console.log("\n🔍 Technical Analysis:\n");

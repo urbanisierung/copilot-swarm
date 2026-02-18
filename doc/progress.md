@@ -5,7 +5,10 @@ All notable changes to this project are documented here, in reverse chronologica
 ## 2026-02-18
 
 ### Added
-- **Auto mode** — New `swarm auto` command combines planning and running in a single autonomous pipeline. All clarifying questions during planning are auto-answered with the agent's best judgment. After planning completes, the plan output feeds directly into the run pipeline. Useful for well-defined tasks, CI/CD, or batch processing where interactive clarification isn't needed.
+- **Auto mode** — New `swarm auto` command runs analysis → planning → implementation in a single autonomous pipeline. All clarifying questions during planning are auto-answered with the agent's best judgment. Repo analysis is generated first and provides context for all subsequent phases.
+
+### Improved
+- **Analysis context in planning** — Planning mode now loads the existing `repo-analysis.md` (if available) and injects it as context into PM clarification and the technical analysis phase, giving agents better understanding of the codebase from the start.
 
 ## 2026-02-19
 
