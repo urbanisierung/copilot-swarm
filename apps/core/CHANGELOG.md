@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.18
+
+### Patch Changes
+
+- 2fc98c1: Fix session grouping.
+
 ## 0.0.17
 
 ### Patch Changes
