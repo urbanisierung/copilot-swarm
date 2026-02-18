@@ -76,10 +76,12 @@ export async function saveCheckpoint(config: SwarmConfig, checkpoint: PipelineCh
   const filePath = path.join(dir, "checkpoint.json");
   await fs.writeFile(filePath, JSON.stringify(checkpoint, null, 2));
 
-  // Update latest pointer
-  const root = sessionScopedRoot(config);
-  await fs.mkdir(root, { recursive: true });
-  await fs.writeFile(latestPointerPath(config), config.runId);
+  // Update latest pointer only for run/review modes (plan/analyze don't produce reviewable output)
+  if (!checkpoint.mode || checkpoint.mode === "run" || checkpoint.mode === "review") {
+    const root = sessionScopedRoot(config);
+    await fs.mkdir(root, { recursive: true });
+    await fs.writeFile(latestPointerPath(config), config.runId);
+  }
 }
 
 export async function loadCheckpoint(config: SwarmConfig): Promise<PipelineCheckpoint | null> {
