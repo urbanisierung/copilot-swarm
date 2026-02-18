@@ -203,12 +203,14 @@ swarm review --run 2026-02-17T08-00-00-000Z "Fix the login form"
 ```
 
 **How it works:**
-1. Loads the previous run's context (spec, tasks, design spec, stream results) from `.swarm/runs/<runId>/`
+1. Loads the previous run's context (spec, tasks, design spec, stream results) from `.swarm/sessions/<id>/runs/<runId>/`
 2. Skips spec, decompose, and design phases (they were already done)
-3. Re-runs the implement phase — each engineer stream sees its previous output + your review feedback
-4. Engineers are instructed to keep what works and only fix what's described in the feedback
-5. Code review and QA loops run normally on the revised output
-6. Output goes to a new run directory (new timestamp)
+3. Uses a lightweight AI call to determine which streams are affected by the feedback
+4. Only re-runs affected streams — unaffected streams are skipped with their previous results preserved
+5. Each affected engineer stream sees its previous output + your review feedback
+6. Engineers are instructed to keep what works and only fix what's described in the feedback
+7. Code review and QA loops run normally on the revised output
+8. Output goes to a new run directory (new timestamp)
 
 The review mode supports checkpoint/resume (`--resume`) and auto-retry, same as regular run mode.
 

@@ -110,6 +110,8 @@ export const msg = {
   reviewStart: "🔄 Starting Review Mode...",
   reviewLoadedContext: (runId: string) => `📦 Loaded previous run context from ${runId}`,
   reviewNoPreviousRun: "❌ No previous run found. Run 'swarm run' first, then use 'swarm review' to provide feedback.",
+  reviewAffectedStreams: (affected: number, total: number) =>
+    `🎯 Review affects ${affected} of ${total} streams — unchanged streams will be skipped`,
   summaryReviewComplete: (elapsed: string) => `✅ Review completed in ${elapsed}`,
 
   // --- Finish Command ---
