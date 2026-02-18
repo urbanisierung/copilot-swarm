@@ -23,6 +23,7 @@ function makeConfig(runId: string): SwarmConfig {
     maxRetries: 2,
     maxAutoResume: 3,
     reviewRunId: undefined,
+    sessionId: undefined,
   };
 }
 

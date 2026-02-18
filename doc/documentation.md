@@ -245,6 +245,62 @@ By default, the orchestrator automatically retries from the last checkpoint up t
 - Configure via `MAX_AUTO_RESUME` env var (default: `3`, set to `0` to disable)
 - The `--resume` flag is still available for manual retries after all auto-resume attempts are exhausted
 
+### Sessions (Feature Grouping)
+
+Sessions group related runs (analyze, plan, run, review) under a single logical feature/project. This preserves context across modes and makes it easy to track all work for a given feature.
+
+**Structure:**
+```
+.swarm/
+  sessions/
+    <sessionId>/
+      session.json          # metadata (id, name, created, description)
+      runs/<runId>/          # run output directories
+      plans/                # plan outputs
+      analysis/             # analysis outputs
+      latest                # latest run pointer within session
+  active-session            # pointer to the active session ID
+```
+
+**Commands:**
+```bash
+# Create a new session
+swarm session create "Dark mode feature"
+
+# List all sessions
+swarm session list
+
+# Switch to a specific session
+swarm session use <sessionId>
+```
+
+**Automatic behavior:**
+- All commands (`run`, `plan`, `analyze`, `review`) automatically use the active session
+- Override with `--session <id>` flag
+- If no session exists, a default session is auto-created
+- Legacy `.swarm/runs/`, `plans/`, `analysis/` directories are automatically migrated into the default session on first use
+
+### Finish Command
+
+Finalize a session when you're done with a feature. This summarizes all work, appends an entry to a central changelog, cleans up checkpoint files, and marks the session as finished.
+
+```bash
+# Finalize the active session
+swarm finish
+
+# Finalize a specific session
+swarm finish --session <id>
+```
+
+**What it does:**
+1. Collects artifacts from all runs, plans, and analyses in the session
+2. Builds a structured summary (original request, phases, tasks, stream counts)
+3. Appends the summary to `.swarm/changelog.md` (newest first)
+4. Deletes `checkpoint.json` files from all runs (role summaries are preserved)
+5. Marks the session as finished in `session.json`
+
+The changelog serves as a persistent record of completed features across the project.
+
 ### TUI Dashboard
 
 A full-screen terminal dashboard displays progress for all modes (`run`, `plan`, `analyze`) when running in a TTY (interactive terminal). The dashboard shows:
@@ -299,7 +355,119 @@ ISSUE_BODY="Fix bug" PRIMARY_MODEL=claude-opus-4-6-fast REVIEW_MODEL=claude-opus
 
 ### GitHub Actions
 
-The orchestrator is triggered by labeling a GitHub Issue with `run-swarm` or `run-swarm-verbose`. See the workflow file for details.
+Copilot Swarm provides a reusable GitHub Action that can be used in any repository.
+
+#### Setup
+
+1. Create a Copilot CLI token (Organization Settings → Developer Settings → Personal Access Tokens → Classic, select `copilot` scope)
+2. Add it as a repository secret named `COPILOT_CLI_TOKEN`
+
+#### Basic Usage
+
+```yaml
+name: Copilot Swarm
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  swarm:
+    if: github.event.label.name == 'run-swarm'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: urbanisierung/copilot-swarm/action@main
+        env:
+          COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
+        with:
+          command: run
+          prompt: ${{ github.event.issue.body }}
+```
+
+#### Action Inputs
+
+| Input | Default | Description |
+|---|---|---|
+| `command` | `run` | Command to execute: `run`, `plan`, `analyze`, `review`, `finish` |
+| `prompt` | — | Task description / prompt (inline) |
+| `prompt-file` | — | Path to a file containing the prompt (for long descriptions) |
+| `plan-file` | — | Path to a plan file from a previous plan mode run |
+| `resume` | `false` | Resume from the last checkpoint |
+| `session` | — | Session ID (default: active session) |
+| `run-id` | — | Run ID for review mode (default: latest) |
+| `verbose` | `false` | Enable verbose output |
+| `version` | `latest` | Version of `@copilot-swarm/core` to use |
+| `primary-model` | — | Primary AI model override |
+| `review-model` | — | Review AI model override |
+
+#### Action Outputs
+
+| Output | Description |
+|---|---|
+| `output-dir` | Path to the `.swarm` output directory |
+| `run-id` | The run ID of this execution |
+
+#### Plan Mode in CI
+
+Plan mode works in CI but interactive clarification is auto-skipped — agents use their best judgment for open questions. For best results, provide a detailed prompt or use a two-phase workflow:
+
+1. **Phase 1:** Run `plan` mode → agents produce a plan, checkpoint is saved
+2. **Review:** Check the plan output in the `.swarm/` artifact
+3. **Phase 2:** Re-run with `resume: true` if needed, or proceed with `run --plan .swarm/plans/plan-latest.md`
+
+#### Example: Full Pipeline
+
+```yaml
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: urbanisierung/copilot-swarm/action@main
+        env:
+          COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
+        with:
+          command: run
+          prompt: "Add a dark mode toggle to the settings page"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: swarm-output
+          path: .swarm/
+```
+
+#### Long Prompts
+
+For long or detailed prompts, use one of these approaches:
+
+**Option 1: File in the repo** — Commit a prompt file and reference it:
+```yaml
+- uses: urbanisierung/copilot-swarm/action@main
+  with:
+    prompt-file: docs/feature-spec.md
+```
+
+**Option 2: YAML multi-line string** — Use `|` for multi-line prompts:
+```yaml
+- uses: urbanisierung/copilot-swarm/action@main
+  with:
+    prompt: |
+      Add a user preferences page with the following requirements:
+      - Dark mode toggle with system preference detection
+      - Language selector (EN, DE, FR)
+      - Notification settings (email, push, in-app)
+      - All settings persisted to localStorage
+```
+
+**Option 3: Issue body** — Trigger from an issue and use its body:
+```yaml
+- uses: urbanisierung/copilot-swarm/action@main
+  with:
+    prompt: ${{ github.event.issue.body }}
+```
 
 ## Environment Variables
 

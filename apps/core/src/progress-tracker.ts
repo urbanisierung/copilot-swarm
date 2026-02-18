@@ -45,6 +45,8 @@ export class ProgressTracker {
   startTime = Date.now();
   logs: LogEntry[] = [];
   runId = "";
+  primaryModel = "";
+  reviewModel = "";
 
   initPhases(phaseConfigs: readonly { phase: string }[]): void {
     this.phases = phaseConfigs.map((p, i) => ({

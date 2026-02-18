@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here, in reverse chronological order.
 
+## 2026-02-18
+
+### Added
+- **Sessions (feature grouping)** — New `swarm session` command to group related runs under a logical feature. `swarm session create "Feature X"` creates a session, `swarm session list` shows all sessions, `swarm session use <id>` switches active session. All commands auto-use the active session; override with `--session <id>`. Output is scoped per-session under `.swarm/sessions/<id>/`. Legacy `.swarm/runs/` layout auto-migrated to a default session on first use.
+- **Finish command** — New `swarm finish` command to finalize a session. Collects all artifacts (plans, analyses, run checkpoints, role summaries), builds a structured summary, appends it to `.swarm/changelog.md` (newest first), cleans up checkpoint files, and marks the session as finished in `session.json`. Supports `--session <id>` to finalize a specific session.
+- **GitHub Action** — Reusable composite action at `action/` for running Copilot Swarm in any repository's CI pipeline. Supports all commands (`run`, `plan`, `analyze`, `review`, `finish`), model overrides, session/resume flags, and version pinning. Plan mode interactive clarification auto-skips in non-TTY environments — agents use their best judgment for open questions.
+
 ## 2026-02-17
 
 ### Added
@@ -10,6 +17,7 @@ All notable changes to this project are documented here, in reverse chronologica
 - **Session tracking in checkpoints** — Every Copilot SDK session created during a run is now logged in the checkpoint file (`sessionLog` field). Each entry records the session ID, agent name, and role, keyed by context (e.g. `spec`, `implement/stream-0`, `design/review-1-2`, `plan-clarify-0`). Session logs are restored on resume and accumulate across the run. Useful for debugging and correlating checkpoint state with Copilot session history in `~/.copilot/session-state/`.
 
 ### Improved
+- **Clarification timeout recovery** — If a Copilot session expires during interactive clarification (plan mode Q&A), the CLI no longer crashes. Instead it catches the error, creates a fresh session with all collected Q&A context, and asks the agent to finalize the summary. If recovery also fails, the last available response is used. This prevents losing long clarification sessions to timeouts.
 - **Interactive editor input** — Word-jump navigation with Ctrl+Left/Right, Ctrl+A/E for line start/end, Ctrl+W and Ctrl+Backspace for word deletion. Replaced Ctrl+Enter submit with Ctrl+S command palette (Submit/Cancel menu with arrow key selection). Esc now opens the command palette instead of immediately cancelling. Flicker-free rendering: single-character edits only redraw the affected line, cursor-only movements reposition without redrawing, full redraws only on structural changes.
 - **TUI dashboard rendering** — Fixed activity log rendering when content reaches terminal bottom. Each row is now written with explicit cursor positioning and line clearing (`\x1b[K`) to prevent ghosting. Lines wider than terminal columns are truncated (ANSI-aware) to prevent wrapping that consumed extra visual rows.
 

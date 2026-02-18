@@ -76,6 +76,9 @@ export const msg = {
   planSaved: (path: string) => `📄 Plan saved to ${path}`,
   planningUserPrompt: "\n💬 Your answer (empty line to send, or press Enter to skip):\n",
   planningInputContinue: "   ... ",
+  sessionExpiredRecovery: "  ⚠️  Session expired — recovering with collected answers…",
+  sessionRecoveryFailed: "  ⚠️  Recovery session also failed — using last available response",
+  clarificationAutoSkipped: "  ⏭️  Non-interactive mode — auto-skipping clarification (agent will use best judgment)",
 
   // --- Analyze Mode ---
   analyzeStart: "🔍 Starting Repository Analysis...",
@@ -108,6 +111,13 @@ export const msg = {
   reviewLoadedContext: (runId: string) => `📦 Loaded previous run context from ${runId}`,
   reviewNoPreviousRun: "❌ No previous run found. Run 'swarm run' first, then use 'swarm review' to provide feedback.",
   summaryReviewComplete: (elapsed: string) => `✅ Review completed in ${elapsed}`,
+
+  // --- Finish Command ---
+  finishStart: (sessionId: string, name: string) => `📦 Finalizing session ${sessionId} — "${name}"`,
+  finishNoSession: "❌ No active session found. Create one with 'swarm session create' first.",
+  finishChangelogSaved: (path: string) => `📝 Changelog updated: ${path}`,
+  finishCheckpointsCleaned: (count: number) => `🧹 Cleaned up ${count} checkpoint file(s)`,
+  finishComplete: "✅ Session finalized successfully.",
 
   // --- Log File ---
   logFileHint: (path: string) => `📋 Full log: ${path}`,

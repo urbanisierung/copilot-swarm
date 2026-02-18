@@ -29,6 +29,8 @@ export class SwarmOrchestrator {
     if (config.tui) {
       this.tracker = new ProgressTracker();
       this.tracker.runId = config.runId;
+      this.tracker.primaryModel = this.pipeline.primaryModel;
+      this.tracker.reviewModel = this.pipeline.reviewModel;
       this.renderer = new TuiRenderer(this.tracker);
       logger.setTracker(this.tracker);
     } else {

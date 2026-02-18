@@ -32,7 +32,7 @@ function readEnvPositiveInt(key: string, fallback: number): number {
   return parsed;
 }
 
-export type SwarmCommand = "run" | "plan" | "analyze" | "review";
+export type SwarmCommand = "run" | "plan" | "analyze" | "review" | "session" | "finish";
 
 interface CliArgs {
   command: SwarmCommand;
@@ -44,6 +44,7 @@ interface CliArgs {
   resume: boolean;
   noTui: boolean;
   reviewRunId: string | undefined;
+  sessionId: string | undefined;
 }
 
 function readVersion(): string {
@@ -60,6 +61,8 @@ Commands:
   plan             Interactive planning mode — clarify requirements before running
   analyze          Analyze the repository and generate a context document
   review           Review a previous run — provide feedback for agents to fix/improve
+  session          Manage sessions: create, list, use (group related runs)
+  finish           Finalize the active session — summarize, log to changelog, clean up
 
 Options:
   -v, --verbose        Enable verbose streaming output
@@ -68,6 +71,7 @@ Options:
   -f, --file <file>    Read prompt from a file instead of inline text
   -r, --resume         Resume from the last checkpoint (skip completed phases)
   --run <runId>        Specify which run to review (default: latest)
+  --session <id>       Use a specific session (default: active session)
   --no-tui             Disable TUI dashboard (use plain log output)
   -V, --version        Show version number
   -h, --help           Show this help message
@@ -95,6 +99,11 @@ Examples:
   swarm analyze
   swarm review "Fix the auth bug"         Review latest run with feedback
   swarm review -e --run 2026-02-17T08-00  Review a specific run
+  swarm session create "Dark mode feature" Create a new session
+  swarm session list                      List all sessions
+  swarm session use <id>                  Switch active session
+  swarm finish                            Finalize active session
+  swarm finish --session <id>             Finalize a specific session
 
 Environment variables override defaults; CLI args override env vars.
 See documentation for all env var options.`;
@@ -113,6 +122,7 @@ function parseCliArgs(): CliArgs {
       plan: { type: "string", short: "p" },
       file: { type: "string", short: "f" },
       run: { type: "string" },
+      session: { type: "string" },
     },
   });
 
@@ -134,7 +144,9 @@ function parseCliArgs(): CliArgs {
     (positionals[0] === "plan" ||
       positionals[0] === "run" ||
       positionals[0] === "analyze" ||
-      positionals[0] === "review")
+      positionals[0] === "review" ||
+      positionals[0] === "session" ||
+      positionals[0] === "finish")
   ) {
     command = positionals[0] as SwarmCommand;
     promptParts = positionals.slice(1);
@@ -150,6 +162,7 @@ function parseCliArgs(): CliArgs {
     resume: values.resume as boolean,
     noTui: values["no-tui"] as boolean,
     reviewRunId: values.run as string | undefined,
+    sessionId: values.session as string | undefined,
   };
 }
 
@@ -223,6 +236,10 @@ export interface SwarmConfig {
   readonly maxAutoResume: number;
   /** For review mode: the runId of the previous run to review (default: latest). */
   readonly reviewRunId: string | undefined;
+  /** Explicit session ID from --session flag. */
+  readonly sessionId: string | undefined;
+  /** Resolved session ID (set after session resolution). */
+  resolvedSessionId?: string;
 }
 
 export async function loadConfig(): Promise<SwarmConfig> {
@@ -245,7 +262,13 @@ export async function loadConfig(): Promise<SwarmConfig> {
     issueBody = resolveGitHubIssue(raw) ?? raw;
   }
 
-  if (cli.command !== "analyze" && !cli.resume && (!issueBody || issueBody === "")) {
+  if (
+    cli.command !== "analyze" &&
+    cli.command !== "session" &&
+    cli.command !== "finish" &&
+    !cli.resume &&
+    (!issueBody || issueBody === "")
+  ) {
     console.error(
       `Error: No prompt provided. Pass it as an argument, use --editor, --plan, or set ISSUE_BODY.\n\n${HELP_TEXT}`,
     );
@@ -270,5 +293,6 @@ export async function loadConfig(): Promise<SwarmConfig> {
     maxRetries: readEnvPositiveInt("MAX_RETRIES", 2),
     maxAutoResume: readEnvPositiveInt("MAX_AUTO_RESUME", 3),
     reviewRunId: cli.reviewRunId,
+    sessionId: cli.sessionId,
   };
 }
