@@ -78,6 +78,7 @@ export const msg = {
   planningInputContinue: "   ... ",
   sessionExpiredRecovery: "  ⚠️  Session expired — recovering with collected answers…",
   sessionRecoveryFailed: "  ⚠️  Recovery session also failed — using last available response",
+  clarificationAutoSkipped: "  ⏭️  Non-interactive mode — auto-skipping clarification (agent will use best judgment)",
 
   // --- Analyze Mode ---
   analyzeStart: "🔍 Starting Repository Analysis...",

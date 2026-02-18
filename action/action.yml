@@ -1,0 +1,71 @@
+name: 'Copilot Swarm'
+description: 'Run the Copilot Swarm multi-agent orchestrator in your CI pipeline'
+author: 'urbanisierung'
+
+branding:
+  icon: 'cpu'
+  color: 'yellow'
+
+inputs:
+  command:
+    description: 'Swarm command to run: run, plan, analyze, review, finish'
+    required: false
+    default: 'run'
+  prompt:
+    description: 'Task description / prompt for the agents'
+    required: false
+  plan-file:
+    description: 'Path to a plan file (from a previous plan mode run)'
+    required: false
+  resume:
+    description: 'Resume from the last checkpoint'
+    required: false
+    default: 'false'
+  session:
+    description: 'Session ID to use (default: active session)'
+    required: false
+  run-id:
+    description: 'Run ID for review mode (default: latest)'
+    required: false
+  verbose:
+    description: 'Enable verbose output'
+    required: false
+    default: 'false'
+  version:
+    description: 'Version of @copilot-swarm/core to use (default: latest)'
+    required: false
+    default: 'latest'
+  primary-model:
+    description: 'Primary AI model override'
+    required: false
+  review-model:
+    description: 'Review AI model override'
+    required: false
+
+outputs:
+  output-dir:
+    description: 'Path to the .swarm output directory'
+    value: ${{ steps.swarm.outputs.output-dir }}
+  run-id:
+    description: 'The run ID of this execution'
+    value: ${{ steps.swarm.outputs.run-id }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Run Copilot Swarm
+      id: swarm
+      shell: bash
+      env:
+        COPILOT_CLI_TOKEN: ${{ env.COPILOT_CLI_TOKEN }}
+        INPUT_COMMAND: ${{ inputs.command }}
+        INPUT_PROMPT: ${{ inputs.prompt }}
+        INPUT_PLAN_FILE: ${{ inputs.plan-file }}
+        INPUT_RESUME: ${{ inputs.resume }}
+        INPUT_SESSION: ${{ inputs.session }}
+        INPUT_RUN_ID: ${{ inputs.run-id }}
+        INPUT_VERBOSE: ${{ inputs.verbose }}
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_PRIMARY_MODEL: ${{ inputs.primary-model }}
+        INPUT_REVIEW_MODEL: ${{ inputs.review-model }}
+      run: ${{ github.action_path }}/entrypoint.sh

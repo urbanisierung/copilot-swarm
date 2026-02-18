@@ -7,6 +7,7 @@ All notable changes to this project are documented here, in reverse chronologica
 ### Added
 - **Sessions (feature grouping)** — New `swarm session` command to group related runs under a logical feature. `swarm session create "Feature X"` creates a session, `swarm session list` shows all sessions, `swarm session use <id>` switches active session. All commands auto-use the active session; override with `--session <id>`. Output is scoped per-session under `.swarm/sessions/<id>/`. Legacy `.swarm/runs/` layout auto-migrated to a default session on first use.
 - **Finish command** — New `swarm finish` command to finalize a session. Collects all artifacts (plans, analyses, run checkpoints, role summaries), builds a structured summary, appends it to `.swarm/changelog.md` (newest first), cleans up checkpoint files, and marks the session as finished in `session.json`. Supports `--session <id>` to finalize a specific session.
+- **GitHub Action** — Reusable composite action at `action/` for running Copilot Swarm in any repository's CI pipeline. Supports all commands (`run`, `plan`, `analyze`, `review`, `finish`), model overrides, session/resume flags, and version pinning. Plan mode interactive clarification auto-skips in non-TTY environments — agents use their best judgment for open questions.
 
 ## 2026-02-17
 

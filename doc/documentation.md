@@ -355,7 +355,88 @@ ISSUE_BODY="Fix bug" PRIMARY_MODEL=claude-opus-4-6-fast REVIEW_MODEL=claude-opus
 
 ### GitHub Actions
 
-The orchestrator is triggered by labeling a GitHub Issue with `run-swarm` or `run-swarm-verbose`. See the workflow file for details.
+Copilot Swarm provides a reusable GitHub Action that can be used in any repository.
+
+#### Setup
+
+1. Create a Copilot CLI token (Organization Settings → Developer Settings → Personal Access Tokens → Classic, select `copilot` scope)
+2. Add it as a repository secret named `COPILOT_CLI_TOKEN`
+
+#### Basic Usage
+
+```yaml
+name: Copilot Swarm
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  swarm:
+    if: github.event.label.name == 'run-swarm'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: urbanisierung/copilot-swarm/action@main
+        env:
+          COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
+        with:
+          command: run
+          prompt: ${{ github.event.issue.body }}
+```
+
+#### Action Inputs
+
+| Input | Default | Description |
+|---|---|---|
+| `command` | `run` | Command to execute: `run`, `plan`, `analyze`, `review`, `finish` |
+| `prompt` | — | Task description / prompt |
+| `plan-file` | — | Path to a plan file from a previous plan mode run |
+| `resume` | `false` | Resume from the last checkpoint |
+| `session` | — | Session ID (default: active session) |
+| `run-id` | — | Run ID for review mode (default: latest) |
+| `verbose` | `false` | Enable verbose output |
+| `version` | `latest` | Version of `@copilot-swarm/core` to use |
+| `primary-model` | — | Primary AI model override |
+| `review-model` | — | Review AI model override |
+
+#### Action Outputs
+
+| Output | Description |
+|---|---|
+| `output-dir` | Path to the `.swarm` output directory |
+| `run-id` | The run ID of this execution |
+
+#### Plan Mode in CI
+
+Plan mode works in CI but interactive clarification is auto-skipped — agents use their best judgment for open questions. For best results, provide a detailed prompt or use a two-phase workflow:
+
+1. **Phase 1:** Run `plan` mode → agents produce a plan, checkpoint is saved
+2. **Review:** Check the plan output in the `.swarm/` artifact
+3. **Phase 2:** Re-run with `resume: true` if needed, or proceed with `run --plan .swarm/plans/plan-latest.md`
+
+#### Example: Full Pipeline
+
+```yaml
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: urbanisierung/copilot-swarm/action@main
+        env:
+          COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
+        with:
+          command: run
+          prompt: "Add a dark mode toggle to the settings page"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: swarm-output
+          path: .swarm/
+```
 
 ## Environment Variables
 
