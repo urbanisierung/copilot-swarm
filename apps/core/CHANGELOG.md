@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.16
+
+### Patch Changes
+
+- c2e9312: Multiple CLI improvements.
+
 ## 0.0.15
 
 ### Patch Changes
