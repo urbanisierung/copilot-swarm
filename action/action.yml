@@ -14,6 +14,9 @@ inputs:
   prompt:
     description: 'Task description / prompt for the agents'
     required: false
+  prompt-file:
+    description: 'Path to a file containing the prompt (for long descriptions)'
+    required: false
   plan-file:
     description: 'Path to a plan file (from a previous plan mode run)'
     required: false
@@ -60,6 +63,7 @@ runs:
         COPILOT_CLI_TOKEN: ${{ env.COPILOT_CLI_TOKEN }}
         INPUT_COMMAND: ${{ inputs.command }}
         INPUT_PROMPT: ${{ inputs.prompt }}
+        INPUT_PROMPT_FILE: ${{ inputs.prompt-file }}
         INPUT_PLAN_FILE: ${{ inputs.plan-file }}
         INPUT_RESUME: ${{ inputs.resume }}
         INPUT_SESSION: ${{ inputs.session }}

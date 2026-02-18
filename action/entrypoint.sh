@@ -6,6 +6,8 @@ ARGS=("${INPUT_COMMAND}")
 
 if [[ -n "${INPUT_PLAN_FILE:-}" ]]; then
   ARGS+=("--plan" "${INPUT_PLAN_FILE}")
+elif [[ -n "${INPUT_PROMPT_FILE:-}" ]]; then
+  ARGS+=("--file" "${INPUT_PROMPT_FILE}")
 elif [[ -n "${INPUT_PROMPT:-}" ]]; then
   ARGS+=("${INPUT_PROMPT}")
 fi

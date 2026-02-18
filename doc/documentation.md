@@ -390,7 +390,8 @@ jobs:
 | Input | Default | Description |
 |---|---|---|
 | `command` | `run` | Command to execute: `run`, `plan`, `analyze`, `review`, `finish` |
-| `prompt` | — | Task description / prompt |
+| `prompt` | — | Task description / prompt (inline) |
+| `prompt-file` | — | Path to a file containing the prompt (for long descriptions) |
 | `plan-file` | — | Path to a plan file from a previous plan mode run |
 | `resume` | `false` | Resume from the last checkpoint |
 | `session` | — | Session ID (default: active session) |
@@ -436,6 +437,36 @@ jobs:
         with:
           name: swarm-output
           path: .swarm/
+```
+
+#### Long Prompts
+
+For long or detailed prompts, use one of these approaches:
+
+**Option 1: File in the repo** — Commit a prompt file and reference it:
+```yaml
+- uses: urbanisierung/copilot-swarm/action@main
+  with:
+    prompt-file: docs/feature-spec.md
+```
+
+**Option 2: YAML multi-line string** — Use `|` for multi-line prompts:
+```yaml
+- uses: urbanisierung/copilot-swarm/action@main
+  with:
+    prompt: |
+      Add a user preferences page with the following requirements:
+      - Dark mode toggle with system preference detection
+      - Language selector (EN, DE, FR)
+      - Notification settings (email, push, in-app)
+      - All settings persisted to localStorage
+```
+
+**Option 3: Issue body** — Trigger from an issue and use its body:
+```yaml
+- uses: urbanisierung/copilot-swarm/action@main
+  with:
+    prompt: ${{ github.event.issue.body }}
 ```
 
 ## Environment Variables
