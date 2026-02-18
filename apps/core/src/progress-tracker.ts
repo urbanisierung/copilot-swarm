@@ -48,6 +48,8 @@ export class ProgressTracker {
   runId = "";
   primaryModel = "";
   reviewModel = "";
+  version = "";
+  cwd = "";
 
   initPhases(phaseConfigs: readonly { phase: string }[]): void {
     this.phases = phaseConfigs.map((p, i) => ({

@@ -33,7 +33,7 @@ function readEnvPositiveInt(key: string, fallback: number): number {
   return parsed;
 }
 
-export type SwarmCommand = "run" | "plan" | "analyze" | "review" | "session" | "finish";
+export type SwarmCommand = "run" | "plan" | "analyze" | "review" | "session" | "finish" | "list";
 
 interface CliArgs {
   command: SwarmCommand;
@@ -51,7 +51,7 @@ interface CliArgs {
   verifyLint: string | undefined;
 }
 
-function readVersion(): string {
+export function readVersion(): string {
   const dir = path.dirname(fileURLToPath(import.meta.url));
   const pkgPath = path.join(dir, "..", "package.json");
   const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
@@ -67,6 +67,7 @@ Commands:
   review           Review a previous run — provide feedback for agents to fix/improve
   session          Manage sessions: create, list, use (group related runs)
   finish           Finalize the active session — summarize, log to changelog, clean up
+  list             List all sessions across all repositories
 
 Options:
   -v, --verbose        Enable verbose streaming output
@@ -156,7 +157,8 @@ function parseCliArgs(): CliArgs {
       positionals[0] === "analyze" ||
       positionals[0] === "review" ||
       positionals[0] === "session" ||
-      positionals[0] === "finish")
+      positionals[0] === "finish" ||
+      positionals[0] === "list")
   ) {
     command = positionals[0] as SwarmCommand;
     promptParts = positionals.slice(1);
@@ -281,6 +283,7 @@ export async function loadConfig(): Promise<SwarmConfig> {
     cli.command !== "analyze" &&
     cli.command !== "session" &&
     cli.command !== "finish" &&
+    cli.command !== "list" &&
     !cli.resume &&
     (!issueBody || issueBody === "")
   ) {

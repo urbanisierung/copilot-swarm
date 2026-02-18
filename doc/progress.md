@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here, in reverse chronological order.
 
+## 2026-02-19
+
+### Added
+- **Global session registry** — All sessions are now tracked in a central registry at `~/.config/copilot-swarm/sessions.json` (respects `XDG_CONFIG_HOME`). Each session records its ID, name, repository root, creation timestamp, and finished status. Registry updated on session creation and finalization.
+- **List command** — New `swarm list` command shows all sessions across all repositories in a formatted table (session ID, name, repository path, status, created date). Useful for finding sessions in other repos or reviewing past work.
+- **TUI header improvements** — TUI dashboard header now displays CLI version and active model on the title line, and the current working directory (smartly shortened with `…/` prefix) on a second dimmed line.
+
 ## 2026-02-18
 
 ### Added

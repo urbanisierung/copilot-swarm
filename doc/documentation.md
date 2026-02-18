@@ -35,6 +35,9 @@ Commands:
   plan             Interactive planning mode — clarify requirements before running
   analyze          Analyze the repository and generate a context document
   review           Review a previous run — provide feedback for agents to fix/improve
+  session          Manage sessions: create, list, use (group related runs)
+  finish           Finalize the active session — summarize, log to changelog, clean up
+  list             List all sessions across all repositories
 
 Options:
   -v, --verbose        Enable verbose streaming output
@@ -305,11 +308,21 @@ swarm finish --session <id>
 
 The changelog serves as a persistent record of completed features across the project.
 
+### List Command
+
+List all sessions across all repositories. Sessions are tracked in a global registry at `~/.config/copilot-swarm/sessions.json`.
+
+```bash
+swarm list
+```
+
+Output shows session ID, name, repository path, status (active/finished), and creation timestamp. This is useful for finding sessions in other repos or reviewing past work.
+
 ### TUI Dashboard
 
 A full-screen terminal dashboard displays progress for all modes (`run`, `plan`, `analyze`) when running in a TTY (interactive terminal). The dashboard shows:
 
-- **Header** — Tool name and elapsed time
+- **Header** — Tool name, CLI version, active model, current working directory, and elapsed time
 - **Phase progress** — Status of each phase (pending, active, done, skipped)
 - **Stream status** — Per-stream status during implementation (queued, coding, review, testing, done, failed) — `run` mode only
 - **Active agent** — Which agent is currently working
