@@ -12,6 +12,9 @@ All notable changes to this project are documented here, in reverse chronologica
 ### Improved
 - **Review mode single stream** — Review mode now collapses all previous implementation streams into a single review stream. One engineer sees the full prior implementation + feedback and applies all fixes in one pass. Eliminates unnecessary parallel streams and the AI triage call. Previously, review re-ran all N streams from the original run even for small feedback.
 
+### Added
+- **Plan pre-analysis** — Planning mode now starts with a pre-analysis step that scans the request for parallelizable research sub-tasks (e.g. "study this URL", "research best practices for X"). Identified tasks run concurrently via `Promise.all`, and results are merged as enriched context for the PM clarification phase. Skipped automatically if no research tasks are detected.
+
 ### Fixed
 - **Session-scoped paths** — `loadPreviousRun`, `resolveCheckpointPath`, and the latest-pointer write in `pipeline-engine` now use `sessionScopedRoot` instead of `swarmRoot`, fixing "no previous run found" errors when sessions are active.
 

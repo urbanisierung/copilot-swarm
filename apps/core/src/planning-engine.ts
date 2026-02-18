@@ -34,6 +34,21 @@ Your goal is to fully understand the user's request before any engineering work 
    - Edge cases
    - Out-of-scope items`;
 
+const PREREQ_ANALYZER_PROMPT = `Analyze this user request and identify any independent research or study sub-tasks that can be performed IN PARALLEL before requirements clarification begins.
+
+Examples of parallelizable sub-tasks:
+- "Study this URL/resource" → fetch and summarize the resource
+- "Research best practices for X" → investigate and summarize
+- "Analyze this library/tool" → explore and document findings
+- "Review this reference implementation" → study and extract patterns
+
+Rules:
+1. Only extract tasks that are genuinely independent and can run in parallel.
+2. Each task must be a self-contained research/study task — NOT implementation.
+3. If the request is straightforward with no research needed, return an empty array.
+4. Return ONLY a JSON array of objects: [{"task": "description", "prompt": "detailed prompt for the researcher"}]
+5. Keep it minimal — don't invent sub-tasks that aren't implied by the request.`;
+
 const ANALYST_INSTRUCTIONS = `You are a Senior Software Architect conducting a technical feasibility analysis.
 Given a set of requirements, analyze the codebase and produce a structured assessment.
 
@@ -154,6 +169,7 @@ export class PlanningEngine {
     const useCrossModel = this.pipeline.reviewModel !== this.pipeline.primaryModel;
 
     const phases: { phase: string }[] = [
+      { phase: "plan-prereqs" },
       { phase: "plan-clarify" },
       { phase: "plan-review" },
       { phase: "plan-eng-clarify" },
@@ -224,6 +240,22 @@ export class PlanningEngine {
     };
 
     let phaseIdx = 0;
+
+    // Phase 0: Pre-analyze request for parallelizable research sub-tasks
+    const prereqKey = `plan-prereqs-${phaseIdx}`;
+    if (completedPhases.has(prereqKey)) {
+      this.logger.info(msg.phaseSkipped("plan-prereqs"));
+    } else {
+      this.tracker?.activatePhase(prereqKey);
+      const prereqResults = await this.executePrereqs(effectiveIssueBody);
+      if (prereqResults) {
+        effectiveIssueBody = `${effectiveIssueBody}\n\n## Research Context\n\n${prereqResults}`;
+      }
+      completedPhases.add(prereqKey);
+      this.tracker?.completePhase(prereqKey);
+      await saveProgress();
+    }
+    phaseIdx++;
 
     // Phase 1: PM clarifies requirements interactively
     const clarifyKey = `plan-clarify-${phaseIdx}`;
@@ -541,6 +573,51 @@ export class PlanningEngine {
     }
 
     return revised;
+  }
+
+  // --- PREREQS: parallel research sub-tasks ---
+
+  /**
+   * Analyze the request for parallelizable research sub-tasks.
+   * Runs them concurrently and returns merged results, or null if none found.
+   */
+  private async executePrereqs(issueBody: string): Promise<string | null> {
+    this.logger.info(msg.planPrereqsAnalyzing);
+
+    // Ask AI to extract parallelizable sub-tasks
+    let subtasks: { task: string; prompt: string }[];
+    try {
+      const raw = await this.sessions.callIsolated(
+        "pm",
+        `${PREREQ_ANALYZER_PROMPT}\n\nUser request:\n${issueBody}`,
+        undefined,
+        "prereq-analyze",
+      );
+      const jsonStr = raw.replace(/^[^[]*/, "").replace(/[^\]]*$/, "");
+      subtasks = JSON.parse(jsonStr);
+      if (!Array.isArray(subtasks) || subtasks.length === 0) {
+        this.logger.info(msg.planPrereqsNone);
+        return null;
+      }
+    } catch {
+      this.logger.info(msg.planPrereqsNone);
+      return null;
+    }
+
+    this.logger.info(msg.planPrereqsFound(subtasks.length));
+
+    // Run all sub-tasks in parallel
+    const results = await Promise.all(
+      subtasks.map(async (st, i) => {
+        const key = `prereq-${i}`;
+        this.logger.info(msg.planPrereqsRunning(st.task));
+        const result = await this.sessions.callIsolated("pm", st.prompt, undefined, key);
+        return `### ${st.task}\n\n${result}`;
+      }),
+    );
+
+    this.logger.info(msg.planPrereqsDone(results.length));
+    return results.join("\n\n---\n\n");
   }
 
   private async clarifyRequirements(

@@ -27,6 +27,7 @@ const PHASE_NAMES: Record<string, string> = {
   implement: "Implementation",
   "cross-model-review": "Cross-Model Review",
   verify: "Verification",
+  "plan-prereqs": "Pre-Analysis",
   "plan-clarify": "Requirements Clarification",
   "plan-eng-clarify": "Engineer Clarification",
   "plan-design-clarify": "Designer Clarification",

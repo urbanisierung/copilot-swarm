@@ -139,15 +139,16 @@ Use `swarm plan` to interactively refine vague requirements before running the f
 swarm plan "Add a dark mode toggle"
 ```
 
-The planning mode runs up to 8 phases:
-1. **Requirements Clarification** — A PM agent asks targeted questions to fill in gaps. You answer interactively in the terminal. Multi-line answers are supported: type your response across multiple lines and press Enter on an empty line to send. Literal `\n` sequences are converted to real newlines. Press Enter immediately to skip a round.
-2. **PM Review** — A reviewer verifies the refined requirements are clear, complete, and actionable (up to 3 iterations).
-3. **Engineer Clarification** — A senior engineer reviews the refined requirements from a technical perspective. Asks about API contracts, edge cases, testing expectations, and integration points. Skip if everything is clear.
-4. **Engineer Review** — A reviewer verifies the engineering decisions are sound and complete (up to 3 iterations).
-5. **Designer Clarification** — A UI/UX designer clarifies visual, interaction, and accessibility details. Skip if the task has no frontend aspects.
-6. **Designer Review** — A reviewer verifies the design decisions (up to 3 iterations).
-7. **Technical Analysis** — An engineering agent analyzes the codebase and reports complexity, affected files, risks, and suggested approach.
-8. **Cross-model Review** — If the review model differs from the primary model, the complete plan is reviewed by the review model for accuracy, feasibility, and completeness (up to 3 iterations). Skipped if both models are the same.
+The planning mode runs up to 9 phases:
+1. **Pre-Analysis** — Analyzes the request for parallelizable research sub-tasks (e.g. "study this URL", "research best practices for X"). If found, runs them concurrently and merges results as enriched context for the PM. Skipped if no research tasks are detected.
+2. **Requirements Clarification** — A PM agent asks targeted questions to fill in gaps. You answer interactively in the terminal. Multi-line answers are supported: type your response across multiple lines and press Enter on an empty line to send. Literal `\n` sequences are converted to real newlines. Press Enter immediately to skip a round.
+3. **PM Review** — A reviewer verifies the refined requirements are clear, complete, and actionable (up to 3 iterations).
+4. **Engineer Clarification** — A senior engineer reviews the refined requirements from a technical perspective. Asks about API contracts, edge cases, testing expectations, and integration points. Skip if everything is clear.
+5. **Engineer Review** — A reviewer verifies the engineering decisions are sound and complete (up to 3 iterations).
+6. **Designer Clarification** — A UI/UX designer clarifies visual, interaction, and accessibility details. Skip if the task has no frontend aspects.
+7. **Designer Review** — A reviewer verifies the design decisions (up to 3 iterations).
+8. **Technical Analysis** — An engineering agent analyzes the codebase and reports complexity, affected files, risks, and suggested approach.
+9. **Cross-model Review** — If the review model differs from the primary model, the complete plan is reviewed by the review model for accuracy, feasibility, and completeness (up to 3 iterations). Skipped if both models are the same.
 
 Output files:
 - `.swarm/plans/plan-<timestamp>.md` — Timestamped plan with refined requirements, engineering decisions, design decisions, and technical analysis (never overwritten)
