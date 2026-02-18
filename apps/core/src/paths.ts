@@ -6,32 +6,40 @@ export function swarmRoot(config: SwarmConfig): string {
   return path.join(config.repoRoot, config.swarmDir);
 }
 
-/** Per-run directory: .swarm/runs/<runId>/ */
-export function runDir(config: SwarmConfig): string {
-  return path.join(swarmRoot(config), "runs", config.runId);
+/** Session-scoped root. Falls back to swarmRoot if no session. */
+function sessionScopedRoot(config: SwarmConfig): string {
+  if (config.resolvedSessionId) {
+    return path.join(swarmRoot(config), "sessions", config.resolvedSessionId);
+  }
+  return swarmRoot(config);
 }
 
-/** Role summaries inside a run: .swarm/runs/<runId>/roles/ */
+/** Per-run directory: .swarm/sessions/<sid>/runs/<runId>/ (or .swarm/runs/<runId>/ legacy) */
+export function runDir(config: SwarmConfig): string {
+  return path.join(sessionScopedRoot(config), "runs", config.runId);
+}
+
+/** Role summaries inside a run: .swarm/sessions/<sid>/runs/<runId>/roles/ */
 export function rolesDir(config: SwarmConfig): string {
   return path.join(runDir(config), "roles");
 }
 
-/** Plans directory: .swarm/plans/ */
+/** Plans directory: .swarm/sessions/<sid>/plans/ */
 export function plansDir(config: SwarmConfig): string {
-  return path.join(swarmRoot(config), "plans");
+  return path.join(sessionScopedRoot(config), "plans");
 }
 
-/** Analysis directory: .swarm/analysis/ */
+/** Analysis directory: .swarm/sessions/<sid>/analysis/ */
 export function analysisDir(config: SwarmConfig): string {
-  return path.join(swarmRoot(config), "analysis");
+  return path.join(sessionScopedRoot(config), "analysis");
 }
 
-/** Path to the repo analysis file: .swarm/analysis/repo-analysis.md */
+/** Path to the repo analysis file: .swarm/sessions/<sid>/analysis/repo-analysis.md */
 export function analysisFilePath(config: SwarmConfig): string {
   return path.join(analysisDir(config), "repo-analysis.md");
 }
 
-/** Pointer to the latest run directory: .swarm/latest */
+/** Pointer to the latest run directory: .swarm/sessions/<sid>/latest */
 export function latestPointerPath(config: SwarmConfig): string {
-  return path.join(swarmRoot(config), "latest");
+  return path.join(sessionScopedRoot(config), "latest");
 }

@@ -7,9 +7,94 @@ import { SwarmOrchestrator } from "./orchestrator.js";
 import { analysisDir, plansDir } from "./paths.js";
 import { PlanningEngine } from "./planning-engine.js";
 import { ProgressTracker } from "./progress-tracker.js";
+import { resolveSessionId } from "./session-store.js";
 import { TuiRenderer } from "./tui-renderer.js";
 
 const config = await loadConfig();
+
+// Handle session subcommand before resolving session
+if (config.command === "session") {
+  const { createSession, listSessions, setActiveSession, getActiveSessionId, getSession } = await import(
+    "./session-store.js"
+  );
+  const subcommand = config.issueBody.split(" ")[0];
+  const args = config.issueBody.substring(subcommand.length).trim();
+
+  if (subcommand === "create") {
+    const name = args || "Unnamed session";
+    const session = await createSession(config, name);
+    console.log(`✅ Created session: ${session.id} — "${session.name}"`);
+    console.log(`   Active session set to: ${session.id}`);
+  } else if (subcommand === "list") {
+    const sessions = await listSessions(config);
+    const activeId = await getActiveSessionId(config);
+    if (sessions.length === 0) {
+      console.log("No sessions found.");
+    } else {
+      for (const s of sessions) {
+        const marker = s.id === activeId ? " (active)" : "";
+        console.log(`  ${s.id}  ${s.name}${marker}  — ${s.created}`);
+      }
+    }
+  } else if (subcommand === "use") {
+    if (!args) {
+      console.error("Error: session use requires a session ID");
+      process.exit(1);
+    }
+    const session = await getSession(config, args);
+    if (!session) {
+      console.error(`Error: Session not found: ${args}`);
+      process.exit(1);
+    }
+    await setActiveSession(config, args);
+    console.log(`✅ Active session: ${session.id} — "${session.name}"`);
+  } else {
+    console.error(`Unknown session subcommand: "${subcommand}". Use: create, list, use`);
+    process.exit(1);
+  }
+  process.exit(0);
+}
+
+// Handle finish command before resolving session (resolves its own)
+if (config.command === "finish") {
+  const { resolveSessionId, getSession } = await import("./session-store.js");
+  const { buildChangelogEntry, appendChangelog, cleanupCheckpoints, markSessionFinished } = await import("./finish.js");
+
+  let sessionId: string;
+  try {
+    sessionId = await resolveSessionId(config);
+  } catch {
+    console.error(msg.finishNoSession);
+    process.exit(1);
+  }
+
+  const session = await getSession(config, sessionId);
+  if (!session) {
+    console.error(msg.finishNoSession);
+    process.exit(1);
+  }
+
+  console.log(msg.finishStart(sessionId, session.name));
+
+  const entry = await buildChangelogEntry(config, sessionId);
+  if (entry) {
+    const changelogPath = await appendChangelog(config, entry);
+    console.log(msg.finishChangelogSaved(path.relative(config.repoRoot, changelogPath)));
+  }
+
+  const cleaned = await cleanupCheckpoints(config, sessionId);
+  if (cleaned > 0) {
+    console.log(msg.finishCheckpointsCleaned(cleaned));
+  }
+
+  await markSessionFinished(config, sessionId);
+  console.log(msg.finishComplete);
+  process.exit(0);
+}
+
+// Resolve session for all other commands
+config.resolvedSessionId = await resolveSessionId(config);
+
 const logger = new Logger(config.verbose, config.runId);
 
 const showLogOnError = (err: unknown) => {
@@ -51,6 +136,8 @@ if (config.command === "plan") {
   if (config.tui) {
     tracker = new ProgressTracker();
     tracker.runId = config.runId;
+    tracker.primaryModel = pipeline.primaryModel;
+    tracker.reviewModel = pipeline.reviewModel;
     renderer = new TuiRenderer(tracker);
     logger.setTracker(tracker);
   }
@@ -77,6 +164,8 @@ if (config.command === "plan") {
   if (config.tui) {
     tracker = new ProgressTracker();
     tracker.runId = config.runId;
+    tracker.primaryModel = pipeline.primaryModel;
+    tracker.reviewModel = pipeline.reviewModel;
     renderer = new TuiRenderer(tracker);
     logger.setTracker(tracker);
   }

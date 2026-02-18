@@ -593,6 +593,17 @@ export class PlanningEngine {
           break;
         }
 
+        // Non-interactive (CI): auto-skip clarification
+        if (!process.stdin.isTTY) {
+          this.logger.info(msg.clarificationAutoSkipped);
+          response = await this.sessions.send(
+            session,
+            "This is running in a non-interactive environment (CI). Use your best judgment for all open questions and produce the final requirements. Respond with REQUIREMENTS_CLEAR followed by the structured summary.",
+            "PM is finalizing requirements…",
+          );
+          break;
+        }
+
         // Open split editor with agent questions on the right
         this.renderer?.pause();
         const answer = await openSplitEditor(response, {
@@ -703,6 +714,17 @@ export class PlanningEngine {
 
       for (let round = savedQA.length; round < MAX_CLARIFICATION_ROUNDS; round++) {
         if (responseContains(response, clearKeyword)) {
+          break;
+        }
+
+        // Non-interactive (CI): auto-skip clarification
+        if (!process.stdin.isTTY) {
+          this.logger.info(msg.clarificationAutoSkipped);
+          response = await this.sessions.send(
+            session,
+            `This is running in a non-interactive environment (CI). Use your best judgment for all open questions and produce your final summary. Respond with ${clearKeyword} followed by the summary.`,
+            spinnerLabel,
+          );
           break;
         }
 
