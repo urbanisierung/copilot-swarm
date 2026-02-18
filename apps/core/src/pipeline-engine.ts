@@ -6,7 +6,7 @@ import { clearCheckpoint, loadCheckpoint, saveCheckpoint } from "./checkpoint.js
 import type { SwarmConfig } from "./config.js";
 import type { Logger } from "./logger.js";
 import { msg } from "./messages.js";
-import { analysisFilePath, latestPointerPath, runDir, swarmRoot } from "./paths.js";
+import { analysisFilePath, latestPointerPath, runDir, sessionScopedRoot } from "./paths.js";
 import type {
   CrossModelReviewPhaseConfig,
   DecomposePhaseConfig,
@@ -222,7 +222,7 @@ export class PipelineEngine {
     await fs.writeFile(path.join(dir, "summary.md"), summary);
 
     // Update latest pointer
-    const root = swarmRoot(this.effectiveConfig);
+    const root = sessionScopedRoot(this.effectiveConfig);
     await fs.mkdir(root, { recursive: true });
     await fs.writeFile(latestPointerPath(this.effectiveConfig), this.effectiveConfig.runId);
 
