@@ -27,6 +27,7 @@ const PHASE_NAMES: Record<string, string> = {
   implement: "Implementation",
   "cross-model-review": "Cross-Model Review",
   verify: "Verification",
+  "plan-prereqs": "Pre-Analysis",
   "plan-clarify": "Requirements Clarification",
   "plan-eng-clarify": "Engineer Clarification",
   "plan-design-clarify": "Designer Clarification",
@@ -50,6 +51,24 @@ export class ProgressTracker {
   reviewModel = "";
   version = "";
   cwd = "";
+  private readonly _activeModels = new Map<string, number>();
+
+  addActiveModel(model: string): void {
+    this._activeModels.set(model, (this._activeModels.get(model) ?? 0) + 1);
+  }
+
+  removeActiveModel(model: string): void {
+    const count = this._activeModels.get(model) ?? 0;
+    if (count <= 1) {
+      this._activeModels.delete(model);
+    } else {
+      this._activeModels.set(model, count - 1);
+    }
+  }
+
+  get activeModels(): string[] {
+    return [...this._activeModels.keys()];
+  }
 
   initPhases(phaseConfigs: readonly { phase: string }[]): void {
     this.phases = phaseConfigs.map((p, i) => ({

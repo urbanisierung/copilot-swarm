@@ -9,6 +9,7 @@ import { BUILTIN_AGENT_PREFIX, SessionEvent, SYSTEM_MESSAGE_MODE } from "./const
 import type { Logger } from "./logger.js";
 import { msg } from "./messages.js";
 import type { PipelineConfig } from "./pipeline-types.js";
+import type { ProgressTracker } from "./progress-tracker.js";
 
 const PACKAGE_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const BUNDLED_AGENTS_DIR = path.join(PACKAGE_DIR, "defaults", "agents");
@@ -17,6 +18,8 @@ export class SessionManager {
   private readonly client: CopilotClient;
   private readonly instructionCache = new Map<string, string>();
   private readonly _sessionLog: Record<string, SessionRecord> = {};
+  private readonly _sessionModels = new Map<string, string>();
+  private tracker?: ProgressTracker;
 
   constructor(
     private readonly config: SwarmConfig,
@@ -31,6 +34,11 @@ export class SessionManager {
   /** All Copilot SDK sessions created during this run, keyed by context. */
   get sessionLog(): Record<string, SessionRecord> {
     return this._sessionLog;
+  }
+
+  /** Attach a progress tracker for dynamic model display. */
+  setTracker(tracker: ProgressTracker): void {
+    this.tracker = tracker;
   }
 
   /** Record a session with a context key (e.g. "spec-0", "implement-3/stream-1"). */
@@ -105,10 +113,14 @@ export class SessionManager {
   }
 
   async createSessionWithInstructions(instructions: string, model?: string): Promise<CopilotSession> {
+    const resolvedModel = model ?? this.pipeline.primaryModel;
     const session = await this.client.createSession({
-      model: model ?? this.pipeline.primaryModel,
+      model: resolvedModel,
       systemMessage: { mode: SYSTEM_MESSAGE_MODE, content: instructions },
     });
+
+    this.tracker?.addActiveModel(resolvedModel);
+    this._sessionModels.set(session.sessionId, resolvedModel);
 
     if (this.config.verbose) {
       session.on(SessionEvent.MESSAGE_DELTA, (e) => {
@@ -133,6 +145,15 @@ export class SessionManager {
     return response?.data.content ?? "";
   }
 
+  private async destroySession(session: CopilotSession): Promise<void> {
+    const model = this._sessionModels.get(session.sessionId);
+    if (model) {
+      this.tracker?.removeActiveModel(model);
+      this._sessionModels.delete(session.sessionId);
+    }
+    await session.destroy();
+  }
+
   async callIsolated(agentName: string, prompt: string, model?: string, sessionKey?: string): Promise<string> {
     const maxAttempts = this.config.maxRetries;
 
@@ -151,7 +172,7 @@ export class SessionManager {
         this.logger.error(msg.callError(agentName, attempt, maxAttempts), err);
         if (attempt >= maxAttempts) throw err;
       } finally {
-        await session.destroy();
+        await this.destroySession(session);
       }
     }
     return "";
@@ -181,7 +202,7 @@ export class SessionManager {
         this.logger.error(msg.callError("inline-agent", attempt, maxAttempts), err);
         if (attempt >= maxAttempts) throw err;
       } finally {
-        await session.destroy();
+        await this.destroySession(session);
       }
     }
     return "";

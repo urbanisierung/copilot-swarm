@@ -153,7 +153,23 @@ function printSummary(heading: string, outputDir: string, tracker: ProgressTrack
   console.log(msg.summaryDivider);
 }
 
-if (config.command === "plan") {
+// Graceful shutdown — stop active engine/sessions on Ctrl+C or kill
+let activeShutdown: (() => Promise<void>) | null = null;
+
+function handleSignal(signal: string) {
+  if (activeShutdown) {
+    const fn = activeShutdown;
+    activeShutdown = null;
+    fn().finally(() => process.exit(signal === "SIGINT" ? 130 : 143));
+  } else {
+    process.exit(signal === "SIGINT" ? 130 : 143);
+  }
+}
+
+process.on("SIGINT", () => handleSignal("SIGINT"));
+process.on("SIGTERM", () => handleSignal("SIGTERM"));
+
+if (config.command === "plan" || config.command === "auto") {
   const pipeline = (await import("./pipeline-config.js")).loadPipelineConfig(config.repoRoot);
   let tracker: ProgressTracker | undefined;
   let renderer: TuiRenderer | undefined;
@@ -168,11 +184,62 @@ if (config.command === "plan") {
     logger.setTracker(tracker);
   }
   const startMs = Date.now();
+
+  // Auto mode: run analyze first to generate repo context
+  if (config.command === "auto") {
+    const { AnalysisEngine } = await import("./analysis-engine.js");
+    const analyzer = new AnalysisEngine(config, pipeline, logger, tracker);
+    activeShutdown = async () => {
+      renderer?.stop();
+      await analyzer.stop();
+    };
+    renderer?.start();
+    await analyzer.start();
+    await analyzer.execute();
+    await analyzer.stop();
+    logger.info(msg.summaryAutoPhaseSwitch);
+    // Reset tracker for the plan phase
+    if (tracker) {
+      tracker.phases = [];
+      tracker.streams = [];
+      tracker.activeAgent = null;
+    }
+  }
+
   const planner = new PlanningEngine(config, pipeline, logger, tracker, renderer);
-  renderer?.start();
+  activeShutdown = async () => {
+    renderer?.stop();
+    await planner.stop();
+  };
+  if (config.command !== "auto") renderer?.start();
   planner
     .start()
-    .then(() => planner.execute())
+    .then((v) => planner.execute().then((plan) => ({ started: v, plan })))
+    .then(async ({ plan }) => {
+      await planner.stop();
+
+      if (config.command !== "auto") return;
+
+      // Auto mode phase 3: run with the plan
+      logger.info(msg.summaryAutoPhaseSwitch);
+
+      // Reset tracker for the run phase
+      if (tracker) {
+        tracker.phases = [];
+        tracker.streams = [];
+        tracker.activeAgent = null;
+      }
+
+      const runConfig = { ...config, command: "run" as const, issueBody: plan, planProvided: true };
+      const swarm = new SwarmOrchestrator(runConfig, logger);
+      activeShutdown = async () => {
+        renderer?.stop();
+        await swarm.stop();
+      };
+      await swarm.start();
+      await swarm.execute();
+      await swarm.stop();
+    })
     .catch(showLogOnError)
     .finally(() => {
       renderer?.stop();
@@ -180,7 +247,8 @@ if (config.command === "plan") {
       planner.stop();
       const elapsed = fmtElapsed(tracker?.elapsedMs ?? Date.now() - startMs);
       const outDir = path.relative(config.repoRoot, plansDir(config));
-      printSummary(msg.summaryPlanComplete(elapsed), outDir, tracker);
+      const heading = config.command === "auto" ? msg.summaryAutoComplete(elapsed) : msg.summaryPlanComplete(elapsed);
+      printSummary(heading, outDir, tracker);
     });
 } else if (config.command === "analyze") {
   const pipeline = (await import("./pipeline-config.js")).loadPipelineConfig(config.repoRoot);
@@ -199,6 +267,10 @@ if (config.command === "plan") {
   }
   const startMs = Date.now();
   const analyzer = new AnalysisEngine(config, pipeline, logger, tracker);
+  activeShutdown = async () => {
+    renderer?.stop();
+    await analyzer.stop();
+  };
   renderer?.start();
   analyzer
     .start()
@@ -221,6 +293,9 @@ if (config.command === "plan") {
   }
   logger.info(msg.reviewStart);
   const swarm = new SwarmOrchestrator(config, logger, prevRun);
+  activeShutdown = async () => {
+    await swarm.stop();
+  };
   swarm
     .start()
     .then(() => swarm.execute())
@@ -229,6 +304,9 @@ if (config.command === "plan") {
 } else {
   logger.info(msg.startingSwarm);
   const swarm = new SwarmOrchestrator(config, logger);
+  activeShutdown = async () => {
+    await swarm.stop();
+  };
   swarm
     .start()
     .then(() => swarm.execute())

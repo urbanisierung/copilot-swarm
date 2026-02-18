@@ -5,7 +5,7 @@ import type { SwarmConfig } from "./config.js";
 import { ResponseKeyword } from "./constants.js";
 import type { Logger } from "./logger.js";
 import { msg } from "./messages.js";
-import { plansDir } from "./paths.js";
+import { analysisFilePath, plansDir } from "./paths.js";
 import type { PipelineConfig } from "./pipeline-types.js";
 import type { ProgressTracker } from "./progress-tracker.js";
 import { SessionManager } from "./session.js";
@@ -33,6 +33,21 @@ Your goal is to fully understand the user's request before any engineering work 
    - Technical requirements
    - Edge cases
    - Out-of-scope items`;
+
+const PREREQ_ANALYZER_PROMPT = `Analyze this user request and identify any independent research or study sub-tasks that can be performed IN PARALLEL before requirements clarification begins.
+
+Examples of parallelizable sub-tasks:
+- "Study this URL/resource" → fetch and summarize the resource
+- "Research best practices for X" → investigate and summarize
+- "Analyze this library/tool" → explore and document findings
+- "Review this reference implementation" → study and extract patterns
+
+Rules:
+1. Only extract tasks that are genuinely independent and can run in parallel.
+2. Each task must be a self-contained research/study task — NOT implementation.
+3. If the request is straightforward with no research needed, return an empty array.
+4. Return ONLY a JSON array of objects: [{"task": "description", "prompt": "detailed prompt for the researcher"}]
+5. Keep it minimal — don't invent sub-tasks that aren't implied by the request.`;
 
 const ANALYST_INSTRUCTIONS = `You are a Senior Software Architect conducting a technical feasibility analysis.
 Given a set of requirements, analyze the codebase and produce a structured assessment.
@@ -138,6 +153,7 @@ export class PlanningEngine {
     private readonly renderer?: TuiRenderer,
   ) {
     this.sessions = new SessionManager(config, pipeline, logger);
+    if (tracker) this.sessions.setTracker(tracker);
   }
 
   async start(): Promise<void> {
@@ -148,12 +164,13 @@ export class PlanningEngine {
     await this.sessions.stop();
   }
 
-  async execute(): Promise<void> {
+  async execute(): Promise<string> {
     this.logger.info(msg.planningStart);
 
     const useCrossModel = this.pipeline.reviewModel !== this.pipeline.primaryModel;
 
     const phases: { phase: string }[] = [
+      { phase: "plan-prereqs" },
       { phase: "plan-clarify" },
       { phase: "plan-review" },
       { phase: "plan-eng-clarify" },
@@ -175,6 +192,15 @@ export class PlanningEngine {
     let analysis = "";
     let resumedPhaseKey: string | null = null;
     let effectiveIssueBody = this.config.issueBody;
+
+    // Load repo analysis if available — provides context for PM and analyst
+    let repoAnalysis = "";
+    try {
+      repoAnalysis = await fs.readFile(analysisFilePath(this.config), "utf-8");
+      this.logger.info(msg.repoAnalysisLoaded);
+    } catch {
+      // No analysis file — agents will work without it
+    }
 
     // Resume from checkpoint
     if (this.config.resume) {
@@ -225,13 +251,32 @@ export class PlanningEngine {
 
     let phaseIdx = 0;
 
+    // Phase 0: Pre-analyze request for parallelizable research sub-tasks
+    const prereqKey = `plan-prereqs-${phaseIdx}`;
+    if (completedPhases.has(prereqKey)) {
+      this.logger.info(msg.phaseSkipped("plan-prereqs"));
+    } else {
+      this.tracker?.activatePhase(prereqKey);
+      const prereqResults = await this.executePrereqs(effectiveIssueBody);
+      if (prereqResults) {
+        effectiveIssueBody = `${effectiveIssueBody}\n\n## Research Context\n\n${prereqResults}`;
+      }
+      completedPhases.add(prereqKey);
+      this.tracker?.completePhase(prereqKey);
+      await saveProgress();
+    }
+    phaseIdx++;
+
     // Phase 1: PM clarifies requirements interactively
     const clarifyKey = `plan-clarify-${phaseIdx}`;
     if (completedPhases.has(clarifyKey)) {
       this.logger.info(msg.phaseSkipped("plan-clarify"));
     } else {
       this.tracker?.activatePhase(clarifyKey);
-      spec = await this.clarifyRequirements(effectiveIssueBody, clarifyKey, saveProgress);
+      const pmInput = repoAnalysis
+        ? `## Repository Context\n\n${repoAnalysis}\n\n## Task\n\n${effectiveIssueBody}`
+        : effectiveIssueBody;
+      spec = await this.clarifyRequirements(pmInput, clarifyKey, saveProgress);
       completedPhases.add(clarifyKey);
       this.tracker?.completePhase(clarifyKey);
       await saveProgress();
@@ -355,7 +400,7 @@ export class PlanningEngine {
       this.logger.info(msg.phaseSkipped("plan-analyze"));
     } else {
       this.tracker?.activatePhase(analyzeKey);
-      analysis = await this.analyzeCodebase(spec);
+      analysis = await this.analyzeCodebase(spec, repoAnalysis);
       completedPhases.add(analyzeKey);
       this.tracker?.completePhase(analyzeKey);
       await saveProgress();
@@ -406,7 +451,11 @@ export class PlanningEngine {
     this.logger.info(msg.planningComplete);
     this.logger.info(msg.planSaved(path.relative(this.config.repoRoot, timestampedPath)));
     this.logger.info(`📌 Latest plan: ${path.relative(this.config.repoRoot, latestPath)}`);
-    this.logger.info(`\n💡 Run the pipeline with: swarm --plan ${path.relative(this.config.repoRoot, latestPath)}`);
+    if (this.config.command !== "auto") {
+      this.logger.info(`\n💡 Run the pipeline with: swarm --plan ${path.relative(this.config.repoRoot, latestPath)}`);
+    }
+
+    return plan;
   }
 
   /**
@@ -543,6 +592,51 @@ export class PlanningEngine {
     return revised;
   }
 
+  // --- PREREQS: parallel research sub-tasks ---
+
+  /**
+   * Analyze the request for parallelizable research sub-tasks.
+   * Runs them concurrently and returns merged results, or null if none found.
+   */
+  private async executePrereqs(issueBody: string): Promise<string | null> {
+    this.logger.info(msg.planPrereqsAnalyzing);
+
+    // Ask AI to extract parallelizable sub-tasks
+    let subtasks: { task: string; prompt: string }[];
+    try {
+      const raw = await this.sessions.callIsolated(
+        "pm",
+        `${PREREQ_ANALYZER_PROMPT}\n\nUser request:\n${issueBody}`,
+        undefined,
+        "prereq-analyze",
+      );
+      const jsonStr = raw.replace(/^[^[]*/, "").replace(/[^\]]*$/, "");
+      subtasks = JSON.parse(jsonStr);
+      if (!Array.isArray(subtasks) || subtasks.length === 0) {
+        this.logger.info(msg.planPrereqsNone);
+        return null;
+      }
+    } catch {
+      this.logger.info(msg.planPrereqsNone);
+      return null;
+    }
+
+    this.logger.info(msg.planPrereqsFound(subtasks.length));
+
+    // Run all sub-tasks in parallel
+    const results = await Promise.all(
+      subtasks.map(async (st, i) => {
+        const key = `prereq-${i}`;
+        this.logger.info(msg.planPrereqsRunning(st.task));
+        const result = await this.sessions.callIsolated("pm", st.prompt, undefined, key);
+        return `### ${st.task}\n\n${result}`;
+      }),
+    );
+
+    this.logger.info(msg.planPrereqsDone(results.length));
+    return results.join("\n\n---\n\n");
+  }
+
   private async clarifyRequirements(
     issueBody: string,
     phaseKey: string,
@@ -593,8 +687,8 @@ export class PlanningEngine {
           break;
         }
 
-        // Non-interactive (CI): auto-skip clarification
-        if (!process.stdin.isTTY) {
+        // Non-interactive (CI or auto mode): auto-skip clarification
+        if (!process.stdin.isTTY || this.config.command === "auto") {
           this.logger.info(msg.clarificationAutoSkipped);
           response = await this.sessions.send(
             session,
@@ -717,8 +811,8 @@ export class PlanningEngine {
           break;
         }
 
-        // Non-interactive (CI): auto-skip clarification
-        if (!process.stdin.isTTY) {
+        // Non-interactive (CI or auto mode): auto-skip clarification
+        if (!process.stdin.isTTY || this.config.command === "auto") {
           this.logger.info(msg.clarificationAutoSkipped);
           response = await this.sessions.send(
             session,
@@ -774,16 +868,15 @@ export class PlanningEngine {
     return result;
   }
 
-  private async analyzeCodebase(spec: string): Promise<string> {
+  private async analyzeCodebase(spec: string, repoAnalysis: string): Promise<string> {
     this.logger.info(msg.planningEngPhase);
 
     const session = await this.sessions.createSessionWithInstructions(ANALYST_INSTRUCTIONS);
     try {
-      const analysis = await this.sessions.send(
-        session,
-        `Analyze the codebase against these requirements and produce a technical assessment:\n\n${spec}`,
-        "Engineer is analyzing codebase…",
-      );
+      const prompt = repoAnalysis
+        ? `Use the following repository analysis as context, then assess the codebase against these requirements:\n\n## Repository Analysis\n\n${repoAnalysis}\n\n## Requirements\n\n${spec}`
+        : `Analyze the codebase against these requirements and produce a technical assessment:\n\n${spec}`;
+      const analysis = await this.sessions.send(session, prompt, "Engineer is analyzing codebase…");
 
       this.renderer?.pause();
       console.log("\n🔍 Technical Analysis:\n");

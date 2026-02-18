@@ -54,6 +54,7 @@ export class PipelineEngine {
   ) {
     this.effectiveConfig = config;
     this.sessions = new SessionManager(config, pipeline, logger);
+    if (tracker) this.sessions.setTracker(tracker);
     this.reviewContext = reviewContext ?? null;
     this.reviewFeedback = config.command === "review" ? config.issueBody : "";
   }
@@ -118,9 +119,19 @@ export class PipelineEngine {
     if (this.reviewContext) {
       this.logger.info(msg.reviewLoadedContext(this.reviewContext.runId));
       ctx.spec = this.reviewContext.spec;
-      ctx.tasks = this.reviewContext.tasks;
       ctx.designSpec = this.reviewContext.designSpec;
-      // streamResults are kept empty — implement phase will re-run with feedback + previous output
+      // Collapse all previous streams into a single review task
+      const allPreviousOutput = this.reviewContext.streamResults
+        .map((r, i) => `## Stream ${i + 1}: ${this.reviewContext?.tasks[i]}\n\n${r}`)
+        .join("\n\n---\n\n");
+      ctx.tasks = [
+        `Review and fix the previous implementation based on feedback.\n\n` +
+          `## Previous Implementation\n\n${allPreviousOutput}\n\n` +
+          `## Review Feedback\n\n${this.reviewFeedback}\n\n` +
+          `Fix the issues described in the review feedback. Keep everything that works correctly, ` +
+          `only change what needs to be fixed or improved.`,
+      ];
+      ctx.streamResults = [];
       // Mark all phases before implement as completed so they're skipped
       for (let i = 0; i < this.pipeline.pipeline.length; i++) {
         const p = this.pipeline.pipeline[i];
@@ -443,24 +454,9 @@ export class PipelineEngine {
           this.logger.info(msg.streamEngineering(label));
           this.tracker?.updateStream(idx, "engineering");
 
-          let engineeringPrompt: string;
-          const prevOutput = this.reviewContext?.streamResults[idx] ? this.reviewContext.streamResults[idx] : "";
-
-          if (prevOutput) {
-            // Review mode: engineer sees previous output + user feedback
-            const base = isFrontendTask(task)
-              ? `Spec:\n${ctx.spec}\n\nDesign:\n${ctx.designSpec}\n\nTask:\n${task}`
-              : `Spec:\n${ctx.spec}\n\nTask:\n${task}`;
-            engineeringPrompt =
-              `${base}\n\n## Previous Implementation\n\n${prevOutput}\n\n` +
-              `## Review Feedback\n\n${this.reviewFeedback}\n\n` +
-              "Fix the issues described in the review feedback. Keep everything that works correctly, " +
-              "only change what needs to be fixed or improved.";
-          } else {
-            engineeringPrompt = isFrontendTask(task)
-              ? `Spec:\n${ctx.spec}\n\nDesign:\n${ctx.designSpec}\n\nTask:\n${task}\n\nImplement this task.`
-              : `Spec:\n${ctx.spec}\n\nTask:\n${task}\n\nImplement this task.`;
-          }
+          const engineeringPrompt = isFrontendTask(task)
+            ? `Spec:\n${ctx.spec}\n\nDesign:\n${ctx.designSpec}\n\nTask:\n${task}\n\nImplement this task.`
+            : `Spec:\n${ctx.spec}\n\nTask:\n${task}\n\nImplement this task.`;
           code = await this.sessions.send(session, engineeringPrompt, `${phase.agent} (${label}) is implementing…`);
           sessionPrimed = true;
 

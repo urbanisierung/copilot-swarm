@@ -87,7 +87,9 @@ export class TuiRenderer {
 
     // ── Header ──
     const elapsed = this.fmtElapsed(this.tracker.elapsedMs);
-    const model = this.tracker.primaryModel ? `\x1b[2m${this.tracker.primaryModel}\x1b[0m` : "";
+    const active = this.tracker.activeModels;
+    const modelStr = active.length > 0 ? active.join(", ") : this.tracker.primaryModel;
+    const model = modelStr ? `\x1b[2m${modelStr}\x1b[0m` : "";
     const ver = this.tracker.version ? `\x1b[2mv${this.tracker.version}\x1b[0m` : "";
     lines.push("");
     const titleBase = "  🐝 Copilot Swarm";
