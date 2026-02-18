@@ -33,7 +33,7 @@ function readEnvPositiveInt(key: string, fallback: number): number {
   return parsed;
 }
 
-export type SwarmCommand = "run" | "plan" | "analyze" | "review" | "session" | "finish" | "list";
+export type SwarmCommand = "run" | "plan" | "auto" | "analyze" | "review" | "session" | "finish" | "list";
 
 interface CliArgs {
   command: SwarmCommand;
@@ -63,6 +63,7 @@ const HELP_TEXT = `Usage: swarm [command] [options] "<prompt>"
 Commands:
   run              Run the full orchestration pipeline (default)
   plan             Interactive planning mode — clarify requirements before running
+  auto             Autonomous mode — plan then run without user interaction
   analyze          Analyze the repository and generate a context document
   review           Review a previous run — provide feedback for agents to fix/improve
   session          Manage sessions: create, list, use (group related runs)
@@ -97,6 +98,7 @@ Prompt sources (first match wins):
 Examples:
   swarm "Add a dark mode toggle"
   swarm plan "Add a dark mode toggle"
+  swarm auto "Add a dark mode toggle"       Plan + run without interaction
   swarm plan -f requirements.md
   swarm run -e                            Open editor to describe the task
   swarm run -v "Fix the login bug"
@@ -154,6 +156,7 @@ function parseCliArgs(): CliArgs {
     positionals.length > 0 &&
     (positionals[0] === "plan" ||
       positionals[0] === "run" ||
+      positionals[0] === "auto" ||
       positionals[0] === "analyze" ||
       positionals[0] === "review" ||
       positionals[0] === "session" ||

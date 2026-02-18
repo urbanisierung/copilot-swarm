@@ -164,7 +164,7 @@ export class PlanningEngine {
     await this.sessions.stop();
   }
 
-  async execute(): Promise<void> {
+  async execute(): Promise<string> {
     this.logger.info(msg.planningStart);
 
     const useCrossModel = this.pipeline.reviewModel !== this.pipeline.primaryModel;
@@ -439,7 +439,11 @@ export class PlanningEngine {
     this.logger.info(msg.planningComplete);
     this.logger.info(msg.planSaved(path.relative(this.config.repoRoot, timestampedPath)));
     this.logger.info(`📌 Latest plan: ${path.relative(this.config.repoRoot, latestPath)}`);
-    this.logger.info(`\n💡 Run the pipeline with: swarm --plan ${path.relative(this.config.repoRoot, latestPath)}`);
+    if (this.config.command !== "auto") {
+      this.logger.info(`\n💡 Run the pipeline with: swarm --plan ${path.relative(this.config.repoRoot, latestPath)}`);
+    }
+
+    return plan;
   }
 
   /**
@@ -671,8 +675,8 @@ export class PlanningEngine {
           break;
         }
 
-        // Non-interactive (CI): auto-skip clarification
-        if (!process.stdin.isTTY) {
+        // Non-interactive (CI or auto mode): auto-skip clarification
+        if (!process.stdin.isTTY || this.config.command === "auto") {
           this.logger.info(msg.clarificationAutoSkipped);
           response = await this.sessions.send(
             session,
@@ -795,8 +799,8 @@ export class PlanningEngine {
           break;
         }
 
-        // Non-interactive (CI): auto-skip clarification
-        if (!process.stdin.isTTY) {
+        // Non-interactive (CI or auto mode): auto-skip clarification
+        if (!process.stdin.isTTY || this.config.command === "auto") {
           this.logger.info(msg.clarificationAutoSkipped);
           response = await this.sessions.send(
             session,

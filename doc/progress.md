@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here, in reverse chronological order.
 
+## 2026-02-18
+
+### Added
+- **Auto mode** — New `swarm auto` command combines planning and running in a single autonomous pipeline. All clarifying questions during planning are auto-answered with the agent's best judgment. After planning completes, the plan output feeds directly into the run pipeline. Useful for well-defined tasks, CI/CD, or batch processing where interactive clarification isn't needed.
+
 ## 2026-02-19
 
 ### Added

@@ -168,6 +168,22 @@ swarm --plan .swarm/plans/plan-2026-02-14T13-30-00-000Z.md
 
 The `--plan` flag reads the "Refined Requirements", "Engineering Decisions", and "Design Decisions" sections from the plan file and uses them as the pipeline input. When a plan is provided, the **spec phase is automatically skipped** — the plan's refined requirements are used directly as the specification, going straight to task decomposition. This avoids redundant re-analysis that can produce blockers instead of actionable implementation.
 
+### Auto Mode
+
+Use `swarm auto` to run planning and implementation in one shot without user interaction:
+
+```bash
+swarm auto "Add a dark mode toggle"
+swarm auto -f requirements.md
+```
+
+Auto mode combines planning and running into a single autonomous pipeline:
+
+1. **Planning phase** — Runs the full planning pipeline (pre-analysis, PM clarification, engineer/designer clarification, reviews) but auto-answers all clarifying questions with the agent's best judgment instead of asking the user.
+2. **Implementation phase** — Takes the plan output and feeds it directly into the run pipeline (decomposition, implementation, cross-model review, verification).
+
+This is useful for well-defined tasks where interactive clarification is not needed, CI/CD pipelines, or batch processing. The plan is still saved to `.swarm/plans/` for reference.
+
 ### Analyze Mode
 
 Use `swarm analyze` to generate a comprehensive repository context document:
