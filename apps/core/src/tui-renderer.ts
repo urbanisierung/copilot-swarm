@@ -88,8 +88,18 @@ export class TuiRenderer {
     // ── Header ──
     const elapsed = this.fmtElapsed(this.tracker.elapsedMs);
     const model = this.tracker.primaryModel ? `\x1b[2m${this.tracker.primaryModel}\x1b[0m` : "";
+    const ver = this.tracker.version ? `\x1b[2mv${this.tracker.version}\x1b[0m` : "";
     lines.push("");
-    lines.push(`  🐝 Copilot Swarm  ${model}${this.pad(width - 22 - this.visLen(model) - elapsed.length)}${elapsed}`);
+    const titleBase = "  🐝 Copilot Swarm";
+    const titleParts = [titleBase, ver, model].filter(Boolean);
+    const titleLeft = titleParts.join("  ");
+    lines.push(`${titleLeft}${this.pad(width - this.visLen(titleLeft) - elapsed.length)}${elapsed}`);
+
+    // Show working directory below the title
+    if (this.tracker.cwd) {
+      const cwdLabel = `  \x1b[2m${this.smartCwd(this.tracker.cwd, width - 4)}\x1b[0m`;
+      lines.push(cwdLabel);
+    }
     lines.push(sep);
     lines.push("");
 
@@ -214,5 +224,21 @@ export class TuiRenderer {
 
   private pad(n: number): string {
     return " ".repeat(Math.max(0, n));
+  }
+
+  /** Shorten a path to fit within maxLen. Keeps the last segments that fit, prefixed with …/ */
+  private smartCwd(cwd: string, maxLen: number): string {
+    if (cwd.length <= maxLen) return cwd;
+    const sep = cwd.includes("/") ? "/" : "\\";
+    const parts = cwd.split(sep);
+    // Always try to keep at least the last segment
+    let result = parts[parts.length - 1];
+    for (let i = parts.length - 2; i >= 0; i--) {
+      const candidate = `${parts[i]}${sep}${result}`;
+      if (candidate.length + 2 > maxLen) break; // +2 for "…/"
+      result = candidate;
+    }
+    if (result === cwd) return cwd;
+    return `…${sep}${result}`;
   }
 }

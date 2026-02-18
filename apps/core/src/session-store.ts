@@ -17,6 +17,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { SwarmConfig } from "./config.js";
+import { registerSession } from "./global-registry.js";
 
 export interface SwarmSession {
   id: string;
@@ -60,6 +61,15 @@ export async function createSession(config: SwarmConfig, name: string, descripti
 
   // Set as active
   await setActiveSession(config, id);
+
+  // Register in global registry
+  await registerSession({
+    sessionId: id,
+    name,
+    repoRoot: config.repoRoot,
+    swarmDir: config.swarmDir,
+    created: session.created,
+  });
 
   return session;
 }

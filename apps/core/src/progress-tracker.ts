@@ -26,6 +26,7 @@ const PHASE_NAMES: Record<string, string> = {
   design: "Design",
   implement: "Implementation",
   "cross-model-review": "Cross-Model Review",
+  verify: "Verification",
   "plan-clarify": "Requirements Clarification",
   "plan-eng-clarify": "Engineer Clarification",
   "plan-design-clarify": "Designer Clarification",
@@ -47,6 +48,8 @@ export class ProgressTracker {
   runId = "";
   primaryModel = "";
   reviewModel = "";
+  version = "";
+  cwd = "";
 
   initPhases(phaseConfigs: readonly { phase: string }[]): void {
     this.phases = phaseConfigs.map((p, i) => ({

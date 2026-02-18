@@ -5,6 +5,7 @@
 import * as path from "node:path";
 import type { PreviousRunContext } from "./checkpoint.js";
 import type { SwarmConfig } from "./config.js";
+import { readVersion } from "./config.js";
 import type { Logger } from "./logger.js";
 import { msg } from "./messages.js";
 import { runDir } from "./paths.js";
@@ -31,6 +32,8 @@ export class SwarmOrchestrator {
       this.tracker.runId = config.runId;
       this.tracker.primaryModel = this.pipeline.primaryModel;
       this.tracker.reviewModel = this.pipeline.reviewModel;
+      this.tracker.version = readVersion();
+      this.tracker.cwd = config.repoRoot;
       this.renderer = new TuiRenderer(this.tracker);
       logger.setTracker(this.tracker);
     } else {

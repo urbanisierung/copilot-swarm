@@ -4,6 +4,7 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { resolveGitHubIssue } from "./github-issue.js";
+import type { VerifyConfig } from "./pipeline-types.js";
 import { openTextarea } from "./textarea.js";
 
 const repoRoot = execSync("git rev-parse --show-toplevel", { encoding: "utf-8" }).trim();
@@ -32,7 +33,7 @@ function readEnvPositiveInt(key: string, fallback: number): number {
   return parsed;
 }
 
-export type SwarmCommand = "run" | "plan" | "analyze" | "review" | "session" | "finish";
+export type SwarmCommand = "run" | "plan" | "analyze" | "review" | "session" | "finish" | "list";
 
 interface CliArgs {
   command: SwarmCommand;
@@ -45,9 +46,12 @@ interface CliArgs {
   noTui: boolean;
   reviewRunId: string | undefined;
   sessionId: string | undefined;
+  verifyBuild: string | undefined;
+  verifyTest: string | undefined;
+  verifyLint: string | undefined;
 }
 
-function readVersion(): string {
+export function readVersion(): string {
   const dir = path.dirname(fileURLToPath(import.meta.url));
   const pkgPath = path.join(dir, "..", "package.json");
   const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
@@ -63,6 +67,7 @@ Commands:
   review           Review a previous run — provide feedback for agents to fix/improve
   session          Manage sessions: create, list, use (group related runs)
   finish           Finalize the active session — summarize, log to changelog, clean up
+  list             List all sessions across all repositories
 
 Options:
   -v, --verbose        Enable verbose streaming output
@@ -73,6 +78,9 @@ Options:
   --run <runId>        Specify which run to review (default: latest)
   --session <id>       Use a specific session (default: active session)
   --no-tui             Disable TUI dashboard (use plain log output)
+  --verify-build <cmd> Shell command to verify the build (e.g. "npm run build")
+  --verify-test <cmd>  Shell command to run tests (e.g. "npm test")
+  --verify-lint <cmd>  Shell command to run linting (e.g. "npm run lint")
   -V, --version        Show version number
   -h, --help           Show this help message
 
@@ -123,6 +131,9 @@ function parseCliArgs(): CliArgs {
       file: { type: "string", short: "f" },
       run: { type: "string" },
       session: { type: "string" },
+      "verify-build": { type: "string" },
+      "verify-test": { type: "string" },
+      "verify-lint": { type: "string" },
     },
   });
 
@@ -146,7 +157,8 @@ function parseCliArgs(): CliArgs {
       positionals[0] === "analyze" ||
       positionals[0] === "review" ||
       positionals[0] === "session" ||
-      positionals[0] === "finish")
+      positionals[0] === "finish" ||
+      positionals[0] === "list")
   ) {
     command = positionals[0] as SwarmCommand;
     promptParts = positionals.slice(1);
@@ -163,6 +175,9 @@ function parseCliArgs(): CliArgs {
     noTui: values["no-tui"] as boolean,
     reviewRunId: values.run as string | undefined,
     sessionId: values.session as string | undefined,
+    verifyBuild: values["verify-build"] as string | undefined,
+    verifyTest: values["verify-test"] as string | undefined,
+    verifyLint: values["verify-lint"] as string | undefined,
   };
 }
 
@@ -240,6 +255,8 @@ export interface SwarmConfig {
   readonly sessionId: string | undefined;
   /** Resolved session ID (set after session resolution). */
   resolvedSessionId?: string;
+  /** Verification commands from CLI flags (override YAML and auto-detect). */
+  readonly verifyOverrides?: VerifyConfig;
 }
 
 export async function loadConfig(): Promise<SwarmConfig> {
@@ -266,6 +283,7 @@ export async function loadConfig(): Promise<SwarmConfig> {
     cli.command !== "analyze" &&
     cli.command !== "session" &&
     cli.command !== "finish" &&
+    cli.command !== "list" &&
     !cli.resume &&
     (!issueBody || issueBody === "")
   ) {
@@ -277,6 +295,12 @@ export async function loadConfig(): Promise<SwarmConfig> {
 
   const swarmDir = readEnvString("SWARM_DIR", ".swarm");
   const runId = new Date().toISOString().replace(/[:.]/g, "-");
+
+  // Build verify overrides from CLI flags (only include flags that were explicitly set)
+  const hasVerifyFlags = cli.verifyBuild !== undefined || cli.verifyTest !== undefined || cli.verifyLint !== undefined;
+  const verifyOverrides: VerifyConfig | undefined = hasVerifyFlags
+    ? { build: cli.verifyBuild, test: cli.verifyTest, lint: cli.verifyLint }
+    : undefined;
 
   return {
     command: cli.command,
@@ -294,5 +318,6 @@ export async function loadConfig(): Promise<SwarmConfig> {
     maxAutoResume: readEnvPositiveInt("MAX_AUTO_RESUME", 3),
     reviewRunId: cli.reviewRunId,
     sessionId: cli.sessionId,
+    verifyOverrides,
   };
 }

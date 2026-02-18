@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import * as path from "node:path";
-import { loadConfig } from "./config.js";
+import { loadConfig, readVersion } from "./config.js";
 import { Logger } from "./logger.js";
 import { msg } from "./messages.js";
 import { SwarmOrchestrator } from "./orchestrator.js";
@@ -51,6 +51,30 @@ if (config.command === "session") {
   } else {
     console.error(`Unknown session subcommand: "${subcommand}". Use: create, list, use`);
     process.exit(1);
+  }
+  process.exit(0);
+}
+
+// Handle list command — show all sessions across repos
+if (config.command === "list") {
+  const { listGlobalSessions } = await import("./global-registry.js");
+  const sessions = await listGlobalSessions();
+  if (sessions.length === 0) {
+    console.log("No sessions found.");
+  } else {
+    console.log(
+      `\n  ${"Session".padEnd(12)} ${"Name".padEnd(30)} ${"Repository".padEnd(40)} ${"Status".padEnd(10)} Created`,
+    );
+    console.log(`  ${"─".repeat(12)} ${"─".repeat(30)} ${"─".repeat(40)} ${"─".repeat(10)} ${"─".repeat(20)}`);
+    for (const s of sessions) {
+      const status = s.finished ? "finished" : "active";
+      const repo = s.repoRoot.replace(/^\/home\/[^/]+\//, "~/");
+      const date = s.created.replace("T", " ").replace(/\.\d+Z$/, "");
+      console.log(
+        `  ${s.sessionId.padEnd(12)} ${(s.name || "—").padEnd(30)} ${repo.padEnd(40)} ${status.padEnd(10)} ${date}`,
+      );
+    }
+    console.log("");
   }
   process.exit(0);
 }
@@ -138,6 +162,8 @@ if (config.command === "plan") {
     tracker.runId = config.runId;
     tracker.primaryModel = pipeline.primaryModel;
     tracker.reviewModel = pipeline.reviewModel;
+    tracker.version = readVersion();
+    tracker.cwd = config.repoRoot;
     renderer = new TuiRenderer(tracker);
     logger.setTracker(tracker);
   }
@@ -166,6 +192,8 @@ if (config.command === "plan") {
     tracker.runId = config.runId;
     tracker.primaryModel = pipeline.primaryModel;
     tracker.reviewModel = pipeline.reviewModel;
+    tracker.version = readVersion();
+    tracker.cwd = config.repoRoot;
     renderer = new TuiRenderer(tracker);
     logger.setTracker(tracker);
   }

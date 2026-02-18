@@ -10,6 +10,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { PipelineCheckpoint } from "./checkpoint.js";
 import type { SwarmConfig } from "./config.js";
+import { markRegistryFinished } from "./global-registry.js";
 import { swarmRoot } from "./paths.js";
 import { getSession, type SwarmSession } from "./session-store.js";
 
@@ -110,6 +111,9 @@ export async function markSessionFinished(config: SwarmConfig, sessionId: string
   } catch {
     // Ignore if session file missing
   }
+
+  // Update global registry
+  await markRegistryFinished(sessionId, config.repoRoot);
 }
 
 /** Append a changelog entry to .swarm/changelog.md */
