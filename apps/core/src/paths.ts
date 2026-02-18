@@ -7,7 +7,7 @@ export function swarmRoot(config: SwarmConfig): string {
 }
 
 /** Session-scoped root. Falls back to swarmRoot if no session. */
-function sessionScopedRoot(config: SwarmConfig): string {
+export function sessionScopedRoot(config: SwarmConfig): string {
   if (config.resolvedSessionId) {
     return path.join(swarmRoot(config), "sessions", config.resolvedSessionId);
   }
