@@ -86,6 +86,7 @@ export class AnalysisEngine {
     private readonly tracker?: ProgressTracker,
   ) {
     this.sessions = new SessionManager(config, pipeline, logger);
+    if (tracker) this.sessions.setTracker(tracker);
   }
 
   async start(): Promise<void> {

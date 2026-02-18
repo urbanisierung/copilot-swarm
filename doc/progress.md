@@ -7,7 +7,7 @@ All notable changes to this project are documented here, in reverse chronologica
 ### Added
 - **Global session registry** — All sessions are now tracked in a central registry at `~/.config/copilot-swarm/sessions.json` (respects `XDG_CONFIG_HOME`). Each session records its ID, name, repository root, creation timestamp, and finished status. Registry updated on session creation and finalization.
 - **List command** — New `swarm list` command shows all sessions across all repositories in a formatted table (session ID, name, repository path, status, created date). Useful for finding sessions in other repos or reviewing past work.
-- **TUI header improvements** — TUI dashboard header now displays CLI version and active model on the title line, and the current working directory (smartly shortened with `…/` prefix) on a second dimmed line.
+- **TUI header improvements** — TUI dashboard header now displays CLI version and currently active model(s) on the title line (updates dynamically as phases switch between primary and review models, or when multiple models run in parallel streams), and the current working directory (smartly shortened with `…/` prefix) on a second dimmed line.
 
 ### Improved
 - **Review mode single stream** — Review mode now collapses all previous implementation streams into a single review stream. One engineer sees the full prior implementation + feedback and applies all fixes in one pass. Eliminates unnecessary parallel streams and the AI triage call. Previously, review re-ran all N streams from the original run even for small feedback.

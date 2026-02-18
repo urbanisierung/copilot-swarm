@@ -54,6 +54,7 @@ export class PipelineEngine {
   ) {
     this.effectiveConfig = config;
     this.sessions = new SessionManager(config, pipeline, logger);
+    if (tracker) this.sessions.setTracker(tracker);
     this.reviewContext = reviewContext ?? null;
     this.reviewFeedback = config.command === "review" ? config.issueBody : "";
   }

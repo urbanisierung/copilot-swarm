@@ -153,6 +153,7 @@ export class PlanningEngine {
     private readonly renderer?: TuiRenderer,
   ) {
     this.sessions = new SessionManager(config, pipeline, logger);
+    if (tracker) this.sessions.setTracker(tracker);
   }
 
   async start(): Promise<void> {
