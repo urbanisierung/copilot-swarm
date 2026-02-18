@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.15
+
+### Patch Changes
+
+- 60520ce: Multiple cli improvements. Github Action support.
+
 ## 0.0.14
 
 ### Patch Changes
