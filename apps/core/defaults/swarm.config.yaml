@@ -63,3 +63,7 @@ pipeline:
     fixAgent: engineer
     maxIterations: 3
     approvalKeyword: APPROVED
+
+  - phase: verify
+    fixAgent: engineer
+    maxIterations: 3

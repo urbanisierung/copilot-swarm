@@ -11,9 +11,11 @@ import type {
   QaStepConfig,
   ReviewStepConfig,
   SpecPhaseConfig,
+  VerifyConfig,
+  VerifyPhaseConfig,
 } from "./pipeline-types.js";
 
-const VALID_PHASES = new Set(["spec", "decompose", "design", "implement", "cross-model-review"]);
+const VALID_PHASES = new Set(["spec", "decompose", "design", "implement", "cross-model-review", "verify"]);
 const CONFIG_FILE_NAME = "swarm.config.yaml";
 
 function fail(msg: string): never {
@@ -129,6 +131,13 @@ function validatePhase(raw: unknown, index: number): PhaseConfig {
         approvalKeyword: requireString(obj, "approvalKeyword", ctx),
       } satisfies CrossModelReviewPhaseConfig;
     }
+    case "verify": {
+      return {
+        phase: "verify",
+        fixAgent: requireString(obj, "fixAgent", ctx),
+        maxIterations: requirePositiveInt(obj, "maxIterations", ctx),
+      } satisfies VerifyPhaseConfig;
+    }
     default:
       fail(`Unhandled phase type "${phase}"`);
   }
@@ -193,8 +202,22 @@ function validateAgentReferences(config: PipelineConfig): void {
         check(phase.agent, ctx);
         check(phase.fixAgent, `${ctx} fixAgent`);
         break;
+      case "verify":
+        check(phase.fixAgent, `${ctx} fixAgent`);
+        break;
     }
   }
+}
+
+function validateVerifyConfig(raw: unknown): VerifyConfig | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  if (typeof raw !== "object") fail('"verify" must be an object if provided');
+  const obj = raw as Record<string, unknown>;
+  return {
+    build: optionalString(obj, "build"),
+    test: optionalString(obj, "test"),
+    lint: optionalString(obj, "lint"),
+  };
 }
 
 export function parsePipelineConfig(raw: unknown): PipelineConfig {
@@ -208,6 +231,7 @@ export function parsePipelineConfig(raw: unknown): PipelineConfig {
     reviewModel: typeof obj.reviewModel === "string" ? obj.reviewModel : "gpt-5.2-codex",
     agents: validateAgents(obj.agents),
     pipeline: validatePipeline(obj.pipeline),
+    verify: validateVerifyConfig(obj.verify),
   };
 
   validateAgentReferences(config);

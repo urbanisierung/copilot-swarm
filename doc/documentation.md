@@ -43,7 +43,11 @@ Options:
   -f, --file <file>    Read prompt from a file instead of inline text
   -r, --resume         Resume from the last checkpoint (skip completed phases)
   --run <runId>        Specify which run to review (default: latest)
+  --session <id>       Use a specific session (default: active session)
   --no-tui             Disable TUI dashboard (use plain log output)
+  --verify-build <cmd> Shell command to verify the build (e.g. "npm run build")
+  --verify-test <cmd>  Shell command to run tests (e.g. "npm test")
+  --verify-lint <cmd>  Shell command to run linting (e.g. "npm run lint")
   -V, --version        Show version number
   -h, --help           Show this help message
 ```
@@ -541,6 +545,46 @@ When an engineer's output contains the `clarificationKeyword`, the pipeline auto
 4. The engineer continues implementation with the clarified requirements
 
 This is fully automatic — no user interaction required. Both fields are optional; if omitted, no clarification routing occurs.
+
+### Verification Phase
+
+After implementation (and cross-model review if enabled), the pipeline can run shell commands to verify the code actually builds, passes tests, and lints clean.
+
+#### Command Resolution (priority order)
+
+1. **CLI flags**: `--verify-build "npm run build" --verify-test "npm test" --verify-lint "npm run lint"`
+2. **YAML config**: `verify:` section in `swarm.config.yaml`
+3. **Auto-detect**: Scans for `package.json`, `Cargo.toml`, `go.mod`, `pyproject.toml`, `pom.xml`, `build.gradle`
+
+```yaml
+# swarm.config.yaml
+verify:
+  build: "npm run build"
+  test: "npm test"
+  lint: "npm run lint"
+```
+
+If no commands are configured and no project files are detected, the phase is skipped.
+
+#### Auto-Detection
+
+| Project File | Build | Test | Lint |
+|---|---|---|---|
+| `package.json` | `npm run build` (if script exists) | `npm test` (if script exists) | `npm run lint` or `npm run check` |
+| `Cargo.toml` | `cargo build` | `cargo test` | `cargo clippy` |
+| `go.mod` | `go build ./...` | `go test ./...` | `go vet ./...` |
+| `pyproject.toml` | — | `pytest` | `ruff check .` |
+| `pom.xml` | `mvn compile` | `mvn test` | — |
+| `build.gradle` | `./gradlew build` | `./gradlew test` | — |
+
+For greenfield projects, auto-detection runs after the implement phase (when project files exist).
+
+#### Behavior
+
+- All configured commands are run. If any fail, the errors are sent to the fix agent.
+- The fix agent makes corrections, then all commands are re-run.
+- Loops up to `maxIterations` (default: 3). If still failing, a failure summary is written.
+- If all commands pass on any iteration, the phase completes immediately.
 
 ### Agent Source Resolution
 

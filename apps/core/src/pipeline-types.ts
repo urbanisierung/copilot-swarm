@@ -68,12 +68,27 @@ export interface CrossModelReviewPhaseConfig {
   readonly approvalKeyword: string;
 }
 
+/** Verification commands to run after implementation. */
+export interface VerifyConfig {
+  readonly build?: string;
+  readonly test?: string;
+  readonly lint?: string;
+}
+
+/** Phase: verification — runs shell commands and loops until they pass. */
+export interface VerifyPhaseConfig {
+  readonly phase: "verify";
+  readonly fixAgent: string;
+  readonly maxIterations: number;
+}
+
 export type PhaseConfig =
   | SpecPhaseConfig
   | DecomposePhaseConfig
   | DesignPhaseConfig
   | ImplementPhaseConfig
-  | CrossModelReviewPhaseConfig;
+  | CrossModelReviewPhaseConfig
+  | VerifyPhaseConfig;
 
 /** Root configuration loaded from `swarm.config.yaml`. */
 export interface PipelineConfig {
@@ -81,4 +96,6 @@ export interface PipelineConfig {
   readonly reviewModel: string;
   readonly agents: Readonly<Record<string, AgentSource>>;
   readonly pipeline: readonly PhaseConfig[];
+  /** Optional verification commands — CLI flags override these. */
+  readonly verify?: VerifyConfig;
 }

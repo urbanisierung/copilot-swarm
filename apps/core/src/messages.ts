@@ -119,6 +119,18 @@ export const msg = {
   finishCheckpointsCleaned: (count: number) => `🧹 Cleaned up ${count} checkpoint file(s)`,
   finishComplete: "✅ Session finalized successfully.",
 
+  // --- Verify Phase ---
+  verifySkipped: "\n⏭️  Skipping verification (no build/test/lint commands configured or detected).",
+  verifyStart: "\n🔬 Starting Verification Phase...",
+  verifyIteration: (i: number, max: number) => `  └─ Verify iteration ${i}/${max}`,
+  verifyRunning: (label: string, cmd: string) => `    🏃 ${label}: ${cmd}`,
+  verifyCommandPassed: (label: string) => `    ✅ ${label} passed`,
+  verifyCommandFailed: (label: string) => `    ❌ ${label} failed`,
+  verifyAllPassed: "  ✅ All verification commands passed",
+  verifyFixing: (count: number) => `  🔧 ${count} command(s) failed — sending errors to fix agent...`,
+  verifyExhausted: (max: number) =>
+    `  ⚠️  Verification still failing after ${max} attempts. See verify-failures summary.`,
+
   // --- Log File ---
   logFileHint: (path: string) => `📋 Full log: ${path}`,
 

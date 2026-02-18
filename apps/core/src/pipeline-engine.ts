@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { IterationSnapshot, PreviousRunContext } from "./checkpoint.js";
@@ -14,10 +15,13 @@ import type {
   PipelineConfig,
   ReviewStepConfig,
   SpecPhaseConfig,
+  VerifyConfig,
+  VerifyPhaseConfig,
 } from "./pipeline-types.js";
 import type { ProgressTracker } from "./progress-tracker.js";
 import { SessionManager } from "./session.js";
 import { hasFrontendWork, isFrontendTask, parseJsonArray, responseContains, writeRoleSummary } from "./utils.js";
+import { detectVerifyCommands } from "./verify-detect.js";
 
 /** Shared context that flows between phases. */
 interface PipelineContext {
@@ -191,6 +195,9 @@ export class PipelineEngine {
           break;
         case "cross-model-review":
           ctx.streamResults = await this.executeCrossModelReview(phase, ctx, saveProgress);
+          break;
+        case "verify":
+          await this.executeVerify(phase, ctx, saveProgress);
           break;
       }
 
@@ -711,5 +718,124 @@ export class PipelineEngine {
       await save();
     }
     return current;
+  }
+
+  // --- VERIFY PHASE ---
+
+  /**
+   * Resolve verification commands with priority: CLI flags > YAML config > auto-detect.
+   * For greenfield projects, re-detects after implementation.
+   */
+  private resolveVerifyCommands(): VerifyConfig | null {
+    const cli = this.config.verifyOverrides;
+    const yaml = this.pipeline.verify;
+    const detected = detectVerifyCommands(this.config.repoRoot);
+
+    // Merge with priority: CLI > YAML > auto-detect
+    const build = cli?.build ?? yaml?.build ?? detected?.build;
+    const test = cli?.test ?? yaml?.test ?? detected?.test;
+    const lint = cli?.lint ?? yaml?.lint ?? detected?.lint;
+
+    if (!build && !test && !lint) return null;
+    return { build, test, lint };
+  }
+
+  /**
+   * Run a shell command and return { success, output }.
+   * Captures both stdout and stderr.
+   */
+  private runShellCommand(command: string): { success: boolean; output: string } {
+    try {
+      const output = execSync(command, {
+        cwd: this.config.repoRoot,
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", "pipe"],
+        timeout: 300_000, // 5 minute timeout per command
+      });
+      return { success: true, output };
+    } catch (err: unknown) {
+      const execError = err as { stdout?: string; stderr?: string; message?: string };
+      const output = [execError.stdout ?? "", execError.stderr ?? ""].filter(Boolean).join("\n");
+      return { success: false, output: output || execError.message || "Command failed" };
+    }
+  }
+
+  private async executeVerify(
+    phase: VerifyPhaseConfig,
+    ctx: PipelineContext,
+    save: () => Promise<void>,
+  ): Promise<void> {
+    // Resolve commands — for greenfield, project files now exist after implement
+    const commands = this.resolveVerifyCommands();
+    if (!commands) {
+      this.logger.info(msg.verifySkipped);
+      return;
+    }
+
+    this.logger.info(msg.verifyStart);
+
+    const savedVerify = this.iterationProgress.verify;
+    let startIter = 1;
+    if (savedVerify) {
+      startIter = savedVerify.completedIterations + 1;
+      this.logger.info(msg.iterationResumed(savedVerify.completedIterations, phase.maxIterations));
+    }
+
+    for (let i = startIter; i <= phase.maxIterations; i++) {
+      this.logger.info(msg.verifyIteration(i, phase.maxIterations));
+
+      // Run all configured commands and collect failures
+      const failures: { command: string; label: string; output: string }[] = [];
+
+      for (const [label, cmd] of Object.entries(commands) as [string, string | undefined][]) {
+        if (!cmd) continue;
+        this.logger.info(msg.verifyRunning(label, cmd));
+        const result = this.runShellCommand(cmd);
+        if (result.success) {
+          this.logger.info(msg.verifyCommandPassed(label));
+        } else {
+          this.logger.warn(msg.verifyCommandFailed(label));
+          failures.push({ command: cmd, label, output: result.output });
+        }
+      }
+
+      if (failures.length === 0) {
+        this.logger.info(msg.verifyAllPassed);
+        return;
+      }
+
+      // Last iteration — report failures but don't try to fix
+      if (i === phase.maxIterations) {
+        this.logger.warn(msg.verifyExhausted(phase.maxIterations));
+        await writeRoleSummary(
+          this.effectiveConfig,
+          "verify-failures",
+          `## Verification Failures (after ${phase.maxIterations} attempts)\n\n` +
+            failures.map((f) => `### ${f.label}: \`${f.command}\`\n\`\`\`\n${f.output}\n\`\`\``).join("\n\n"),
+        );
+        return;
+      }
+
+      // Feed errors to fix agent
+      this.logger.info(msg.verifyFixing(failures.length));
+      const errorReport = failures
+        .map((f) => `## ${f.label}: \`${f.command}\`\n\`\`\`\n${f.output}\n\`\`\``)
+        .join("\n\n");
+
+      const allCode = ctx.streamResults.join("\n\n---\n\n");
+      await this.sessions.callIsolated(
+        phase.fixAgent,
+        `The following verification commands failed after implementing the spec.\n\n` +
+          `Spec:\n${ctx.spec}\n\n` +
+          `Implementation:\n${allCode}\n\n` +
+          `## Failures\n\n${errorReport}\n\n` +
+          `Fix the issues causing these failures. Only change what is needed to make the commands pass.`,
+        undefined,
+        `verify/fix-${i}`,
+      );
+
+      this.iterationProgress.verify = { content: "fix-attempted", completedIterations: i };
+      await save();
+    }
   }
 }

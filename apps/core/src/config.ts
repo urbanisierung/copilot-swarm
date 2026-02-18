@@ -4,6 +4,7 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { resolveGitHubIssue } from "./github-issue.js";
+import type { VerifyConfig } from "./pipeline-types.js";
 import { openTextarea } from "./textarea.js";
 
 const repoRoot = execSync("git rev-parse --show-toplevel", { encoding: "utf-8" }).trim();
@@ -45,6 +46,9 @@ interface CliArgs {
   noTui: boolean;
   reviewRunId: string | undefined;
   sessionId: string | undefined;
+  verifyBuild: string | undefined;
+  verifyTest: string | undefined;
+  verifyLint: string | undefined;
 }
 
 function readVersion(): string {
@@ -73,6 +77,9 @@ Options:
   --run <runId>        Specify which run to review (default: latest)
   --session <id>       Use a specific session (default: active session)
   --no-tui             Disable TUI dashboard (use plain log output)
+  --verify-build <cmd> Shell command to verify the build (e.g. "npm run build")
+  --verify-test <cmd>  Shell command to run tests (e.g. "npm test")
+  --verify-lint <cmd>  Shell command to run linting (e.g. "npm run lint")
   -V, --version        Show version number
   -h, --help           Show this help message
 
@@ -123,6 +130,9 @@ function parseCliArgs(): CliArgs {
       file: { type: "string", short: "f" },
       run: { type: "string" },
       session: { type: "string" },
+      "verify-build": { type: "string" },
+      "verify-test": { type: "string" },
+      "verify-lint": { type: "string" },
     },
   });
 
@@ -163,6 +173,9 @@ function parseCliArgs(): CliArgs {
     noTui: values["no-tui"] as boolean,
     reviewRunId: values.run as string | undefined,
     sessionId: values.session as string | undefined,
+    verifyBuild: values["verify-build"] as string | undefined,
+    verifyTest: values["verify-test"] as string | undefined,
+    verifyLint: values["verify-lint"] as string | undefined,
   };
 }
 
@@ -240,6 +253,8 @@ export interface SwarmConfig {
   readonly sessionId: string | undefined;
   /** Resolved session ID (set after session resolution). */
   resolvedSessionId?: string;
+  /** Verification commands from CLI flags (override YAML and auto-detect). */
+  readonly verifyOverrides?: VerifyConfig;
 }
 
 export async function loadConfig(): Promise<SwarmConfig> {
@@ -278,6 +293,12 @@ export async function loadConfig(): Promise<SwarmConfig> {
   const swarmDir = readEnvString("SWARM_DIR", ".swarm");
   const runId = new Date().toISOString().replace(/[:.]/g, "-");
 
+  // Build verify overrides from CLI flags (only include flags that were explicitly set)
+  const hasVerifyFlags = cli.verifyBuild !== undefined || cli.verifyTest !== undefined || cli.verifyLint !== undefined;
+  const verifyOverrides: VerifyConfig | undefined = hasVerifyFlags
+    ? { build: cli.verifyBuild, test: cli.verifyTest, lint: cli.verifyLint }
+    : undefined;
+
   return {
     command: cli.command,
     repoRoot,
@@ -294,5 +315,6 @@ export async function loadConfig(): Promise<SwarmConfig> {
     maxAutoResume: readEnvPositiveInt("MAX_AUTO_RESUME", 3),
     reviewRunId: cli.reviewRunId,
     sessionId: cli.sessionId,
+    verifyOverrides,
   };
 }

@@ -220,4 +220,37 @@ describe("parsePipelineConfig", () => {
     expect(() => parsePipelineConfig("not an object")).toThrow("YAML object");
     expect(() => parsePipelineConfig(null)).toThrow("YAML object");
   });
+
+  it("parses verify phase", () => {
+    const config = parsePipelineConfig(
+      makeConfig({
+        pipeline: [
+          {
+            phase: "verify",
+            fixAgent: "engineer",
+            maxIterations: 3,
+          },
+        ],
+      }),
+    );
+    expect(config.pipeline[0].phase).toBe("verify");
+    if (config.pipeline[0].phase === "verify") {
+      expect(config.pipeline[0].fixAgent).toBe("engineer");
+      expect(config.pipeline[0].maxIterations).toBe(3);
+    }
+  });
+
+  it("parses optional verify config", () => {
+    const config = parsePipelineConfig(
+      makeConfig({
+        verify: { build: "npm run build", test: "npm test" },
+      }),
+    );
+    expect(config.verify).toEqual({ build: "npm run build", test: "npm test", lint: undefined });
+  });
+
+  it("allows missing verify config", () => {
+    const config = parsePipelineConfig(makeConfig());
+    expect(config.verify).toBeUndefined();
+  });
 });
