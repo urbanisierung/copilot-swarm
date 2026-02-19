@@ -39,6 +39,7 @@ describe("parsePipelineConfig", () => {
     const config = parsePipelineConfig(makeConfig());
     expect(config.primaryModel).toBe("test-model");
     expect(config.reviewModel).toBe("test-review");
+    expect(config.fastModel).toBe("claude-haiku-4.5"); // default when not specified
     expect(config.pipeline).toHaveLength(3);
     expect(config.pipeline[0].phase).toBe("spec");
   });
@@ -50,6 +51,7 @@ describe("parsePipelineConfig", () => {
     const config = parsePipelineConfig(raw);
     expect(config.primaryModel).toBe("claude-opus-4-6-fast");
     expect(config.reviewModel).toBe("gpt-5.2-codex");
+    expect(config.fastModel).toBe("claude-haiku-4.5");
   });
 
   it("rejects missing agents map", () => {

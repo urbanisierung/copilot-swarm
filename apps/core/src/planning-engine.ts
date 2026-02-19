@@ -5,7 +5,7 @@ import type { SwarmConfig } from "./config.js";
 import { ResponseKeyword } from "./constants.js";
 import type { Logger } from "./logger.js";
 import { msg } from "./messages.js";
-import { analysisFilePath, plansDir } from "./paths.js";
+import { analysisFilePath, brainstormsDir, plansDir } from "./paths.js";
 import type { PipelineConfig } from "./pipeline-types.js";
 import type { ProgressTracker } from "./progress-tracker.js";
 import { SessionManager } from "./session.js";
@@ -202,6 +202,20 @@ export class PlanningEngine {
       // No analysis file — agents will work without it
     }
 
+    // Load latest brainstorm if available — provides discussion context
+    let brainstormContext = "";
+    try {
+      const bsDir = brainstormsDir(this.config);
+      const files = await fs.readdir(bsDir);
+      const mdFiles = files.filter((f) => f.endsWith(".md")).sort();
+      if (mdFiles.length > 0) {
+        brainstormContext = await fs.readFile(path.join(bsDir, mdFiles[mdFiles.length - 1]), "utf-8");
+        this.logger.info("💡 Brainstorm context found — using as input for planning");
+      }
+    } catch {
+      // No brainstorms — that's fine
+    }
+
     // Resume from checkpoint
     if (this.config.resume) {
       const cp = await loadCheckpoint(this.config);
@@ -273,9 +287,11 @@ export class PlanningEngine {
       this.logger.info(msg.phaseSkipped("plan-clarify"));
     } else {
       this.tracker?.activatePhase(clarifyKey);
-      const pmInput = repoAnalysis
-        ? `## Repository Context\n\n${repoAnalysis}\n\n## Task\n\n${effectiveIssueBody}`
-        : effectiveIssueBody;
+      const contextParts: string[] = [];
+      if (repoAnalysis) contextParts.push(`## Repository Context\n\n${repoAnalysis}`);
+      if (brainstormContext) contextParts.push(`## Brainstorm Context\n\n${brainstormContext}`);
+      contextParts.push(`## Task\n\n${effectiveIssueBody}`);
+      const pmInput = contextParts.join("\n\n");
       spec = await this.clarifyRequirements(pmInput, clarifyKey, saveProgress);
       completedPhases.add(clarifyKey);
       this.tracker?.completePhase(clarifyKey);
@@ -607,7 +623,7 @@ export class PlanningEngine {
       const raw = await this.sessions.callIsolated(
         "pm",
         `${PREREQ_ANALYZER_PROMPT}\n\nUser request:\n${issueBody}`,
-        undefined,
+        this.pipeline.fastModel,
         "prereq-analyze",
       );
       const jsonStr = raw.replace(/^[^[]*/, "").replace(/[^\]]*$/, "");

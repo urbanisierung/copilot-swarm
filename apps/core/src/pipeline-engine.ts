@@ -9,6 +9,7 @@ import { msg } from "./messages.js";
 import { analysisFilePath, latestPointerPath, runDir, sessionScopedRoot } from "./paths.js";
 import type {
   CrossModelReviewPhaseConfig,
+  DecomposedTask,
   DecomposePhaseConfig,
   DesignPhaseConfig,
   ImplementPhaseConfig,
@@ -20,7 +21,14 @@ import type {
 } from "./pipeline-types.js";
 import type { ProgressTracker } from "./progress-tracker.js";
 import { SessionManager } from "./session.js";
-import { hasFrontendWork, isFrontendTask, parseJsonArray, responseContains, writeRoleSummary } from "./utils.js";
+import {
+  hasFrontendWork,
+  isFrontendTask,
+  parseDecomposedTasks,
+  responseContains,
+  topologicalWaves,
+  writeRoleSummary,
+} from "./utils.js";
 import { detectVerifyCommands } from "./verify-detect.js";
 
 /** Shared context that flows between phases. */
@@ -28,6 +36,8 @@ interface PipelineContext {
   repoAnalysis: string;
   spec: string;
   tasks: string[];
+  /** Per-task dependency IDs (by task id) for wave-based execution. */
+  taskDeps: number[][];
   designSpec: string;
   streamResults: string[];
 }
@@ -70,7 +80,14 @@ export class PipelineEngine {
   async execute(): Promise<void> {
     this.logger.info(msg.configLoaded(this.pipeline.primaryModel, this.pipeline.reviewModel, this.config.verbose));
 
-    let ctx: PipelineContext = { repoAnalysis: "", spec: "", tasks: [], designSpec: "", streamResults: [] };
+    let ctx: PipelineContext = {
+      repoAnalysis: "",
+      spec: "",
+      tasks: [],
+      taskDeps: [],
+      designSpec: "",
+      streamResults: [],
+    };
     let completedPhases: Set<string> = new Set();
     let resumedPhaseKey: string | null = null;
 
@@ -94,6 +111,7 @@ export class PipelineEngine {
           repoAnalysis: ctx.repoAnalysis,
           spec: checkpoint.spec,
           tasks: checkpoint.tasks,
+          taskDeps: checkpoint.taskDeps ?? [],
           designSpec: checkpoint.designSpec,
           streamResults: checkpoint.streamResults,
         };
@@ -146,6 +164,7 @@ export class PipelineEngine {
         completedPhases: [...completedPhases],
         spec: ctx.spec,
         tasks: ctx.tasks,
+        taskDeps: ctx.taskDeps.length > 0 ? ctx.taskDeps : undefined,
         designSpec: ctx.designSpec,
         streamResults: ctx.streamResults,
         issueBody: this.effectiveConfig.issueBody,
@@ -195,9 +214,12 @@ export class PipelineEngine {
           }
           ctx.spec = await this.executeSpec(phase, ctx, saveProgress);
           break;
-        case "decompose":
-          ctx.tasks = await this.executeDecompose(phase, ctx);
+        case "decompose": {
+          const decomposed = await this.executeDecompose(phase, ctx);
+          ctx.tasks = decomposed.tasks;
+          ctx.taskDeps = decomposed.taskDeps;
           break;
+        }
         case "design":
           ctx.designSpec = await this.executeDesign(phase, ctx, saveProgress);
           break;
@@ -279,24 +301,44 @@ export class PipelineEngine {
 
   // --- DECOMPOSE PHASE ---
 
-  private async executeDecompose(phase: DecomposePhaseConfig, ctx: PipelineContext): Promise<string[]> {
+  private async executeDecompose(
+    phase: DecomposePhaseConfig,
+    ctx: PipelineContext,
+  ): Promise<{ tasks: string[]; taskDeps: number[][] }> {
     this.logger.info(msg.taskDecomposition);
     const marker = phase.frontendMarker;
     const prompt =
-      `Break this spec into independent, parallelizable JSON tasks. Use as many or as few tasks as the spec requires — ` +
-      `a simple bug fix may be 1 task, a complex feature may be 5+. Each task should be self-contained and implementable ` +
-      `independently. Mark frontend tasks with ${marker}. ` +
-      `Respond with ONLY a JSON array, no other text. Format: ["${marker} Task 1", "Task 2"]\nSpec:\n${ctx.spec}`;
-    const raw = await this.sessions.callIsolated(phase.agent, prompt, undefined, `decompose`);
-    const tasks = parseJsonArray(raw);
+      `Break this spec into tasks. Tasks MAY have dependencies if one must finish before another can start. ` +
+      `Use as many or as few tasks as the spec requires — a simple bug fix may be 1 task, a complex feature may be 5+. ` +
+      `Tasks without dependencies will run in parallel. Mark frontend tasks with ${marker}.\n` +
+      `Respond with ONLY a JSON array, no other text.\n` +
+      `Format: [{"id": 1, "task": "${marker} Task description", "dependsOn": []}, ` +
+      `{"id": 2, "task": "Task description", "dependsOn": [1]}]\n` +
+      `If a task depends on another, list the IDs it depends on. Tasks with no dependencies use an empty array.\n` +
+      `Spec:\n${ctx.spec}`;
+    const raw = await this.sessions.callIsolated(phase.agent, prompt, this.pipeline.fastModel, "decompose");
+    const decomposed = parseDecomposedTasks(raw);
+    const tasks = decomposed.map((t) => t.task);
+    const taskDeps = decomposed.map((t) => [...t.dependsOn]);
     this.logger.info(msg.tasksResult(tasks));
+
+    const hasDeps = taskDeps.some((deps) => deps.length > 0);
+    if (hasDeps) {
+      const waves = topologicalWaves(decomposed);
+      this.logger.info(msg.wavesDetected(waves.length));
+    }
 
     await writeRoleSummary(
       this.effectiveConfig,
       `${phase.agent}-tasks`,
-      `## Decomposed Tasks\n\n${tasks.map((t, i) => `${i + 1}. ${t}`).join("\n")}`,
+      `## Decomposed Tasks\n\n${decomposed
+        .map((t) => {
+          const depStr = t.dependsOn.length > 0 ? ` (depends on: ${t.dependsOn.join(", ")})` : "";
+          return `${t.id}. ${t.task}${depStr}`;
+        })
+        .join("\n")}`,
     );
-    return tasks;
+    return { tasks, taskDeps };
   }
 
   // --- DESIGN PHASE ---
@@ -429,6 +471,18 @@ export class PipelineEngine {
     const results: string[] =
       ctx.streamResults.length === ctx.tasks.length ? [...ctx.streamResults] : new Array(ctx.tasks.length).fill("");
 
+    // Build dependency context for a task from its completed dependencies
+    const buildDepContext = (idx: number): string => {
+      if (!ctx.taskDeps.length || !ctx.taskDeps[idx]?.length) return "";
+      // Map dependency IDs (1-based) to task indices (0-based)
+      const depIndices = ctx.taskDeps[idx]
+        .map((depId) => depId - 1)
+        .filter((di) => di >= 0 && di < results.length && results[di]);
+      if (depIndices.length === 0) return "";
+      const sections = depIndices.map((di) => `### ${ctx.tasks[di]}\n\n${results[di]}`);
+      return `\n\n## Prior Implementation (dependencies)\n\n${sections.join("\n\n---\n\n")}`;
+    };
+
     const runStream = async (task: string, idx: number): Promise<string> => {
       // Skip streams that already have results (from a resumed checkpoint)
       if (results[idx]) {
@@ -454,9 +508,10 @@ export class PipelineEngine {
           this.logger.info(msg.streamEngineering(label));
           this.tracker?.updateStream(idx, "engineering");
 
+          const depContext = buildDepContext(idx);
           const engineeringPrompt = isFrontendTask(task)
-            ? `Spec:\n${ctx.spec}\n\nDesign:\n${ctx.designSpec}\n\nTask:\n${task}\n\nImplement this task.`
-            : `Spec:\n${ctx.spec}\n\nTask:\n${task}\n\nImplement this task.`;
+            ? `Spec:\n${ctx.spec}\n\nDesign:\n${ctx.designSpec}\n\nTask:\n${task}${depContext}\n\nImplement this task.`
+            : `Spec:\n${ctx.spec}\n\nTask:\n${task}${depContext}\n\nImplement this task.`;
           code = await this.sessions.send(session, engineeringPrompt, `${phase.agent} (${label}) is implementing…`);
           sessionPrimed = true;
 
@@ -578,6 +633,43 @@ export class PipelineEngine {
       }
     };
 
+    // Compute execution waves from dependency graph
+    const hasDeps = ctx.taskDeps.length > 0 && ctx.taskDeps.some((d) => d.length > 0);
+    if (hasDeps) {
+      // Reconstruct DecomposedTask[] for topological sort
+      const decomposed: DecomposedTask[] = ctx.tasks.map((task, i) => ({
+        id: i + 1,
+        task,
+        dependsOn: ctx.taskDeps[i] ?? [],
+      }));
+      const waves = topologicalWaves(decomposed);
+
+      for (let w = 0; w < waves.length; w++) {
+        const wave = waves[w];
+        this.logger.info(msg.waveStart(w + 1, waves.length, wave.length));
+
+        if (phase.parallel && wave.length > 1) {
+          const settled = await Promise.allSettled(wave.map((idx) => runStream(ctx.tasks[idx], idx)));
+          const failures = settled.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+          if (failures.length > 0) {
+            this.logger.warn(msg.partialStreamFailure(failures.length, settled.length));
+            await save();
+            throw new Error(
+              `${failures.length}/${settled.length} streams failed in wave ${w + 1}. Use --resume to retry.`,
+            );
+          }
+        } else {
+          for (const idx of wave) {
+            results[idx] = await runStream(ctx.tasks[idx], idx);
+          }
+        }
+
+        this.logger.info(msg.waveDone(w + 1, waves.length));
+      }
+      return results;
+    }
+
+    // No dependencies — original behavior
     if (phase.parallel) {
       const settled = await Promise.allSettled(ctx.tasks.map((task, idx) => runStream(task, idx)));
       const failures = settled.filter((r): r is PromiseRejectedResult => r.status === "rejected");

@@ -33,7 +33,10 @@ Usage: swarm [command] [options] "<prompt>"
 Commands:
   run              Run the full orchestration pipeline (default)
   plan             Interactive planning mode — clarify requirements before running
+  auto             Autonomous plan + run (no interaction)
+  task             Lightweight autonomous pipeline for well-scoped tasks
   analyze          Analyze the repository and generate a context document
+  brainstorm       Interactive discussion mode — explore ideas with a strategist agent
   review           Review a previous run — provide feedback for agents to fix/improve
   session          Manage sessions: create, list, use (group related runs)
   finish           Finalize the active session — summarize, log to changelog, clean up
@@ -185,6 +188,25 @@ Auto mode combines analysis, planning and running into a single autonomous pipel
 
 This is useful for well-defined tasks where interactive clarification is not needed, CI/CD pipelines, or batch processing. The analysis and plan files are still saved to `.swarm/` for reference.
 
+### Task Mode
+
+Use `swarm task` for a lightweight autonomous mode — faster than `auto`, skips the full planning pipeline:
+
+```bash
+swarm task "Fix the login validation bug"
+swarm task -f task-description.md
+```
+
+Task mode runs a streamlined pipeline:
+
+1. **Pre-analysis** — Checks if the task requires any research or study (URLs to read, libraries to investigate). If found, runs them in parallel and merges results as context.
+2. **PM review** — A PM agent reviews and refines the task into a clear specification, auto-answering any open questions with best judgment.
+3. **Decomposition** — Determines how many engineering streams are needed. If tasks have dependencies, they're grouped into execution waves.
+4. **Implementation** — Streams implement their tasks. Independent tasks run in parallel; tasks with dependencies run in sequential waves, each wave receiving prior wave output as context. Each stream has QA loops (if something breaks, it goes back to the engineer).
+5. **Verification** — Runs build/test/lint commands to verify the implementation.
+
+Task mode is ideal for well-scoped tasks that don't need the full planning ceremony (engineer/designer clarification, plan reviews, cross-model plan review). Use `auto` for larger, more complex work.
+
 ### Analyze Mode
 
 Use `swarm analyze` to generate a comprehensive repository context document:
@@ -229,6 +251,26 @@ swarm review --run 2026-02-17T08-00-00-000Z "Fix the login form"
 6. Output goes to a new run directory (new timestamp)
 
 The review mode supports checkpoint/resume (`--resume`) and auto-retry, same as regular run mode.
+
+### Brainstorm Mode
+
+Use `swarm brainstorm` to explore ideas interactively with a product strategist agent. No code is produced — just a structured discussion and summary:
+
+```bash
+swarm brainstorm "Should we migrate from REST to GraphQL?"
+swarm brainstorm -e   # Open editor for a longer description
+```
+
+**How it works:**
+1. A strategist agent (combining PM, design, and engineering perspectives) reads your idea
+2. Interactive loop: the agent shares thoughts, asks probing questions, challenges assumptions, and suggests alternatives
+3. You respond in a split-pane editor (agent's questions on the right, your answer on the left)
+4. Type `BRAINSTORM_DONE` to finish the discussion
+5. The agent generates a structured summary: problem/idea, key ideas discussed, pros & cons, open questions, and recommendations
+
+**Output:**
+- `.swarm/brainstorms/<runId>.md` — Saved summary (session-scoped if a session is active)
+- The latest brainstorm summary is automatically loaded as context when running `swarm plan`, enriching the PM's understanding of your requirements
 
 ### Checkpoint & Resume
 
@@ -384,6 +426,9 @@ ISSUE_BODY="Add a dark mode toggle" pnpm --filter @copilot-swarm/core start
 # Override models
 ISSUE_BODY="Fix bug" PRIMARY_MODEL=gpt-5.2 REVIEW_MODEL=claude-opus-4-6-fast pnpm --filter @copilot-swarm/core start
 
+# Use a different fast model for coordination tasks
+ISSUE_BODY="Fix bug" FAST_MODEL=gpt-5-mini pnpm --filter @copilot-swarm/core start
+
 # Skip cross-model review (set both models to the same value)
 ISSUE_BODY="Fix bug" PRIMARY_MODEL=claude-opus-4-6-fast REVIEW_MODEL=claude-opus-4-6-fast pnpm --filter @copilot-swarm/core start
 ```
@@ -529,8 +574,9 @@ These override the values in `swarm.config.yaml`:
 
 | Variable | Default (from YAML) | Description |
 |---|---|---|
-| `PRIMARY_MODEL` | `claude-opus-4-6-fast` | The AI model used for all primary agent sessions. |
+| `PRIMARY_MODEL` | `claude-opus-4-6-fast` | The AI model used for all primary agent sessions (spec drafting, engineering, code review, QA, design). |
 | `REVIEW_MODEL` | `gpt-5.2-codex` | The AI model used for cross-model review sessions. |
+| `FAST_MODEL` | `claude-haiku-4.5` | Lightweight model for coordination tasks (prereq analysis, task decomposition, task-mode PM review). Faster and cheaper than the primary model. |
 
 ## Pipeline Configuration
 
@@ -646,6 +692,8 @@ All output is organized under the `.swarm/` directory:
         cross-model-review.md
   analysis/                       # Repository analysis output
     repo-analysis.md
+  brainstorms/                    # Brainstorm discussion summaries
+    <runId>.md
   latest                          # Pointer to the most recent run ID
 ```
 

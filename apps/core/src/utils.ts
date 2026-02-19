@@ -3,6 +3,7 @@ import * as path from "node:path";
 import type { SwarmConfig } from "./config.js";
 import { FRONTEND_KEYWORDS, FRONTEND_MARKER } from "./constants.js";
 import { rolesDir } from "./paths.js";
+import type { DecomposedTask } from "./pipeline-types.js";
 
 /** Extract a JSON array from a response that may contain surrounding prose. */
 export function parseJsonArray(raw: string): string[] {
@@ -43,4 +44,73 @@ export function isFrontendTask(task: string): boolean {
 /** Check whether a response contains the given keyword (case-insensitive). */
 export function responseContains(response: string, keyword: string): boolean {
   return response.toUpperCase().includes(keyword);
+}
+
+/**
+ * Parse decomposed tasks with optional dependency info from PM response.
+ * Accepts both flat string arrays (backward compat) and object arrays with id/task/dependsOn.
+ */
+export function parseDecomposedTasks(raw: string): DecomposedTask[] {
+  const start = raw.indexOf("[");
+  const end = raw.lastIndexOf("]");
+  if (start === -1 || end === -1 || end <= start) {
+    throw new Error(`Could not find JSON array in response:\n${raw.substring(0, 200)}...`);
+  }
+  const parsed: unknown = JSON.parse(raw.substring(start, end + 1));
+  if (!Array.isArray(parsed)) {
+    throw new Error("Parsed JSON is not an array.");
+  }
+  if (parsed.length === 0) return [];
+
+  // Flat string array → convert to DecomposedTask with no deps
+  if (parsed.every((item): item is string => typeof item === "string")) {
+    return parsed.map((task, i) => ({ id: i + 1, task, dependsOn: [] }));
+  }
+
+  // Object array with id/task/dependsOn
+  return parsed.map((item, i) => {
+    if (typeof item !== "object" || item === null) {
+      throw new Error(`Invalid task entry at index ${i}`);
+    }
+    const obj = item as Record<string, unknown>;
+    return {
+      id: typeof obj.id === "number" ? obj.id : i + 1,
+      task: String(obj.task ?? ""),
+      dependsOn: Array.isArray(obj.dependsOn) ? obj.dependsOn.filter((d): d is number => typeof d === "number") : [],
+    };
+  });
+}
+
+/** Group task indices into execution waves based on dependency graph (topological sort). */
+export function topologicalWaves(tasks: DecomposedTask[]): number[][] {
+  if (tasks.length === 0) return [];
+
+  const idToIdx = new Map<number, number>();
+  for (let i = 0; i < tasks.length; i++) idToIdx.set(tasks[i].id, i);
+
+  // Build per-index dependency sets
+  const deps = tasks.map(
+    (t) => new Set(t.dependsOn.map((id) => idToIdx.get(id)).filter((idx): idx is number => idx !== undefined)),
+  );
+
+  const waves: number[][] = [];
+  const placed = new Set<number>();
+
+  while (placed.size < tasks.length) {
+    const wave: number[] = [];
+    for (let i = 0; i < tasks.length; i++) {
+      if (placed.has(i)) continue;
+      if ([...deps[i]].every((d) => placed.has(d))) wave.push(i);
+    }
+    if (wave.length === 0) {
+      // Circular dependency — place all remaining in final wave
+      for (let i = 0; i < tasks.length; i++) {
+        if (!placed.has(i)) wave.push(i);
+      }
+    }
+    for (const idx of wave) placed.add(idx);
+    waves.push(wave);
+  }
+
+  return waves;
 }

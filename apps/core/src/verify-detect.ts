@@ -18,6 +18,14 @@ function readJson(filePath: string): unknown {
   }
 }
 
+/** Detect the Node.js package manager from lockfiles. */
+function detectPackageManager(repoRoot: string): string {
+  if (fs.existsSync(path.join(repoRoot, "pnpm-lock.yaml"))) return "pnpm";
+  if (fs.existsSync(path.join(repoRoot, "bun.lockb")) || fs.existsSync(path.join(repoRoot, "bun.lock"))) return "bun";
+  if (fs.existsSync(path.join(repoRoot, "yarn.lock"))) return "yarn";
+  return "npm";
+}
+
 function detectFromPackageJson(repoRoot: string): VerifyConfig | null {
   const pkgPath = path.join(repoRoot, "package.json");
   if (!fs.existsSync(pkgPath)) return null;
@@ -25,14 +33,16 @@ function detectFromPackageJson(repoRoot: string): VerifyConfig | null {
   const pkg = readJson(pkgPath) as PackageJson | null;
   if (!pkg?.scripts) return { build: undefined, test: undefined, lint: undefined };
 
+  const pm = detectPackageManager(repoRoot);
+  const run = pm === "npm" ? "npm run" : `${pm} run`;
   const scripts = pkg.scripts;
-  const build = scripts.build ? "npm run build" : undefined;
-  const test = scripts.test ? "npm test" : undefined;
+  const build = scripts.build ? `${run} build` : undefined;
+  const test = scripts.test ? `${run} test` : undefined;
 
   // Check common lint/check script names
   let lint: string | undefined;
-  if (scripts.lint) lint = "npm run lint";
-  else if (scripts.check) lint = "npm run check";
+  if (scripts.lint) lint = `${run} lint`;
+  else if (scripts.check) lint = `${run} check`;
 
   if (!build && !test && !lint) return null;
   return { build, test, lint };

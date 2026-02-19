@@ -23,6 +23,10 @@ export const msg = {
 
   // --- Task Streams ---
   launchingStreams: (count: number) => `\n🚀 Launching ${count} Parallel Task Streams...`,
+  wavesDetected: (count: number) => `  🌊 ${count} execution wave(s) detected — tasks will run in dependency order`,
+  waveStart: (wave: number, total: number, taskCount: number) =>
+    `\n🌊 Wave ${wave}/${total}: launching ${taskCount} stream(s)...`,
+  waveDone: (wave: number, total: number) => `  ✅ Wave ${wave}/${total} complete`,
   streamLabel: (idx: number) => `Stream ${idx + 1}`,
   streamStart: (label: string, task: string) => `\n[${label}: ${task.substring(0, 60)}...]`,
   streamEngineering: (label: string) => `  [${label}: Engineering]`,
@@ -146,7 +150,16 @@ export const msg = {
   summaryPlanComplete: (elapsed: string) => `✅ Planning completed in ${elapsed}`,
   summaryAutoPhaseSwitch: "🔄 Planning complete — starting implementation...",
   summaryAutoComplete: (elapsed: string) => `✅ Auto mode completed in ${elapsed}`,
+  summaryTaskComplete: (elapsed: string) => `✅ Task completed in ${elapsed}`,
   summaryAnalyzeComplete: (elapsed: string) => `✅ Analysis completed in ${elapsed}`,
+  summaryBrainstormComplete: (elapsed: string) => `✅ Brainstorm completed in ${elapsed}`,
+
+  // --- Brainstorm Mode ---
+  brainstormStart: "💡 Starting Brainstorm Mode...",
+  brainstormPhase: "\n[Brainstorm: Discussion]",
+  brainstormSummarizing: "\n[Brainstorm: Generating Summary]",
+  brainstormComplete: "\n✅ Brainstorm complete.",
+  brainstormSaved: (path: string) => `📄 Brainstorm summary saved to ${path}`,
   summaryPhases: (done: number, total: number, skipped: number) => {
     const parts = [`${done}/${total} phases completed`];
     if (skipped > 0) parts.push(`${skipped} skipped`);

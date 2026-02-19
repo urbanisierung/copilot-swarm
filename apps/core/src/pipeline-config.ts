@@ -229,6 +229,7 @@ export function parsePipelineConfig(raw: unknown): PipelineConfig {
   const config: PipelineConfig = {
     primaryModel: typeof obj.primaryModel === "string" ? obj.primaryModel : "claude-opus-4-6-fast",
     reviewModel: typeof obj.reviewModel === "string" ? obj.reviewModel : "gpt-5.2-codex",
+    fastModel: typeof obj.fastModel === "string" ? obj.fastModel : "claude-haiku-4.5",
     agents: validateAgents(obj.agents),
     pipeline: validatePipeline(obj.pipeline),
     verify: validateVerifyConfig(obj.verify),
@@ -271,9 +272,11 @@ export function loadPipelineConfig(repoRoot: string): PipelineConfig {
   // Env var overrides for models
   const envPrimary = process.env.PRIMARY_MODEL;
   const envReview = process.env.REVIEW_MODEL;
+  const envFast = process.env.FAST_MODEL;
   return {
     ...config,
     primaryModel: envPrimary && envPrimary !== "" ? envPrimary : config.primaryModel,
     reviewModel: envReview && envReview !== "" ? envReview : config.reviewModel,
+    fastModel: envFast && envFast !== "" ? envFast : config.fastModel,
   };
 }

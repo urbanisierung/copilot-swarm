@@ -6,6 +6,7 @@ All notable changes to this project are documented here, in reverse chronologica
 
 ### Added
 - **Auto mode** — New `swarm auto` command runs analysis → planning → implementation in a single autonomous pipeline. All clarifying questions during planning are auto-answered with the agent's best judgment. Repo analysis is generated first and provides context for all subsequent phases.
+- **Task mode** — New `swarm task` command provides a lightweight autonomous pipeline: pre-analysis for parallel research → PM review (auto-answered) → decompose → implement (with QA loops per stream) → verify. Skips the full planning ceremony. Ideal for well-scoped tasks.
 
 ### Improved
 - **Analysis context in planning** — Planning mode now loads the existing `repo-analysis.md` (if available) and injects it as context into PM clarification and the technical analysis phase, giving agents better understanding of the codebase from the start.
@@ -13,12 +14,16 @@ All notable changes to this project are documented here, in reverse chronologica
 ## 2026-02-19
 
 ### Added
+- **Wave-based execution** — The decompose phase now produces tasks with optional dependency annotations (`dependsOn`). Tasks are grouped into execution waves via topological sort: wave 1 contains tasks with no dependencies (run in parallel), wave 2 contains tasks depending on wave 1 (run in parallel with wave 1 output as context), etc. Fully backward compatible — tasks without dependencies run in a single wave (same as before). Checkpoint/resume stores task dependency graph. Prior wave results are injected into each subsequent wave's engineering prompt.
+- **Fast model tier** — Three-tier model architecture: `fastModel` (default: `claude-haiku-4.5`) for lightweight coordination tasks (prereq analysis, task decomposition, task-mode PM review), `primaryModel` for main work, `reviewModel` for cross-model verification. Configurable via `swarm.config.yaml` (`fastModel` field) or `FAST_MODEL` env var. Reduces cost and latency for tasks that don't require a powerful model.
+- **Brainstorm mode** — New `swarm brainstorm` command for interactive idea exploration with a product strategist agent. The agent challenges assumptions, suggests alternatives, and identifies risks through back-and-forth discussion via the split-pane editor. On finish (type `BRAINSTORM_DONE`), generates a structured markdown summary (problem, ideas, pros/cons, open questions, recommendations) saved to `.swarm/brainstorms/`. The latest brainstorm summary is automatically loaded as context in subsequent `swarm plan` runs.
 - **Global session registry** — All sessions are now tracked in a central registry at `~/.config/copilot-swarm/sessions.json` (respects `XDG_CONFIG_HOME`). Each session records its ID, name, repository root, creation timestamp, and finished status. Registry updated on session creation and finalization.
 - **List command** — New `swarm list` command shows all sessions across all repositories in a formatted table (session ID, name, repository path, status, created date). Useful for finding sessions in other repos or reviewing past work.
 - **TUI header improvements** — TUI dashboard header now displays CLI version and currently active model(s) on the title line (updates dynamically as phases switch between primary and review models, or when multiple models run in parallel streams), and the current working directory (smartly shortened with `…/` prefix) on a second dimmed line.
 
 ### Improved
 - **Review mode single stream** — Review mode now collapses all previous implementation streams into a single review stream. One engineer sees the full prior implementation + feedback and applies all fixes in one pass. Eliminates unnecessary parallel streams and the AI triage call. Previously, review re-ran all N streams from the original run even for small feedback.
+- **Package manager detection** — Verification auto-detect now reads lockfiles (`pnpm-lock.yaml`, `yarn.lock`, `bun.lockb`/`bun.lock`) to determine the correct package manager for Node.js projects. Previously hardcoded to `npm` regardless of actual project tooling.
 
 ### Added
 - **Plan pre-analysis** — Planning mode now starts with a pre-analysis step that scans the request for parallelizable research sub-tasks (e.g. "study this URL", "research best practices for X"). Identified tasks run concurrently via `Promise.all`, and results are merged as enriched context for the PM clarification phase. Skipped automatically if no research tasks are detected.

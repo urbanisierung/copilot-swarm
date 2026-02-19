@@ -33,7 +33,17 @@ function readEnvPositiveInt(key: string, fallback: number): number {
   return parsed;
 }
 
-export type SwarmCommand = "run" | "plan" | "auto" | "analyze" | "review" | "session" | "finish" | "list";
+export type SwarmCommand =
+  | "run"
+  | "plan"
+  | "auto"
+  | "task"
+  | "analyze"
+  | "brainstorm"
+  | "review"
+  | "session"
+  | "finish"
+  | "list";
 
 interface CliArgs {
   command: SwarmCommand;
@@ -63,7 +73,8 @@ const HELP_TEXT = `Usage: swarm [command] [options] "<prompt>"
 Commands:
   run              Run the full orchestration pipeline (default)
   plan             Interactive planning mode — clarify requirements before running
-  auto             Autonomous mode — plan then run without user interaction
+  auto             Autonomous mode — analyze, plan, then run without interaction
+  task             Lightweight autonomous mode — prereqs, PM review, then run
   analyze          Analyze the repository and generate a context document
   review           Review a previous run — provide feedback for agents to fix/improve
   session          Manage sessions: create, list, use (group related runs)
@@ -72,7 +83,7 @@ Commands:
 
 Options:
   -v, --verbose        Enable verbose streaming output
-  -e, --editor         Open an interactive text editor to enter the prompt
+  -e, --editor         Force the interactive editor (auto-opens when no prompt given)
   -p, --plan <file>    Use a plan file as input (reads the refined requirements section)
   -f, --file <file>    Read prompt from a file instead of inline text
   -r, --resume         Resume from the last checkpoint (skip completed phases)
@@ -99,6 +110,7 @@ Examples:
   swarm "Add a dark mode toggle"
   swarm plan "Add a dark mode toggle"
   swarm auto "Add a dark mode toggle"       Plan + run without interaction
+  swarm task "Fix the login validation"     Light auto: prereqs + PM + run
   swarm plan -f requirements.md
   swarm run -e                            Open editor to describe the task
   swarm run -v "Fix the login bug"
@@ -107,6 +119,7 @@ Examples:
   swarm "gh:owner/repo#123"               Fetch GitHub issue as prompt
   swarm "gh:#42"                          Fetch issue #42 from current repo
   swarm analyze
+  swarm brainstorm "Should we use SSR?"   Explore ideas interactively
   swarm review "Fix the auth bug"         Review latest run with feedback
   swarm review -e --run 2026-02-17T08-00  Review a specific run
   swarm session create "Dark mode feature" Create a new session
@@ -157,7 +170,9 @@ function parseCliArgs(): CliArgs {
     (positionals[0] === "plan" ||
       positionals[0] === "run" ||
       positionals[0] === "auto" ||
+      positionals[0] === "task" ||
       positionals[0] === "analyze" ||
+      positionals[0] === "brainstorm" ||
       positionals[0] === "review" ||
       positionals[0] === "session" ||
       positionals[0] === "finish" ||
@@ -279,7 +294,17 @@ export async function loadConfig(): Promise<SwarmConfig> {
     }
   } else {
     const raw = cli.prompt ?? process.env.ISSUE_BODY;
-    issueBody = resolveGitHubIssue(raw) ?? raw;
+    const resolved = resolveGitHubIssue(raw) ?? raw;
+    if (resolved) {
+      issueBody = resolved;
+    } else if (process.stdin.isTTY) {
+      // No prompt provided — open editor by default on interactive terminals
+      issueBody = await openTextarea();
+      if (!issueBody) {
+        console.error("Error: Editor cancelled — no prompt provided.");
+        process.exit(1);
+      }
+    }
   }
 
   if (

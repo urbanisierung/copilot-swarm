@@ -19,13 +19,40 @@ describe("detectVerifyCommands", () => {
     expect(detectVerifyCommands(tmpDir)).toBeNull();
   });
 
-  it("detects package.json with build and test scripts", () => {
+  it("detects package.json with build and test scripts (npm default)", () => {
     fs.writeFileSync(
       path.join(tmpDir, "package.json"),
       JSON.stringify({ scripts: { build: "tsc", test: "vitest run" } }),
     );
     const result = detectVerifyCommands(tmpDir);
-    expect(result).toEqual({ build: "npm run build", test: "npm test", lint: undefined });
+    expect(result).toEqual({ build: "npm run build", test: "npm run test", lint: undefined });
+  });
+
+  it("detects pnpm from pnpm-lock.yaml", () => {
+    fs.writeFileSync(
+      path.join(tmpDir, "package.json"),
+      JSON.stringify({ scripts: { build: "tsc", test: "vitest run", lint: "eslint ." } }),
+    );
+    fs.writeFileSync(path.join(tmpDir, "pnpm-lock.yaml"), "");
+    const result = detectVerifyCommands(tmpDir);
+    expect(result).toEqual({ build: "pnpm run build", test: "pnpm run test", lint: "pnpm run lint" });
+  });
+
+  it("detects yarn from yarn.lock", () => {
+    fs.writeFileSync(path.join(tmpDir, "package.json"), JSON.stringify({ scripts: { build: "tsc", test: "jest" } }));
+    fs.writeFileSync(path.join(tmpDir, "yarn.lock"), "");
+    const result = detectVerifyCommands(tmpDir);
+    expect(result).toEqual({ build: "yarn run build", test: "yarn run test", lint: undefined });
+  });
+
+  it("detects bun from bun.lockb", () => {
+    fs.writeFileSync(
+      path.join(tmpDir, "package.json"),
+      JSON.stringify({ scripts: { build: "tsc", test: "bun test" } }),
+    );
+    fs.writeFileSync(path.join(tmpDir, "bun.lockb"), "");
+    const result = detectVerifyCommands(tmpDir);
+    expect(result).toEqual({ build: "bun run build", test: "bun run test", lint: undefined });
   });
 
   it("detects package.json with lint script", () => {

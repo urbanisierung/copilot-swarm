@@ -34,6 +34,11 @@ export function analysisDir(config: SwarmConfig): string {
   return path.join(sessionScopedRoot(config), "analysis");
 }
 
+/** Brainstorms directory: .swarm/sessions/<sid>/brainstorms/ */
+export function brainstormsDir(config: SwarmConfig): string {
+  return path.join(sessionScopedRoot(config), "brainstorms");
+}
+
 /** Path to the repo analysis file: .swarm/sessions/<sid>/analysis/repo-analysis.md */
 export function analysisFilePath(config: SwarmConfig): string {
   return path.join(analysisDir(config), "repo-analysis.md");
