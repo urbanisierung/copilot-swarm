@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.22
+
+### Patch Changes
+
+- df06eaa: Default model changes
+
 ## 0.0.21
 
 ### Patch Changes
