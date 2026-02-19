@@ -198,8 +198,8 @@ Task mode runs a streamlined pipeline:
 
 1. **Pre-analysis** — Checks if the task requires any research or study (URLs to read, libraries to investigate). If found, runs them in parallel and merges results as context.
 2. **PM review** — A PM agent reviews and refines the task into a clear specification, auto-answering any open questions with best judgment.
-3. **Decomposition** — Determines how many engineering streams are needed.
-4. **Implementation** — Parallel engineering streams implement their tasks, each with QA loops (if something breaks, it goes back to the engineer).
+3. **Decomposition** — Determines how many engineering streams are needed. If tasks have dependencies, they're grouped into execution waves.
+4. **Implementation** — Streams implement their tasks. Independent tasks run in parallel; tasks with dependencies run in sequential waves, each wave receiving prior wave output as context. Each stream has QA loops (if something breaks, it goes back to the engineer).
 5. **Verification** — Runs build/test/lint commands to verify the implementation.
 
 Task mode is ideal for well-scoped tasks that don't need the full planning ceremony (engineer/designer clarification, plan reviews, cross-model plan review). Use `auto` for larger, more complex work.

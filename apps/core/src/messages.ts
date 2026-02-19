@@ -23,6 +23,10 @@ export const msg = {
 
   // --- Task Streams ---
   launchingStreams: (count: number) => `\n🚀 Launching ${count} Parallel Task Streams...`,
+  wavesDetected: (count: number) => `  🌊 ${count} execution wave(s) detected — tasks will run in dependency order`,
+  waveStart: (wave: number, total: number, taskCount: number) =>
+    `\n🌊 Wave ${wave}/${total}: launching ${taskCount} stream(s)...`,
+  waveDone: (wave: number, total: number) => `  ✅ Wave ${wave}/${total} complete`,
   streamLabel: (idx: number) => `Stream ${idx + 1}`,
   streamStart: (label: string, task: string) => `\n[${label}: ${task.substring(0, 60)}...]`,
   streamEngineering: (label: string) => `  [${label}: Engineering]`,

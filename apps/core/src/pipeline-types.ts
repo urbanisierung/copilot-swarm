@@ -31,6 +31,13 @@ export interface SpecPhaseConfig {
   readonly reviews: readonly ReviewStepConfig[];
 }
 
+/** A decomposed task with optional dependency information for wave-based execution. */
+export interface DecomposedTask {
+  readonly id: number;
+  readonly task: string;
+  readonly dependsOn: readonly number[];
+}
+
 /** Phase: task decomposition. */
 export interface DecomposePhaseConfig {
   readonly phase: "decompose";

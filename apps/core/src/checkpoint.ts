@@ -27,6 +27,8 @@ export interface PipelineCheckpoint {
   completedPhases: string[];
   spec: string;
   tasks: string[];
+  /** Per-task dependency IDs for wave-based execution. */
+  taskDeps?: number[][];
   designSpec: string;
   streamResults: string[];
   issueBody: string;
