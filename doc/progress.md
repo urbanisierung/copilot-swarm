@@ -22,6 +22,7 @@ All notable changes to this project are documented here, in reverse chronologica
 
 ### Improved
 - **Review mode single stream** — Review mode now collapses all previous implementation streams into a single review stream. One engineer sees the full prior implementation + feedback and applies all fixes in one pass. Eliminates unnecessary parallel streams and the AI triage call. Previously, review re-ran all N streams from the original run even for small feedback.
+- **Package manager detection** — Verification auto-detect now reads lockfiles (`pnpm-lock.yaml`, `yarn.lock`, `bun.lockb`/`bun.lock`) to determine the correct package manager for Node.js projects. Previously hardcoded to `npm` regardless of actual project tooling.
 
 ### Added
 - **Plan pre-analysis** — Planning mode now starts with a pre-analysis step that scans the request for parallelizable research sub-tasks (e.g. "study this URL", "research best practices for X"). Identified tasks run concurrently via `Promise.all`, and results are merged as enriched context for the PM clarification phase. Skipped automatically if no research tasks are detected.
