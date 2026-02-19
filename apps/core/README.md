@@ -130,7 +130,7 @@ The default pipeline runs five phases:
 Drop a `swarm.config.yaml` in your repo root to customize the pipeline. If not present, the built-in default is used.
 
 ```yaml
-primaryModel: claude-opus-4-6-fast
+primaryModel: claude-opus-4-6
 reviewModel: gpt-5.2-codex
 
 agents:
@@ -195,7 +195,7 @@ pipeline:
 | `SESSION_TIMEOUT_MS` | `1800000` | Timeout per agent session (ms) |
 | `MAX_AUTO_RESUME` | `3` | Auto-resume attempts on failure |
 | `MAX_RETRIES` | `2` | Retry attempts for failed agent responses |
-| `PRIMARY_MODEL` | `claude-opus-4-6-fast` | AI model for primary agents (overrides YAML) |
+| `PRIMARY_MODEL` | `claude-opus-4-6` | AI model for primary agents (overrides YAML) |
 | `REVIEW_MODEL` | `gpt-5.2-codex` | AI model for cross-model review (overrides YAML) |
 
 ## GitHub Actions

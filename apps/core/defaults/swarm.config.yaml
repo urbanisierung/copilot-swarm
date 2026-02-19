@@ -2,7 +2,7 @@
 # This mirrors the hardcoded behavior — every consuming repo gets this
 # pipeline unless it provides its own swarm.config.yaml.
 
-primaryModel: claude-opus-4-6-fast
+primaryModel: claude-opus-4-6
 reviewModel: gpt-5.2-codex
 fastModel: claude-haiku-4.5
 
