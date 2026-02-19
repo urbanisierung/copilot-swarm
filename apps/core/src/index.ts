@@ -4,7 +4,7 @@ import { loadConfig, readVersion } from "./config.js";
 import { Logger } from "./logger.js";
 import { msg } from "./messages.js";
 import { SwarmOrchestrator } from "./orchestrator.js";
-import { analysisDir, plansDir } from "./paths.js";
+import { analysisDir, brainstormsDir, plansDir } from "./paths.js";
 import { PlanningEngine } from "./planning-engine.js";
 import { ProgressTracker } from "./progress-tracker.js";
 import { resolveSessionId } from "./session-store.js";
@@ -337,6 +337,40 @@ if (config.command === "plan" || config.command === "auto") {
       const elapsed = fmtElapsed(tracker?.elapsedMs ?? Date.now() - startMs);
       const outDir = path.relative(config.repoRoot, analysisDir(config));
       printSummary(msg.summaryAnalyzeComplete(elapsed), outDir, tracker);
+    });
+} else if (config.command === "brainstorm") {
+  const pipeline = (await import("./pipeline-config.js")).loadPipelineConfig(config.repoRoot);
+  const { BrainstormEngine } = await import("./brainstorm-engine.js");
+  let tracker: ProgressTracker | undefined;
+  let renderer: TuiRenderer | undefined;
+  if (config.tui) {
+    tracker = new ProgressTracker();
+    tracker.runId = config.runId;
+    tracker.primaryModel = pipeline.primaryModel;
+    tracker.reviewModel = pipeline.reviewModel;
+    tracker.version = readVersion();
+    tracker.cwd = config.repoRoot;
+    renderer = new TuiRenderer(tracker);
+    logger.setTracker(tracker);
+  }
+  const startMs = Date.now();
+  const brainstormer = new BrainstormEngine(config, pipeline, logger, tracker, renderer);
+  activeShutdown = async () => {
+    renderer?.stop();
+    await brainstormer.stop();
+  };
+  renderer?.start();
+  brainstormer
+    .start()
+    .then(() => brainstormer.execute())
+    .catch(showLogOnError)
+    .finally(() => {
+      renderer?.stop();
+      if (tracker) logger.setTracker(null);
+      brainstormer.stop();
+      const elapsed = fmtElapsed(tracker?.elapsedMs ?? Date.now() - startMs);
+      const outDir = path.relative(config.repoRoot, brainstormsDir(config));
+      printSummary(msg.summaryBrainstormComplete(elapsed), outDir, tracker);
     });
 } else if (config.command === "review") {
   const { loadPreviousRun } = await import("./checkpoint.js");

@@ -33,7 +33,10 @@ Usage: swarm [command] [options] "<prompt>"
 Commands:
   run              Run the full orchestration pipeline (default)
   plan             Interactive planning mode — clarify requirements before running
+  auto             Autonomous plan + run (no interaction)
+  task             Lightweight autonomous pipeline for well-scoped tasks
   analyze          Analyze the repository and generate a context document
+  brainstorm       Interactive discussion mode — explore ideas with a strategist agent
   review           Review a previous run — provide feedback for agents to fix/improve
   session          Manage sessions: create, list, use (group related runs)
   finish           Finalize the active session — summarize, log to changelog, clean up
@@ -248,6 +251,26 @@ swarm review --run 2026-02-17T08-00-00-000Z "Fix the login form"
 6. Output goes to a new run directory (new timestamp)
 
 The review mode supports checkpoint/resume (`--resume`) and auto-retry, same as regular run mode.
+
+### Brainstorm Mode
+
+Use `swarm brainstorm` to explore ideas interactively with a product strategist agent. No code is produced — just a structured discussion and summary:
+
+```bash
+swarm brainstorm "Should we migrate from REST to GraphQL?"
+swarm brainstorm -e   # Open editor for a longer description
+```
+
+**How it works:**
+1. A strategist agent (combining PM, design, and engineering perspectives) reads your idea
+2. Interactive loop: the agent shares thoughts, asks probing questions, challenges assumptions, and suggests alternatives
+3. You respond in a split-pane editor (agent's questions on the right, your answer on the left)
+4. Type `BRAINSTORM_DONE` to finish the discussion
+5. The agent generates a structured summary: problem/idea, key ideas discussed, pros & cons, open questions, and recommendations
+
+**Output:**
+- `.swarm/brainstorms/<runId>.md` — Saved summary (session-scoped if a session is active)
+- The latest brainstorm summary is automatically loaded as context when running `swarm plan`, enriching the PM's understanding of your requirements
 
 ### Checkpoint & Resume
 
@@ -669,6 +692,8 @@ All output is organized under the `.swarm/` directory:
         cross-model-review.md
   analysis/                       # Repository analysis output
     repo-analysis.md
+  brainstorms/                    # Brainstorm discussion summaries
+    <runId>.md
   latest                          # Pointer to the most recent run ID
 ```
 

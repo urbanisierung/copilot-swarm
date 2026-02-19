@@ -152,6 +152,14 @@ export const msg = {
   summaryAutoComplete: (elapsed: string) => `✅ Auto mode completed in ${elapsed}`,
   summaryTaskComplete: (elapsed: string) => `✅ Task completed in ${elapsed}`,
   summaryAnalyzeComplete: (elapsed: string) => `✅ Analysis completed in ${elapsed}`,
+  summaryBrainstormComplete: (elapsed: string) => `✅ Brainstorm completed in ${elapsed}`,
+
+  // --- Brainstorm Mode ---
+  brainstormStart: "💡 Starting Brainstorm Mode...",
+  brainstormPhase: "\n[Brainstorm: Discussion]",
+  brainstormSummarizing: "\n[Brainstorm: Generating Summary]",
+  brainstormComplete: "\n✅ Brainstorm complete.",
+  brainstormSaved: (path: string) => `📄 Brainstorm summary saved to ${path}`,
   summaryPhases: (done: number, total: number, skipped: number) => {
     const parts = [`${done}/${total} phases completed`];
     if (skipped > 0) parts.push(`${skipped} skipped`);

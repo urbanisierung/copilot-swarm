@@ -33,7 +33,17 @@ function readEnvPositiveInt(key: string, fallback: number): number {
   return parsed;
 }
 
-export type SwarmCommand = "run" | "plan" | "auto" | "task" | "analyze" | "review" | "session" | "finish" | "list";
+export type SwarmCommand =
+  | "run"
+  | "plan"
+  | "auto"
+  | "task"
+  | "analyze"
+  | "brainstorm"
+  | "review"
+  | "session"
+  | "finish"
+  | "list";
 
 interface CliArgs {
   command: SwarmCommand;
@@ -109,6 +119,7 @@ Examples:
   swarm "gh:owner/repo#123"               Fetch GitHub issue as prompt
   swarm "gh:#42"                          Fetch issue #42 from current repo
   swarm analyze
+  swarm brainstorm "Should we use SSR?"   Explore ideas interactively
   swarm review "Fix the auth bug"         Review latest run with feedback
   swarm review -e --run 2026-02-17T08-00  Review a specific run
   swarm session create "Dark mode feature" Create a new session
@@ -161,6 +172,7 @@ function parseCliArgs(): CliArgs {
       positionals[0] === "auto" ||
       positionals[0] === "task" ||
       positionals[0] === "analyze" ||
+      positionals[0] === "brainstorm" ||
       positionals[0] === "review" ||
       positionals[0] === "session" ||
       positionals[0] === "finish" ||
