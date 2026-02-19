@@ -506,6 +506,7 @@ export class PlanningEngine {
         `Reviewing ${sectionName} (${i}/${MAX_REVIEW_ITERATIONS})…`,
         undefined,
         `${phaseKey}/reviewer-${i}`,
+        "reviewer",
       );
 
       if (responseContains(feedback, PLAN_APPROVED_KEYWORD)) {
@@ -526,6 +527,7 @@ export class PlanningEngine {
         reviseSpinner,
         undefined,
         `${phaseKey}/revision-${i}`,
+        "reviser",
       );
 
       // Guard: if revision is suspiciously short, keep original
@@ -568,6 +570,7 @@ export class PlanningEngine {
         `Cross-model review (${this.pipeline.reviewModel}, ${i}/${MAX_REVIEW_ITERATIONS})…`,
         this.pipeline.reviewModel,
         `${phaseKey}/reviewer-${i}`,
+        "cross-reviewer",
       );
 
       if (responseContains(feedback, PLAN_APPROVED_KEYWORD)) {
@@ -589,6 +592,7 @@ export class PlanningEngine {
         "Revising plan…",
         undefined,
         `${phaseKey}/revision-${i}`,
+        "reviser",
       );
 
       // Guard: verify the revision preserves plan structure
@@ -660,7 +664,7 @@ export class PlanningEngine {
   ): Promise<string> {
     this.logger.info(msg.planningPmPhase);
 
-    const session = await this.sessions.createSessionWithInstructions(PLANNER_INSTRUCTIONS);
+    const session = await this.sessions.createSessionWithInstructions(PLANNER_INSTRUCTIONS, undefined, "pm");
     if (phaseKey) this.sessions.recordSession(phaseKey, session, "planner", "pm");
     const savedQA = this.answeredQuestions[phaseKey] ?? [];
 
@@ -790,7 +794,7 @@ export class PlanningEngine {
   ): Promise<string> {
     this.logger.info(phaseLabel);
 
-    const session = await this.sessions.createSessionWithInstructions(instructions);
+    const session = await this.sessions.createSessionWithInstructions(instructions, undefined, phaseKey);
     this.sessions.recordSession(phaseKey, session, phaseKey, phaseKey);
     const savedQA = this.answeredQuestions[phaseKey] ?? [];
 
@@ -887,7 +891,7 @@ export class PlanningEngine {
   private async analyzeCodebase(spec: string, repoAnalysis: string): Promise<string> {
     this.logger.info(msg.planningEngPhase);
 
-    const session = await this.sessions.createSessionWithInstructions(ANALYST_INSTRUCTIONS);
+    const session = await this.sessions.createSessionWithInstructions(ANALYST_INSTRUCTIONS, undefined, "analyst");
     try {
       const prompt = repoAnalysis
         ? `Use the following repository analysis as context, then assess the codebase against these requirements:\n\n## Repository Analysis\n\n${repoAnalysis}\n\n## Requirements\n\n${spec}`
@@ -942,6 +946,9 @@ export class PlanningEngine {
         PLANNER_INSTRUCTIONS,
         recoveryPrompt,
         `${roleLabel} is recovering from timeout…`,
+        undefined,
+        undefined,
+        "recovery",
       );
     } catch {
       this.logger.warn(msg.sessionRecoveryFailed);

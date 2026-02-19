@@ -91,7 +91,7 @@ export class BrainstormEngine {
     this.logger.info(msg.brainstormPhase);
     this.tracker?.activatePhase("brainstorm-discuss-0");
 
-    const session = await this.sessions.createSessionWithInstructions(STRATEGIST_INSTRUCTIONS);
+    const session = await this.sessions.createSessionWithInstructions(STRATEGIST_INSTRUCTIONS, undefined, "strategist");
     this.sessions.recordSession("brainstorm", session, "strategist", "strategist");
 
     let summary = "";

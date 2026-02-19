@@ -147,7 +147,7 @@ export class TaskEngine {
   private async pmClarify(prompt: string): Promise<string> {
     this.logger.info("📋 PM is reviewing the task...");
 
-    const session = await this.sessions.createSessionWithInstructions(PM_INSTRUCTIONS, this.pipeline.fastModel);
+    const session = await this.sessions.createSessionWithInstructions(PM_INSTRUCTIONS, this.pipeline.fastModel, "pm");
     try {
       const response = await this.sessions.send(
         session,

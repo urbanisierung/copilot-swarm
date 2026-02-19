@@ -222,7 +222,11 @@ export class AnalysisEngine {
       analysis = draftProgress.content;
       this.logger.info(msg.iterationResumed(0, MAX_REVIEW_ITERATIONS));
     } else {
-      const architectSession = await this.sessions.createSessionWithInstructions(ARCHITECT_INSTRUCTIONS, model);
+      const architectSession = await this.sessions.createSessionWithInstructions(
+        ARCHITECT_INSTRUCTIONS,
+        model,
+        "architect",
+      );
       try {
         if (existingAnalysis) {
           analysis = await this.sessions.send(
@@ -270,6 +274,7 @@ export class AnalysisEngine {
         `Senior engineer is reviewing (${model})…`,
         model,
         `${reviewProgressKey}/reviewer-${i}`,
+        "sr-engineer",
       );
 
       if (responseContains(feedback, APPROVAL_KEYWORD)) {
@@ -287,6 +292,7 @@ export class AnalysisEngine {
         `Architect is revising analysis (${model})…`,
         model,
         `${reviewProgressKey}/revision-${i}`,
+        "architect",
       );
 
       analysis = revision;
