@@ -185,6 +185,25 @@ Auto mode combines analysis, planning and running into a single autonomous pipel
 
 This is useful for well-defined tasks where interactive clarification is not needed, CI/CD pipelines, or batch processing. The analysis and plan files are still saved to `.swarm/` for reference.
 
+### Task Mode
+
+Use `swarm task` for a lightweight autonomous mode — faster than `auto`, skips the full planning pipeline:
+
+```bash
+swarm task "Fix the login validation bug"
+swarm task -f task-description.md
+```
+
+Task mode runs a streamlined pipeline:
+
+1. **Pre-analysis** — Checks if the task requires any research or study (URLs to read, libraries to investigate). If found, runs them in parallel and merges results as context.
+2. **PM review** — A PM agent reviews and refines the task into a clear specification, auto-answering any open questions with best judgment.
+3. **Decomposition** — Determines how many engineering streams are needed.
+4. **Implementation** — Parallel engineering streams implement their tasks, each with QA loops (if something breaks, it goes back to the engineer).
+5. **Verification** — Runs build/test/lint commands to verify the implementation.
+
+Task mode is ideal for well-scoped tasks that don't need the full planning ceremony (engineer/designer clarification, plan reviews, cross-model plan review). Use `auto` for larger, more complex work.
+
 ### Analyze Mode
 
 Use `swarm analyze` to generate a comprehensive repository context document:

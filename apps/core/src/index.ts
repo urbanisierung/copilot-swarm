@@ -250,6 +250,60 @@ if (config.command === "plan" || config.command === "auto") {
       const heading = config.command === "auto" ? msg.summaryAutoComplete(elapsed) : msg.summaryPlanComplete(elapsed);
       printSummary(heading, outDir, tracker);
     });
+} else if (config.command === "task") {
+  const pipeline = (await import("./pipeline-config.js")).loadPipelineConfig(config.repoRoot);
+  const { TaskEngine } = await import("./task-engine.js");
+  let tracker: ProgressTracker | undefined;
+  let renderer: TuiRenderer | undefined;
+  if (config.tui) {
+    tracker = new ProgressTracker();
+    tracker.runId = config.runId;
+    tracker.primaryModel = pipeline.primaryModel;
+    tracker.reviewModel = pipeline.reviewModel;
+    tracker.version = readVersion();
+    tracker.cwd = config.repoRoot;
+    renderer = new TuiRenderer(tracker);
+    logger.setTracker(tracker);
+  }
+  const startMs = Date.now();
+  const taskEngine = new TaskEngine(config, pipeline, logger, tracker);
+  activeShutdown = async () => {
+    renderer?.stop();
+    await taskEngine.stop();
+  };
+  renderer?.start();
+  taskEngine
+    .start()
+    .then(() => taskEngine.execute())
+    .then(async (spec) => {
+      await taskEngine.stop();
+
+      // Phase 2: run pipeline with the refined spec
+      logger.info(msg.summaryAutoPhaseSwitch);
+      if (tracker) {
+        tracker.phases = [];
+        tracker.streams = [];
+        tracker.activeAgent = null;
+      }
+
+      const runConfig = { ...config, command: "run" as const, issueBody: spec, planProvided: true };
+      const swarm = new SwarmOrchestrator(runConfig, logger);
+      activeShutdown = async () => {
+        renderer?.stop();
+        await swarm.stop();
+      };
+      await swarm.start();
+      await swarm.execute();
+      await swarm.stop();
+    })
+    .catch(showLogOnError)
+    .finally(() => {
+      renderer?.stop();
+      if (tracker) logger.setTracker(null);
+      taskEngine.stop();
+      const elapsed = fmtElapsed(tracker?.elapsedMs ?? Date.now() - startMs);
+      printSummary(msg.summaryTaskComplete(elapsed), "", tracker);
+    });
 } else if (config.command === "analyze") {
   const pipeline = (await import("./pipeline-config.js")).loadPipelineConfig(config.repoRoot);
   const { AnalysisEngine } = await import("./analysis-engine.js");

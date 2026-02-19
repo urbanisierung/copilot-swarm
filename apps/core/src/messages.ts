@@ -146,6 +146,7 @@ export const msg = {
   summaryPlanComplete: (elapsed: string) => `✅ Planning completed in ${elapsed}`,
   summaryAutoPhaseSwitch: "🔄 Planning complete — starting implementation...",
   summaryAutoComplete: (elapsed: string) => `✅ Auto mode completed in ${elapsed}`,
+  summaryTaskComplete: (elapsed: string) => `✅ Task completed in ${elapsed}`,
   summaryAnalyzeComplete: (elapsed: string) => `✅ Analysis completed in ${elapsed}`,
   summaryPhases: (done: number, total: number, skipped: number) => {
     const parts = [`${done}/${total} phases completed`];
