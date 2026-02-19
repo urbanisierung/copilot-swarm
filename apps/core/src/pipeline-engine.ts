@@ -316,7 +316,7 @@ export class PipelineEngine {
       `{"id": 2, "task": "Task description", "dependsOn": [1]}]\n` +
       `If a task depends on another, list the IDs it depends on. Tasks with no dependencies use an empty array.\n` +
       `Spec:\n${ctx.spec}`;
-    const raw = await this.sessions.callIsolated(phase.agent, prompt, undefined, "decompose");
+    const raw = await this.sessions.callIsolated(phase.agent, prompt, this.pipeline.fastModel, "decompose");
     const decomposed = parseDecomposedTasks(raw);
     const tasks = decomposed.map((t) => t.task);
     const taskDeps = decomposed.map((t) => [...t.dependsOn]);

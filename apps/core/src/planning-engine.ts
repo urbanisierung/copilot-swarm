@@ -607,7 +607,7 @@ export class PlanningEngine {
       const raw = await this.sessions.callIsolated(
         "pm",
         `${PREREQ_ANALYZER_PROMPT}\n\nUser request:\n${issueBody}`,
-        undefined,
+        this.pipeline.fastModel,
         "prereq-analyze",
       );
       const jsonStr = raw.replace(/^[^[]*/, "").replace(/[^\]]*$/, "");

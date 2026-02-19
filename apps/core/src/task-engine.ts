@@ -44,6 +44,7 @@ Your goal is to produce a clear, actionable specification from the user's reques
  */
 export class TaskEngine {
   private readonly sessions: SessionManager;
+  private readonly pipeline: PipelineConfig;
 
   constructor(
     private readonly config: SwarmConfig,
@@ -51,6 +52,7 @@ export class TaskEngine {
     private readonly logger: Logger,
     private readonly tracker?: ProgressTracker,
   ) {
+    this.pipeline = pipeline;
     this.sessions = new SessionManager(config, pipeline, logger);
     if (tracker) this.sessions.setTracker(tracker);
   }
@@ -113,7 +115,7 @@ export class TaskEngine {
       const raw = await this.sessions.callIsolated(
         "pm",
         `${PREREQ_ANALYZER_PROMPT}\n\nUser request:\n${issueBody}`,
-        undefined,
+        this.pipeline.fastModel,
         "prereq-analyze",
       );
       const jsonStr = raw.replace(/^[^[]*/, "").replace(/[^\]]*$/, "");
@@ -145,7 +147,7 @@ export class TaskEngine {
   private async pmClarify(prompt: string): Promise<string> {
     this.logger.info("📋 PM is reviewing the task...");
 
-    const session = await this.sessions.createSessionWithInstructions(PM_INSTRUCTIONS);
+    const session = await this.sessions.createSessionWithInstructions(PM_INSTRUCTIONS, this.pipeline.fastModel);
     try {
       const response = await this.sessions.send(
         session,

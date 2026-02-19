@@ -403,6 +403,9 @@ ISSUE_BODY="Add a dark mode toggle" pnpm --filter @copilot-swarm/core start
 # Override models
 ISSUE_BODY="Fix bug" PRIMARY_MODEL=gpt-5.2 REVIEW_MODEL=claude-opus-4-6-fast pnpm --filter @copilot-swarm/core start
 
+# Use a different fast model for coordination tasks
+ISSUE_BODY="Fix bug" FAST_MODEL=gpt-5-mini pnpm --filter @copilot-swarm/core start
+
 # Skip cross-model review (set both models to the same value)
 ISSUE_BODY="Fix bug" PRIMARY_MODEL=claude-opus-4-6-fast REVIEW_MODEL=claude-opus-4-6-fast pnpm --filter @copilot-swarm/core start
 ```
@@ -548,8 +551,9 @@ These override the values in `swarm.config.yaml`:
 
 | Variable | Default (from YAML) | Description |
 |---|---|---|
-| `PRIMARY_MODEL` | `claude-opus-4-6-fast` | The AI model used for all primary agent sessions. |
+| `PRIMARY_MODEL` | `claude-opus-4-6-fast` | The AI model used for all primary agent sessions (spec drafting, engineering, code review, QA, design). |
 | `REVIEW_MODEL` | `gpt-5.2-codex` | The AI model used for cross-model review sessions. |
+| `FAST_MODEL` | `claude-haiku-4.5` | Lightweight model for coordination tasks (prereq analysis, task decomposition, task-mode PM review). Faster and cheaper than the primary model. |
 
 ## Pipeline Configuration
 

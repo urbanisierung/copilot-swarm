@@ -4,6 +4,7 @@
 
 primaryModel: claude-opus-4-6-fast
 reviewModel: gpt-5.2-codex
+fastModel: claude-haiku-4.5
 
 agents:
   pm:              builtin:pm

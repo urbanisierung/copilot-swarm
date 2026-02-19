@@ -101,6 +101,8 @@ export type PhaseConfig =
 export interface PipelineConfig {
   readonly primaryModel: string;
   readonly reviewModel: string;
+  /** Lightweight model for coordination tasks (prereqs, decompose, task-mode PM). Defaults to primaryModel. */
+  readonly fastModel: string;
   readonly agents: Readonly<Record<string, AgentSource>>;
   readonly pipeline: readonly PhaseConfig[];
   /** Optional verification commands — CLI flags override these. */
