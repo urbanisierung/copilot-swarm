@@ -19,6 +19,7 @@ export class SessionManager {
   private readonly instructionCache = new Map<string, string>();
   private readonly _sessionLog: Record<string, SessionRecord> = {};
   private readonly _sessionModels = new Map<string, string>();
+  private readonly _sessionLabels = new Map<string, string>();
   private tracker?: ProgressTracker;
 
   constructor(
@@ -107,20 +108,28 @@ export class SessionManager {
 
   async createAgentSession(agentName: string, model?: string, sessionKey?: string): Promise<CopilotSession> {
     const instructions = await this.loadAgentInstructions(agentName);
-    const session = await this.createSessionWithInstructions(instructions, model);
+    const session = await this.createSessionWithInstructions(instructions, model, agentName);
     if (sessionKey) this.recordSession(sessionKey, session, agentName, agentName);
     return session;
   }
 
-  async createSessionWithInstructions(instructions: string, model?: string): Promise<CopilotSession> {
+  async createSessionWithInstructions(
+    instructions: string,
+    model?: string,
+    agentLabel?: string,
+  ): Promise<CopilotSession> {
     const resolvedModel = model ?? this.pipeline.primaryModel;
     const session = await this.client.createSession({
       model: resolvedModel,
       systemMessage: { mode: SYSTEM_MESSAGE_MODE, content: instructions },
     });
 
-    this.tracker?.addActiveModel(resolvedModel);
+    const label = agentLabel ?? "agent";
     this._sessionModels.set(session.sessionId, resolvedModel);
+    this._sessionLabels.set(session.sessionId, label);
+    if (this.tracker) {
+      this.tracker.addActiveAgent(session.sessionId, label, resolvedModel);
+    }
 
     if (this.config.verbose) {
       session.on(SessionEvent.MESSAGE_DELTA, (e) => {
@@ -148,8 +157,9 @@ export class SessionManager {
   private async destroySession(session: CopilotSession): Promise<void> {
     const model = this._sessionModels.get(session.sessionId);
     if (model) {
-      this.tracker?.removeActiveModel(model);
+      this.tracker?.removeActiveAgent(session.sessionId);
       this._sessionModels.delete(session.sessionId);
+      this._sessionLabels.delete(session.sessionId);
     }
     await session.destroy();
   }
@@ -184,11 +194,13 @@ export class SessionManager {
     spinnerLabel: string,
     model?: string,
     sessionKey?: string,
+    agentLabel?: string,
   ): Promise<string> {
     const maxAttempts = this.config.maxRetries;
+    const label = agentLabel ?? "agent";
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      const session = await this.createSessionWithInstructions(instructions, model);
+      const session = await this.createSessionWithInstructions(instructions, model, label);
       if (sessionKey) this.recordSession(sessionKey, session, "inline-agent", "inline-agent");
       try {
         const content = await this.send(session, prompt, spinnerLabel);

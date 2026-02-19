@@ -20,6 +20,11 @@ export interface LogEntry {
   level: "info" | "warn" | "error";
 }
 
+export interface ActiveAgentInfo {
+  label: string;
+  model: string;
+}
+
 const PHASE_NAMES: Record<string, string> = {
   spec: "PM Drafting",
   decompose: "Decomposition",
@@ -57,6 +62,27 @@ export class ProgressTracker {
   cwd = "";
   private readonly _activeModels = new Map<string, number>();
   private readonly _modelGrace = new Map<string, ReturnType<typeof setTimeout>>();
+  private readonly _activeAgentSessions = new Map<string, ActiveAgentInfo>();
+
+  /** Register an active agent session (shown in TUI right column). */
+  addActiveAgent(sessionId: string, label: string, model: string): void {
+    this._activeAgentSessions.set(sessionId, { label, model });
+    this.addActiveModel(model);
+  }
+
+  /** Remove an agent session (e.g. on destroy). */
+  removeActiveAgent(sessionId: string): void {
+    const info = this._activeAgentSessions.get(sessionId);
+    if (info) {
+      this._activeAgentSessions.delete(sessionId);
+      this.removeActiveModel(info.model);
+    }
+  }
+
+  /** Currently running agents with their models. */
+  get activeAgentList(): ActiveAgentInfo[] {
+    return [...this._activeAgentSessions.values()];
+  }
 
   addActiveModel(model: string): void {
     // Cancel any pending grace-period removal

@@ -89,13 +89,10 @@ export class TuiRenderer {
 
     // ── Header ──
     const elapsed = this.fmtElapsed(this.tracker.elapsedMs);
-    const active = this.tracker.activeModels;
-    const modelStr = active.length > 0 ? active.join(", ") : this.tracker.primaryModel;
-    const model = modelStr ? `\x1b[2m${modelStr}\x1b[0m` : "";
     const ver = this.tracker.version ? `\x1b[2mv${this.tracker.version}\x1b[0m` : "";
     lines.push("");
     const titleBase = "  🐝 Copilot Swarm";
-    const titleParts = [titleBase, ver, model].filter(Boolean);
+    const titleParts = [titleBase, ver].filter(Boolean);
     const titleLeft = titleParts.join("  ");
     lines.push(`${titleLeft}${this.pad(width - this.visLen(titleLeft) - elapsed.length)}${elapsed}`);
 
@@ -107,15 +104,35 @@ export class TuiRenderer {
     lines.push(sep);
     lines.push("");
 
-    // ── Phases ──
+    // ── Phases (left) + Active Agents (right) — two-column layout ──
+    const colLeft = Math.floor((width - 4) * 0.55);
+    const colRight = width - 4 - colLeft - 2; // 2 for separator
+    const phaseLines: string[] = [];
     for (const phase of this.tracker.phases) {
       const icon = phase.status === "active" ? spin : (PHASE_ICON[phase.status] ?? "○");
-      let line = `  ${icon}  ${phase.name}`;
+      let line = `${icon}  ${phase.name}`;
       if (phase.status === "active" && this.tracker.activeAgent) {
-        const agent = this.trunc(this.tracker.activeAgent, width - this.visLen(line) - 4);
+        const agent = this.trunc(this.tracker.activeAgent, colLeft - this.visLen(line) - 3);
         line += `  \x1b[2m${agent}\x1b[0m`;
       }
-      lines.push(line);
+      phaseLines.push(line);
+    }
+
+    const agents = this.tracker.activeAgentList;
+    const agentLines: string[] = [];
+    if (agents.length > 0) {
+      agentLines.push("\x1b[2mActive Agents\x1b[0m");
+      for (const a of agents) {
+        agentLines.push(`${spin}  ${a.label}  \x1b[2m${this.trunc(a.model, colRight - 6)}\x1b[0m`);
+      }
+    }
+
+    const maxRows = Math.max(phaseLines.length, agentLines.length);
+    for (let r = 0; r < maxRows; r++) {
+      const left = r < phaseLines.length ? phaseLines[r] : "";
+      const right = r < agentLines.length ? agentLines[r] : "";
+      const leftPad = colLeft - this.visLen(left);
+      lines.push(`  ${left}${this.pad(leftPad)}  ${right}`);
     }
     lines.push("");
 
