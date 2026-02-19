@@ -107,7 +107,7 @@ apps/core/
 
 ```yaml
 # Models (overridable via PRIMARY_MODEL / REVIEW_MODEL env vars)
-primaryModel: claude-opus-4-6-fast
+primaryModel: claude-opus-4-6
 reviewModel: gpt-5.2-codex
 
 # Agent definitions: name → instruction source
@@ -172,7 +172,7 @@ Instructions are cached after first load — each file is read once per run.
 
 | Parameter | Env Var | Default | Source |
 |---|---|---|---|
-| `primaryModel` | `PRIMARY_MODEL` | `claude-opus-4-6-fast` | `swarm.config.yaml` |
+| `primaryModel` | `PRIMARY_MODEL` | `claude-opus-4-6` | `swarm.config.yaml` |
 | `reviewModel` | `REVIEW_MODEL` | `gpt-5.2-codex` | `swarm.config.yaml` |
 
 Review iterations and QA iterations are now **per-step** in the pipeline YAML, not global env vars.
@@ -186,10 +186,10 @@ Review iterations and QA iterations are now **per-step** in the pipeline YAML, n
 ISSUE_BODY="Add a dark mode toggle" pnpm --filter @copilot-swarm/core start
 
 # Override models via env
-ISSUE_BODY="Fix bug" PRIMARY_MODEL=gpt-5.2 REVIEW_MODEL=claude-opus-4-6-fast pnpm --filter @copilot-swarm/core start
+ISSUE_BODY="Fix bug" PRIMARY_MODEL=gpt-5.2 REVIEW_MODEL=claude-opus-4-6 pnpm --filter @copilot-swarm/core start
 
 # Skip cross-model review
-ISSUE_BODY="Fix bug" PRIMARY_MODEL=claude-opus-4-6-fast REVIEW_MODEL=claude-opus-4-6-fast pnpm --filter @copilot-swarm/core start
+ISSUE_BODY="Fix bug" PRIMARY_MODEL=claude-opus-4-6 REVIEW_MODEL=claude-opus-4-6 pnpm --filter @copilot-swarm/core start
 ```
 
 ### Custom Pipeline

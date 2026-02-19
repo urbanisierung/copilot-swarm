@@ -49,7 +49,7 @@ describe("parsePipelineConfig", () => {
     delete (raw as Record<string, unknown>).primaryModel;
     delete (raw as Record<string, unknown>).reviewModel;
     const config = parsePipelineConfig(raw);
-    expect(config.primaryModel).toBe("claude-opus-4-6-fast");
+    expect(config.primaryModel).toBe("claude-opus-4-6");
     expect(config.reviewModel).toBe("gpt-5.2-codex");
     expect(config.fastModel).toBe("claude-haiku-4.5");
   });

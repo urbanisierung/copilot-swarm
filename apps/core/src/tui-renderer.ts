@@ -24,6 +24,7 @@ export class TuiRenderer {
   private interval: ReturnType<typeof setInterval> | null = null;
   private frame = 0;
   private cleanedUp = false;
+  private prevLines: string[] = [];
   private readonly onExit = () => this.cleanup();
 
   constructor(private readonly tracker: ProgressTracker) {}
@@ -61,6 +62,7 @@ export class TuiRenderer {
 
   /** Re-enter TUI after a pause. */
   resume(): void {
+    this.prevLines = []; // Force full redraw
     process.stdout.write("\x1b[?1049h"); // Alternate screen
     process.stdout.write("\x1b[?25l"); // Hide cursor
     this.interval = setInterval(() => {
@@ -155,13 +157,27 @@ export class TuiRenderer {
     const fPad = width - 26 - progress.length;
     lines.push(`${hint}${this.pad(Math.max(1, fPad))}${progress}`);
 
-    // ── Write frame row-by-row — clear each line, truncate to cols to prevent wrapping ──
+    // ── Write only changed lines — pad to full width instead of clearing to prevent flicker ──
     const out: string[] = [];
     const maxLines = Math.min(lines.length, rows);
+    const newPrev: string[] = [];
     for (let i = 0; i < maxLines; i++) {
-      out.push(`\x1b[${i + 1};1H\x1b[2K${this.truncCols(lines[i], cols)}`);
+      const rendered = this.truncCols(lines[i], cols);
+      newPrev.push(rendered);
+      if (rendered !== this.prevLines[i]) {
+        // Overwrite old content by padding to terminal width (no \x1b[2K)
+        const padding = Math.max(0, cols - this.visLen(rendered));
+        out.push(`\x1b[${i + 1};1H${rendered}${" ".repeat(padding)}`);
+      }
     }
-    process.stdout.write(out.join(""));
+    // Clear leftover lines from a previous longer frame
+    for (let i = maxLines; i < this.prevLines.length; i++) {
+      out.push(`\x1b[${i + 1};1H\x1b[2K`);
+    }
+    this.prevLines = newPrev;
+    if (out.length > 0) {
+      process.stdout.write(out.join(""));
+    }
   }
 
   /** Truncate to terminal column width, stripping ANSI for length calculation. */

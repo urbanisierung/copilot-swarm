@@ -227,7 +227,7 @@ export function parsePipelineConfig(raw: unknown): PipelineConfig {
   const obj = raw as Record<string, unknown>;
 
   const config: PipelineConfig = {
-    primaryModel: typeof obj.primaryModel === "string" ? obj.primaryModel : "claude-opus-4-6-fast",
+    primaryModel: typeof obj.primaryModel === "string" ? obj.primaryModel : "claude-opus-4-6",
     reviewModel: typeof obj.reviewModel === "string" ? obj.reviewModel : "gpt-5.2-codex",
     fastModel: typeof obj.fastModel === "string" ? obj.fastModel : "claude-haiku-4.5",
     agents: validateAgents(obj.agents),
