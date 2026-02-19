@@ -41,6 +41,8 @@ const PHASE_NAMES: Record<string, string> = {
 };
 
 const MAX_LOG_ENTRIES = 100;
+/** Grace period before removing a model from the active display (ms). */
+const MODEL_GRACE_MS = 2_000;
 
 export class ProgressTracker {
   phases: PhaseInfo[] = [];
@@ -54,8 +56,15 @@ export class ProgressTracker {
   version = "";
   cwd = "";
   private readonly _activeModels = new Map<string, number>();
+  private readonly _modelGrace = new Map<string, ReturnType<typeof setTimeout>>();
 
   addActiveModel(model: string): void {
+    // Cancel any pending grace-period removal
+    const timer = this._modelGrace.get(model);
+    if (timer) {
+      clearTimeout(timer);
+      this._modelGrace.delete(model);
+    }
     this._activeModels.set(model, (this._activeModels.get(model) ?? 0) + 1);
   }
 
@@ -63,13 +72,20 @@ export class ProgressTracker {
     const count = this._activeModels.get(model) ?? 0;
     if (count <= 1) {
       this._activeModels.delete(model);
+      // Keep model visible briefly to prevent header flickering between sessions
+      const timer = setTimeout(() => this._modelGrace.delete(model), MODEL_GRACE_MS);
+      timer.unref();
+      this._modelGrace.set(model, timer);
     } else {
       this._activeModels.set(model, count - 1);
     }
   }
 
   get activeModels(): string[] {
-    return [...this._activeModels.keys()];
+    const models = new Set<string>();
+    for (const m of this._activeModels.keys()) models.add(m);
+    for (const m of this._modelGrace.keys()) models.add(m);
+    return [...models];
   }
 
   initPhases(phaseConfigs: readonly { phase: string }[]): void {
