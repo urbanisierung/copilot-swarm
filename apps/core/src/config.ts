@@ -83,7 +83,7 @@ Commands:
 
 Options:
   -v, --verbose        Enable verbose streaming output
-  -e, --editor         Open an interactive text editor to enter the prompt
+  -e, --editor         Force the interactive editor (auto-opens when no prompt given)
   -p, --plan <file>    Use a plan file as input (reads the refined requirements section)
   -f, --file <file>    Read prompt from a file instead of inline text
   -r, --resume         Resume from the last checkpoint (skip completed phases)
@@ -294,7 +294,17 @@ export async function loadConfig(): Promise<SwarmConfig> {
     }
   } else {
     const raw = cli.prompt ?? process.env.ISSUE_BODY;
-    issueBody = resolveGitHubIssue(raw) ?? raw;
+    const resolved = resolveGitHubIssue(raw) ?? raw;
+    if (resolved) {
+      issueBody = resolved;
+    } else if (process.stdin.isTTY) {
+      // No prompt provided — open editor by default on interactive terminals
+      issueBody = await openTextarea();
+      if (!issueBody) {
+        console.error("Error: Editor cancelled — no prompt provided.");
+        process.exit(1);
+      }
+    }
   }
 
   if (
