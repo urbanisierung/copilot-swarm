@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.21
+
+### Patch Changes
+
+- a778fe7: Multiple flow improvements: task mode, brainstorm mode, quicker models
+
 ## 0.0.20
 
 ### Patch Changes
