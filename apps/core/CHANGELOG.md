@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.23
+
+### Patch Changes
+
+- 745f391: Improve TUI
+
 ## 0.0.22
 
 ### Patch Changes
