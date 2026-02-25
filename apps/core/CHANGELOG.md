@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.26
+
+### Patch Changes
+
+- 67e1192: Allow file system access.
+
 ## 0.0.25
 
 ### Patch Changes
