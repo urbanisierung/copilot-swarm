@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.27
+
+### Patch Changes
+
+- be1d8a7: Fix repo analysis summary.
+
 ## 0.0.26
 
 ### Patch Changes
