@@ -297,7 +297,13 @@ export async function loadConfig(): Promise<SwarmConfig> {
     const resolved = resolveGitHubIssue(raw) ?? raw;
     if (resolved) {
       issueBody = resolved;
-    } else if (process.stdin.isTTY) {
+    } else if (
+      process.stdin.isTTY &&
+      cli.command !== "analyze" &&
+      cli.command !== "session" &&
+      cli.command !== "finish" &&
+      cli.command !== "list"
+    ) {
       // No prompt provided — open editor by default on interactive terminals
       issueBody = await openTextarea();
       if (!issueBody) {
