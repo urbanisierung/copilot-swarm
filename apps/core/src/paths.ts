@@ -44,6 +44,11 @@ export function analysisFilePath(config: SwarmConfig): string {
   return path.join(analysisDir(config), "repo-analysis.md");
 }
 
+/** Chunk analysis directory: .swarm/sessions/<sid>/analysis/chunks/ */
+export function analysisChunksDir(config: SwarmConfig): string {
+  return path.join(analysisDir(config), "chunks");
+}
+
 /** Pointer to the latest run directory: .swarm/sessions/<sid>/latest */
 export function latestPointerPath(config: SwarmConfig): string {
   return path.join(sessionScopedRoot(config), "latest");
