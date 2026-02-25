@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.24
+
+### Patch Changes
+
+- f39d2fb: Analyze huge repos.
+
 ## 0.0.23
 
 ### Patch Changes
