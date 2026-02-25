@@ -41,6 +41,9 @@ const PHASE_NAMES: Record<string, string> = {
   "plan-review": "Plan Review",
   "plan-cross-review": "Cross-Model Review",
   "plan-analyze": "Technical Analysis",
+  "analyze-scout": "Scout",
+  "analyze-chunk": "Chunk Analysis",
+  "analyze-synthesis": "Synthesis",
   "analyze-architect": "Architecture Analysis",
   "analyze-review": "Peer Review",
 };

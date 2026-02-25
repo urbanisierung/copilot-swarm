@@ -221,8 +221,17 @@ The analyze mode runs a dual-model review process:
 2. **Senior engineer review (primary model)** — A senior engineer independently verifies the analysis for accuracy and completeness (up to 3 iterations).
 3. **Cross-model verification** — The same architect→senior engineer loop runs with the review model, catching model-specific blind spots (up to 3 iterations). Skipped if primary and review models are the same.
 
+**Large repository support:** For repositories with 500+ files (configurable via `ANALYZE_CHUNK_THRESHOLD`), analysis automatically switches to a chunked parallel strategy:
+
+1. **Scout (fast model)** — A cheap model scans the repository structure and README to produce a high-level overview.
+2. **Partition (deterministic)** — Directories are grouped into chunks of ~300 files each (configurable via `ANALYZE_CHUNK_MAX_FILES`), respecting natural boundaries (monorepo packages, top-level dirs). Large directories are split by their subdirectories.
+3. **Parallel chunk analysis (primary model)** — Multiple agents analyze their assigned chunks in parallel, each producing a focused markdown file saved to `.swarm/analysis/chunks/`.
+4. **Synthesis (primary model)** — One agent merges all chunk analyses into a single unified document, deduplicating and cross-referencing.
+5. **Review** — Senior engineer reviews the synthesized document (up to 3 iterations).
+
 Output:
 - `.swarm/analysis/repo-analysis.md` — The final analysis document (overwritten on each run)
+- `.swarm/analysis/chunks/` — Individual chunk analyses (only for chunked mode)
 
 ### Review Mode
 
@@ -692,6 +701,8 @@ All output is organized under the `.swarm/` directory:
         cross-model-review.md
   analysis/                       # Repository analysis output
     repo-analysis.md
+    chunks/                       # Per-chunk analyses (chunked mode only)
+      chunk-<id>.md
   brainstorms/                    # Brainstorm discussion summaries
     <runId>.md
   latest                          # Pointer to the most recent run ID

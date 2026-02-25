@@ -51,6 +51,10 @@ export interface PipelineCheckpoint {
   answeredQuestions?: Record<string, QAPair[]>;
   /** Copilot SDK session IDs used during the run, keyed by phase/stream key. */
   sessionLog?: Record<string, SessionRecord>;
+  /** Chunked analysis: per-chunk analysis results keyed by chunk ID. */
+  chunkResults?: Record<string, string>;
+  /** Chunked analysis: cached scout overview from the scout phase. */
+  scoutOverview?: string;
 }
 
 /** Resolve checkpoint path — inside the run dir for new runs, or from latest pointer on resume. */

@@ -91,6 +91,14 @@ export const msg = {
 
   // --- Analyze Mode ---
   analyzeStart: "🔍 Starting Repository Analysis...",
+  analyzeChunkedStart: (totalFiles: number, chunkCount: number) =>
+    `🔍 Large repository detected (${totalFiles} files) — splitting into ${chunkCount} chunk(s) for parallel analysis`,
+  analyzeScoutPhase: (model: string) => `\n[Analysis: Scout exploration — ${model}]`,
+  analyzePartitionResult: (chunkCount: number, totalFiles: number) =>
+    `  📦 Partitioned into ${chunkCount} chunk(s) covering ${totalFiles} files`,
+  analyzeChunkStart: (chunkId: string, label: string) => `\n[Analysis: Chunk "${label}" — ${chunkId}]`,
+  analyzeChunkComplete: (chunkId: string) => `  ✅ Chunk ${chunkId} analysis complete`,
+  analyzeSynthesisPhase: (model: string) => `\n[Analysis: Synthesis — ${model}]`,
   analyzeArchitectPhase: (model: string) => `\n[Analysis: Architect exploration — ${model}]`,
   analyzeReviewPhase: (model: string) => `\n[Analysis: Senior engineer review — ${model}]`,
   analyzeIteration: (i: number, max: number) => `  └─ Iteration ${i}/${max}`,
