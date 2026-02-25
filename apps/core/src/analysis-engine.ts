@@ -68,7 +68,8 @@ Key runtime dependencies and what they're used for (not devDependencies).
 
 3. Be precise and factual. Every claim must be based on files you actually read.
 4. Keep it concise — this document should be under 500 lines. Prioritize the most important information.
-5. Do NOT include code snippets longer than 3 lines. Reference file paths instead.`;
+5. Do NOT include code snippets longer than 3 lines. Reference file paths instead.
+6. **OUTPUT THE COMPLETE DOCUMENT IN YOUR RESPONSE.** Do NOT write it to a file. Your entire response must BE the analysis document.`;
 
 const CHUNK_ARCHITECT_INSTRUCTIONS = `You are a Senior Software Architect analyzing a specific section of a larger repository.
 You are responsible for producing a focused analysis of the directories assigned to you. Another agent will later synthesize all chunk analyses into a unified document.
@@ -103,14 +104,16 @@ Key runtime dependencies used within this chunk and what they're for.
 
 3. Be precise and factual. Every claim must be based on files you actually read.
 4. Keep it concise — under 300 lines. Prioritize the most important information.
-5. Do NOT include code snippets longer than 3 lines. Reference file paths instead.`;
+5. Do NOT include code snippets longer than 3 lines. Reference file paths instead.
+6. **OUTPUT THE COMPLETE DOCUMENT IN YOUR RESPONSE.** Do NOT write it to a file. Your entire response must BE the chunk analysis document.`;
 
 const SYNTHESIS_INSTRUCTIONS = `You are a Senior Software Architect producing a unified repository analysis from multiple chunk analyses.
 Each chunk was independently analyzed by a different agent. Your job is to merge them into a single coherent document.
 
 **Rules:**
-1. Use \`list_dir\`, \`read_file\`, and \`run_terminal\` to verify claims and fill gaps. Spot-check at least 3 claims per chunk.
-2. Produce a SINGLE Markdown document with EXACTLY these sections:
+1. You MAY use \`list_dir\`, \`read_file\`, and \`run_terminal\` to verify claims and fill gaps. Spot-check at least 3 claims per chunk.
+2. **OUTPUT THE COMPLETE DOCUMENT IN YOUR RESPONSE.** Do NOT write it to a file. Do NOT use tools to create files. Your entire response must BE the merged analysis document.
+3. Produce a SINGLE Markdown document with EXACTLY these sections:
 
 ## Overview
 One paragraph: what this project does, who it's for, and its current state.
@@ -151,7 +154,8 @@ Key runtime dependencies and what they're used for (not devDependencies).
 3. DEDUPLICATE information across chunks. Do not repeat the same dependency, pattern, or file in multiple places.
 4. CONNECT THE DOTS: explain how the chunks relate to each other, where cross-chunk dependencies exist, and how data flows between them.
 5. Be precise and factual. Keep it under 500 lines.
-6. Do NOT include code snippets longer than 3 lines. Reference file paths instead.`;
+6. Do NOT include code snippets longer than 3 lines. Reference file paths instead.
+7. **Your entire response must BE the merged analysis document.** Do NOT write it to a file using tools.`;
 
 const REVIEWER_INSTRUCTIONS = `You are a Senior Software Engineer reviewing a repository analysis document.
 Your goal is to verify the analysis is accurate, complete, and useful for an LLM that needs to understand this codebase.
