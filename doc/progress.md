@@ -6,6 +6,12 @@ All notable changes to this project are documented here, in reverse chronologica
 
 ### Added
 - **Chunked analysis for large repositories** — `swarm analyze` now automatically detects large repos (500+ files) and splits analysis into parallel chunks. A fast/cheap model scouts the repo structure, directories are deterministically partitioned into chunks (~300 files each), multiple agents analyze chunks in parallel, and a synthesis agent merges all results into a unified document. The review phase then validates the final output. Small repos continue to use the original single-agent flow unchanged. Thresholds configurable via `ANALYZE_CHUNK_THRESHOLD` and `ANALYZE_CHUNK_MAX_FILES` env vars. Chunk analyses saved to `.swarm/analysis/chunks/`. 88 tests (was 76), including 9 new tests for the partition algorithm.
+- **Auto-resume for analyze mode** — `swarm analyze` now automatically retries from the last checkpoint on failure (up to 3 times), matching the existing behavior of `swarm run` via SwarmOrchestrator.
+
+### Fixed
+- Skip editor prompt for `analyze`, `session`, `finish`, and `list` commands — these don't need user-provided prompts.
+- Auto-approve SDK permission requests so agents can access the file system during analysis.
+- Instruct agents to output analysis content in their response instead of writing to files via tools.
 
 ## 2026-02-18
 
