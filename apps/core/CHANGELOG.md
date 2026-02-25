@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.25
+
+### Patch Changes
+
+- f895dfa: Fix prompt editor.
+
 ## 0.0.24
 
 ### Patch Changes
