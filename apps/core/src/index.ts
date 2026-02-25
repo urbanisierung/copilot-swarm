@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import * as path from "node:path";
-import { loadConfig, readVersion } from "./config.js";
+import { loadConfig, readVersion, type SwarmConfig } from "./config.js";
 import { Logger } from "./logger.js";
 import { msg } from "./messages.js";
 import { SwarmOrchestrator } from "./orchestrator.js";
@@ -320,15 +320,51 @@ if (config.command === "plan" || config.command === "auto") {
     logger.setTracker(tracker);
   }
   const startMs = Date.now();
-  const analyzer = new AnalysisEngine(config, pipeline, logger, tracker);
+  let analyzer = new AnalysisEngine(config, pipeline, logger, tracker);
   activeShutdown = async () => {
     renderer?.stop();
     await analyzer.stop();
   };
   renderer?.start();
-  analyzer
-    .start()
-    .then(() => analyzer.execute())
+
+  const executeWithRetries = async () => {
+    await analyzer.start();
+    let lastError: unknown;
+    try {
+      await analyzer.execute();
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+
+    // Auto-resume loop: retry from checkpoint up to maxAutoResume times
+    const max = config.maxAutoResume;
+    for (let attempt = 1; attempt <= max; attempt++) {
+      logger.warn(`⚠️  Analysis failed: ${lastError instanceof Error ? lastError.message : String(lastError)}`);
+      logger.info(msg.autoResumeAttempt(attempt, max));
+
+      await analyzer.stop();
+      const resumeConfig: SwarmConfig = { ...config, resume: true };
+      analyzer = new AnalysisEngine(resumeConfig, pipeline, logger, tracker);
+      activeShutdown = async () => {
+        renderer?.stop();
+        await analyzer.stop();
+      };
+      await analyzer.start();
+
+      try {
+        await analyzer.execute();
+        return;
+      } catch (retryError) {
+        lastError = retryError;
+      }
+    }
+
+    logger.error(msg.autoResumeExhausted(max));
+    throw lastError;
+  };
+
+  executeWithRetries()
     .catch(showLogOnError)
     .finally(() => {
       renderer?.stop();
