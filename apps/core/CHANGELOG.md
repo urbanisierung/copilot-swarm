@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.28
+
+### Patch Changes
+
+- 342c1f9: Analyze resume
+
 ## 0.0.27
 
 ### Patch Changes
