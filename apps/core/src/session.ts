@@ -122,6 +122,7 @@ export class SessionManager {
     const session = await this.client.createSession({
       model: resolvedModel,
       systemMessage: { mode: SYSTEM_MESSAGE_MODE, content: instructions },
+      onPermissionRequest: async () => ({ kind: "approved" }),
     });
 
     const label = agentLabel ?? "agent";
