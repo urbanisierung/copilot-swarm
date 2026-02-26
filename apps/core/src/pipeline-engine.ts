@@ -22,6 +22,7 @@ import type {
 import type { ProgressTracker } from "./progress-tracker.js";
 import { SessionManager } from "./session.js";
 import {
+  estimateTokens,
   hasFrontendWork,
   isFrontendTask,
   parseDecomposedTasks,
@@ -509,9 +510,21 @@ export class PipelineEngine {
           this.tracker?.updateStream(idx, "engineering");
 
           const depContext = buildDepContext(idx);
+          // Include repo analysis but cap it to avoid blowing context
+          const maxRepoTokens = 16_000;
+          let repoContext = "";
+          if (ctx.repoAnalysis) {
+            const repoTokens = estimateTokens(ctx.repoAnalysis);
+            if (repoTokens <= maxRepoTokens) {
+              repoContext = `\n\n## Repository Context\n\n${ctx.repoAnalysis}`;
+            } else {
+              const charLimit = maxRepoTokens * 4;
+              repoContext = `\n\n## Repository Context\n\n${ctx.repoAnalysis.substring(0, charLimit)}\n\n[… truncated — see full analysis in .swarm/analysis/repo-analysis.md …]`;
+            }
+          }
           const engineeringPrompt = isFrontendTask(task)
-            ? `Spec:\n${ctx.spec}\n\nDesign:\n${ctx.designSpec}\n\nTask:\n${task}${depContext}\n\nImplement this task.`
-            : `Spec:\n${ctx.spec}\n\nTask:\n${task}${depContext}\n\nImplement this task.`;
+            ? `Spec:\n${ctx.spec}\n\nDesign:\n${ctx.designSpec}\n\nTask:\n${task}${depContext}${repoContext}\n\nImplement this task. Use \`edit_file\` to apply all code changes directly — do NOT just output code in your response.`
+            : `Spec:\n${ctx.spec}\n\nTask:\n${task}${depContext}${repoContext}\n\nImplement this task. Use \`edit_file\` to apply all code changes directly — do NOT just output code in your response.`;
           code = await this.sessions.send(session, engineeringPrompt, `${phase.agent} (${label}) is implementing…`);
           sessionPrimed = true;
 
