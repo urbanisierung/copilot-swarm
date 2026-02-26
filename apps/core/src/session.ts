@@ -113,6 +113,33 @@ export class SessionManager {
     return session;
   }
 
+  /** Files modified by a session via edit_file tool calls, keyed by sessionId. */
+  private readonly _editedFiles = new Map<string, Set<string>>();
+
+  /**
+   * Start tracking files modified via `edit_file` tool calls for the given session.
+   * Returns the live Set that accumulates file paths as the agent works.
+   */
+  trackEditedFiles(session: CopilotSession): Set<string> {
+    const files = new Set<string>();
+    this._editedFiles.set(session.sessionId, files);
+    session.on(SessionEvent.TOOL_EXECUTION_START, (e) => {
+      if (e.data.toolName === "edit_file" && e.data.arguments) {
+        const args = e.data.arguments as Record<string, unknown>;
+        const filePath = (args.path ?? args.file ?? args.filePath) as string | undefined;
+        if (typeof filePath === "string") {
+          files.add(filePath);
+        }
+      }
+    });
+    return files;
+  }
+
+  /** Get the set of files edited by a session, if tracking was enabled. */
+  getEditedFiles(session: CopilotSession): ReadonlySet<string> {
+    return this._editedFiles.get(session.sessionId) ?? new Set();
+  }
+
   async createSessionWithInstructions(
     instructions: string,
     model?: string,
@@ -162,6 +189,7 @@ export class SessionManager {
       this._sessionModels.delete(session.sessionId);
       this._sessionLabels.delete(session.sessionId);
     }
+    this._editedFiles.delete(session.sessionId);
     await session.destroy();
   }
 
