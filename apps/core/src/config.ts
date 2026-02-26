@@ -299,6 +299,7 @@ export async function loadConfig(): Promise<SwarmConfig> {
       issueBody = resolved;
     } else if (
       process.stdin.isTTY &&
+      !cli.resume &&
       cli.command !== "analyze" &&
       cli.command !== "session" &&
       cli.command !== "finish" &&
