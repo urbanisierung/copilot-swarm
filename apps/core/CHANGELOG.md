@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.32
+
+### Patch Changes
+
+- db8c5b9: Fix plan resume.
+
 ## 0.0.31
 
 ### Patch Changes
