@@ -120,7 +120,7 @@ jobs:
           ISSUE_BODY: ${{ github.event.issue.body }}
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
           VERBOSE: ${{ github.event.label.name == 'run-swarm-verbose' && 'true' || 'false' }}
-          REVIEW_MODEL: ${{ vars.REVIEW_MODEL || 'gpt-5.2-codex' }}
+          REVIEW_MODEL: ${{ vars.REVIEW_MODEL || 'gpt-5.3-codex' }}
         run: |
           pnpm install --frozen-lockfile
           pnpm --filter @copilot-swarm/core start

@@ -131,7 +131,7 @@ Drop a `swarm.config.yaml` in your repo root to customize the pipeline. If not p
 
 ```yaml
 primaryModel: claude-opus-4-6
-reviewModel: gpt-5.2-codex
+reviewModel: gpt-5.3-codex
 
 agents:
   pm:            builtin:pm
@@ -196,7 +196,7 @@ pipeline:
 | `MAX_AUTO_RESUME` | `3` | Auto-resume attempts on failure |
 | `MAX_RETRIES` | `2` | Retry attempts for failed agent responses |
 | `PRIMARY_MODEL` | `claude-opus-4-6` | AI model for primary agents (overrides YAML) |
-| `REVIEW_MODEL` | `gpt-5.2-codex` | AI model for cross-model review (overrides YAML) |
+| `REVIEW_MODEL` | `gpt-5.3-codex` | AI model for cross-model review (overrides YAML) |
 
 ## GitHub Actions
 

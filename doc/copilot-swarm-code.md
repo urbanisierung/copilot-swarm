@@ -108,7 +108,7 @@ apps/core/
 ```yaml
 # Models (overridable via PRIMARY_MODEL / REVIEW_MODEL env vars)
 primaryModel: claude-opus-4-6
-reviewModel: gpt-5.2-codex
+reviewModel: gpt-5.3-codex
 
 # Agent definitions: name → instruction source
 agents:
@@ -173,7 +173,7 @@ Instructions are cached after first load — each file is read once per run.
 | Parameter | Env Var | Default | Source |
 |---|---|---|---|
 | `primaryModel` | `PRIMARY_MODEL` | `claude-opus-4-6` | `swarm.config.yaml` |
-| `reviewModel` | `REVIEW_MODEL` | `gpt-5.2-codex` | `swarm.config.yaml` |
+| `reviewModel` | `REVIEW_MODEL` | `gpt-5.3-codex` | `swarm.config.yaml` |
 
 Review iterations and QA iterations are now **per-step** in the pipeline YAML, not global env vars.
 
