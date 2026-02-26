@@ -7,6 +7,9 @@ All notable changes to this project are documented here, in reverse chronologica
 ### Fixed
 - **Analyze mode `--resume` now works across invocations** — Previously, `swarm analyze --resume` always re-ran all phases (scout, chunk agents, synthesis, review) from scratch because the checkpoint could not be found. Root cause: analyze mode never wrote a `latest` pointer file, and each invocation generated a new `runId`. Fixed by introducing mode-specific latest pointers (`latest-analyze`, `latest-plan`) so each mode's resume resolves to its own most recent checkpoint without interfering with other modes.
 
+### Added
+- **Token-aware hierarchical synthesis** — Analysis of very large repos no longer fails with "prompt token count exceeds limit" errors. When combined chunk analyses exceed the model's context window, synthesis uses a hierarchical map-reduce strategy: chunks are batched into groups that fit within the token budget, merged in parallel, and the partial results are recursively merged until a single document remains. Small repos continue to use single-pass synthesis unchanged. Configurable via `MODEL_CONTEXT_LIMIT` env var (default: 128000). Token guards also protect the review/revision phases from overflow. 98 tests (was 91).
+
 ## 2026-02-25
 
 ### Added
