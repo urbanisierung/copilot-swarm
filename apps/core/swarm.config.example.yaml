@@ -9,7 +9,7 @@
 #   - No design phase (backend-only project)
 
 primaryModel: claude-opus-4-6
-reviewModel: gpt-5.2-codex
+reviewModel: gpt-5.3-codex
 
 agents:
   pm:              builtin:pm

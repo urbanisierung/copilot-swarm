@@ -584,7 +584,7 @@ These override the values in `swarm.config.yaml`:
 | Variable | Default (from YAML) | Description |
 |---|---|---|
 | `PRIMARY_MODEL` | `claude-opus-4-6` | The AI model used for all primary agent sessions (spec drafting, engineering, code review, QA, design). |
-| `REVIEW_MODEL` | `gpt-5.2-codex` | The AI model used for cross-model review sessions. |
+| `REVIEW_MODEL` | `gpt-5.3-codex` | The AI model used for cross-model review sessions. |
 | `FAST_MODEL` | `claude-haiku-4.5` | Lightweight model for coordination tasks (prereq analysis, task decomposition, task-mode PM review). Faster and cheaper than the primary model. |
 
 ## Pipeline Configuration
