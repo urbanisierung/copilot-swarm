@@ -360,4 +360,37 @@ describe("checkpoint round-trip", () => {
     expect(loadedAnalyze?.runId).toBe("analyze-1");
     expect(loadedAnalyze?.mode).toBe("analyze");
   });
+
+  it("falls back to scanning runs when no mode-specific pointer exists (legacy checkpoints)", async () => {
+    const config = makeConfig("legacy-scan");
+    cleanupDirs.push(config.repoRoot);
+
+    // Manually write an analyze checkpoint WITHOUT a latest-analyze pointer
+    // (simulates checkpoints created before mode-specific pointers were added)
+    const runsDir = path.join(config.repoRoot, ".swarm", "runs", "old-analyze-run");
+    await fs.mkdir(runsDir, { recursive: true });
+    await fs.writeFile(
+      path.join(runsDir, "checkpoint.json"),
+      JSON.stringify({
+        mode: "analyze",
+        completedPhases: ["analyze-scout-0"],
+        spec: "",
+        tasks: [],
+        designSpec: "",
+        streamResults: [],
+        analysis: "legacy analysis",
+        issueBody: "",
+        runId: "old-analyze-run",
+      }),
+    );
+
+    // Resume should find it via fallback scan
+    const resumeConfig: SwarmConfig = { ...config, runId: "new-run", resume: true };
+    (resumeConfig as { command: string }).command = "analyze";
+    const loaded = await loadCheckpoint(resumeConfig);
+    expect(loaded).not.toBeNull();
+    expect(loaded?.mode).toBe("analyze");
+    expect(loaded?.analysis).toBe("legacy analysis");
+    expect(loaded?.completedPhases).toContain("analyze-scout-0");
+  });
 });
