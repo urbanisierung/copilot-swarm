@@ -53,3 +53,11 @@ export function analysisChunksDir(config: SwarmConfig): string {
 export function latestPointerPath(config: SwarmConfig): string {
   return path.join(sessionScopedRoot(config), "latest");
 }
+
+/** Mode-specific latest pointer: .swarm/sessions/<sid>/latest-<mode> (analyze, plan) or .swarm/sessions/<sid>/latest (run, review). */
+export function modeLatestPointerPath(config: SwarmConfig, mode: string): string {
+  if (mode === "analyze" || mode === "plan") {
+    return path.join(sessionScopedRoot(config), `latest-${mode}`);
+  }
+  return latestPointerPath(config);
+}

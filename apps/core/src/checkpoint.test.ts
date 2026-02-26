@@ -242,11 +242,6 @@ describe("checkpoint round-trip", () => {
 
     await saveCheckpoint(config, checkpoint);
 
-    // Also write the latest pointer so loadPreviousRun can find it
-    const root = path.join(config.repoRoot, ".swarm");
-    await fs.mkdir(root, { recursive: true });
-    await fs.writeFile(path.join(root, "latest"), "test-review-source");
-
     const prevRun = await loadPreviousRun(config);
     expect(prevRun).not.toBeNull();
     expect(prevRun?.runId).toBe("test-review-source");
@@ -277,5 +272,92 @@ describe("checkpoint round-trip", () => {
     expect(prevRun).not.toBeNull();
     expect(prevRun?.runId).toBe("test-explicit-run");
     expect(prevRun?.spec).toBe("Explicit spec");
+  });
+
+  it("resumes analyze-mode checkpoint across invocations via latest-analyze pointer", async () => {
+    // Simulate first invocation: save an analyze checkpoint
+    const config1 = makeConfig("analyze-run-1");
+    (config1 as { command: string }).command = "analyze";
+    cleanupDirs.push(config1.repoRoot);
+
+    const checkpoint: PipelineCheckpoint = {
+      mode: "analyze",
+      completedPhases: ["analyze-scout-0", "analyze-chunk-chunk1"],
+      spec: "",
+      tasks: [],
+      designSpec: "",
+      streamResults: [],
+      analysis: "partial analysis",
+      issueBody: "",
+      runId: "analyze-run-1",
+      chunkResults: { chunk1: "chunk 1 result" },
+      scoutOverview: "scout overview",
+    };
+
+    await saveCheckpoint(config1, checkpoint);
+
+    // Simulate second invocation with --resume and a NEW runId
+    const config2: SwarmConfig = {
+      ...config1,
+      runId: "analyze-run-2",
+      resume: true,
+    };
+
+    const loaded = await loadCheckpoint(config2);
+    expect(loaded).not.toBeNull();
+    expect(loaded?.mode).toBe("analyze");
+    expect(loaded?.completedPhases).toContain("analyze-scout-0");
+    expect(loaded?.completedPhases).toContain("analyze-chunk-chunk1");
+    expect(loaded?.chunkResults?.chunk1).toBe("chunk 1 result");
+    expect(loaded?.scoutOverview).toBe("scout overview");
+    expect(loaded?.analysis).toBe("partial analysis");
+  });
+
+  it("analyze latest pointer does not interfere with run latest pointer", async () => {
+    const config = makeConfig("isolation-test");
+    cleanupDirs.push(config.repoRoot);
+
+    // Save a run checkpoint
+    const runConfig: SwarmConfig = { ...config, runId: "run-1" };
+    (runConfig as { command: string }).command = "run";
+    await saveCheckpoint(runConfig, {
+      mode: "run",
+      completedPhases: ["spec-0"],
+      spec: "run spec",
+      tasks: [],
+      designSpec: "",
+      streamResults: [],
+      issueBody: "run",
+      runId: "run-1",
+    });
+
+    // Save an analyze checkpoint
+    const analyzeConfig: SwarmConfig = { ...config, runId: "analyze-1" };
+    (analyzeConfig as { command: string }).command = "analyze";
+    await saveCheckpoint(analyzeConfig, {
+      mode: "analyze",
+      completedPhases: ["analyze-scout-0"],
+      spec: "",
+      tasks: [],
+      designSpec: "",
+      streamResults: [],
+      issueBody: "",
+      runId: "analyze-1",
+      analysis: "analysis content",
+    });
+
+    // Resume run — should find run-1, not analyze-1
+    const resumeRun: SwarmConfig = { ...config, runId: "run-2", resume: true };
+    (resumeRun as { command: string }).command = "run";
+    const loadedRun = await loadCheckpoint(resumeRun);
+    expect(loadedRun?.runId).toBe("run-1");
+    expect(loadedRun?.mode).toBe("run");
+
+    // Resume analyze — should find analyze-1, not run-1
+    const resumeAnalyze: SwarmConfig = { ...config, runId: "analyze-2", resume: true };
+    (resumeAnalyze as { command: string }).command = "analyze";
+    const loadedAnalyze = await loadCheckpoint(resumeAnalyze);
+    expect(loadedAnalyze?.runId).toBe("analyze-1");
+    expect(loadedAnalyze?.mode).toBe("analyze");
   });
 });
