@@ -472,15 +472,22 @@ export class PipelineEngine {
     const results: string[] =
       ctx.streamResults.length === ctx.tasks.length ? [...ctx.streamResults] : new Array(ctx.tasks.length).fill("");
 
-    // Build dependency context for a task from its completed dependencies
+    // Build dependency context for a task from its completed dependencies.
+    // Each dependency summary is capped to keep the prompt compact.
+    const MAX_DEP_CHARS = 2000;
     const buildDepContext = (idx: number): string => {
       if (!ctx.taskDeps.length || !ctx.taskDeps[idx]?.length) return "";
-      // Map dependency IDs (1-based) to task indices (0-based)
       const depIndices = ctx.taskDeps[idx]
         .map((depId) => depId - 1)
         .filter((di) => di >= 0 && di < results.length && results[di]);
       if (depIndices.length === 0) return "";
-      const sections = depIndices.map((di) => `### ${ctx.tasks[di]}\n\n${results[di]}`);
+      const sections = depIndices.map((di) => {
+        const summary =
+          results[di].length > MAX_DEP_CHARS
+            ? `${results[di].substring(0, MAX_DEP_CHARS)}\n\n[… truncated — use \`read_file\` to inspect the full implementation …]`
+            : results[di];
+        return `### ${ctx.tasks[di]}\n\n${summary}`;
+      });
       return `\n\n## Prior Implementation (dependencies)\n\n${sections.join("\n\n---\n\n")}`;
     };
 
@@ -576,7 +583,7 @@ export class PipelineEngine {
                 : "";
             const feedback = await this.sessions.callIsolated(
               review.agent,
-              `Spec:\n${ctx.spec}\n\nEngineer summary:\n${code}${fileList}\n\n` +
+              `Task:\n${task}\n\nEngineer summary:\n${code}${fileList}\n\n` +
                 `Review the actual code changes. Use \`read_file\` to inspect each modified file listed above.`,
               undefined,
               `implement/${streamKey}/review-${ri}-${i}`,
@@ -619,8 +626,8 @@ export class PipelineEngine {
               editedFiles.size > 0 ? `\n\nFiles modified:\n${[...editedFiles].map((f) => `- ${f}`).join("\n")}` : "";
             const testReport = await this.sessions.callIsolated(
               phase.qa.agent,
-              `Spec:\n${ctx.spec}\n\nEngineer summary:\n${code}${qaFileList}\n\n` +
-                `Validate the implementation against the spec. Use \`read_file\` to inspect the modified files and \`run_terminal\` to run tests.`,
+              `Task:\n${task}\n\nEngineer summary:\n${code}${qaFileList}\n\n` +
+                `Validate the implementation against the task requirements. Use \`read_file\` to inspect the modified files and \`run_terminal\` to run tests.`,
               undefined,
               `implement/${streamKey}/qa-${i}`,
             );
@@ -757,7 +764,7 @@ export class PipelineEngine {
           this.logger.info(msg.crossModelIteration(i, maxIter, this.pipeline.reviewModel));
           const feedback = await this.sessions.callIsolated(
             phase.agent,
-            `Spec:\n${ctx.spec}\n\n` +
+            `Task:\n${ctx.tasks[idx]}\n\n` +
               `Review this implementation for bugs, security issues, and spec compliance. ` +
               `You are using a different model than the one that wrote this code — focus on catching real problems, ` +
               `not style preferences.\n\n` +
@@ -773,13 +780,12 @@ export class PipelineEngine {
           this.logger.info(msg.crossModelIssues);
           current = await this.sessions.callIsolated(
             phase.fixAgent,
-            `You are fixing specific issues found during a cross-model code review. ` +
+            `Fix specific issues from a cross-model code review. ` +
               `Do NOT rewrite or restructure the code. Only fix the exact issues listed below.\n\n` +
-              `Spec:\n${ctx.spec}\n\n` +
-              `Cross-model review feedback:\n${feedback}\n\n` +
-              `Current implementation:\n${current}\n\n` +
-              `Fix ONLY the issues listed in the review feedback above. ` +
-              `Keep everything that works correctly — do not refactor, rename, or reorganize anything beyond what is needed to address the reported issues.`,
+              `Task:\n${ctx.tasks[idx]}\n\n` +
+              `Cross-model review feedback:\n${feedback}${cmFileList}\n\n` +
+              `Use \`edit_file\` to apply fixes directly to the files listed above. ` +
+              `Fix ONLY the issues in the review feedback. Do not refactor or reorganize.`,
             undefined,
             `cross-model/stream-${idx}/fix-${i}`,
           );

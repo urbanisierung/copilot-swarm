@@ -10,6 +10,10 @@ All notable changes to this project are documented here, in reverse chronologica
 - **Agents no longer run git commands** — All agents with `run_terminal` access now explicitly prohibited from running `git add`, `git commit`, `git push`, or any other git commands that modify version control state. Users manage commits.
 - **Faster, targeted code reviews** — Review and QA agents now receive an explicit list of files modified by the engineer (tracked via SDK `edit_file` tool events) instead of just the engineer's prose summary. Reviewers are instructed to `read_file` on those specific files, eliminating slow exploratory scanning of the entire repo. Cross-model review uses `git diff --name-only` + untracked files for a comprehensive file list.
 
+### Improved
+- **Structured engineer output** — Engineer agent now produces a structured summary (file list with descriptions, verification status, brief notes) instead of free-form prose. Downstream agents parse this more efficiently, reducing token usage and review latency.
+- **Leaner agent handoffs** — Review, QA, and cross-model review prompts now receive the specific task description instead of the full PM spec, dramatically reducing prompt size for multi-task runs. Dependency context between streams is capped at 2K chars per dependency with a pointer to use `read_file` for full details. Cross-model fix agent now gets explicit `edit_file` instructions and file list instead of full spec + prose dump.
+
 ### Added
 - **Token-aware hierarchical synthesis** — Analysis of very large repos no longer fails with "prompt token count exceeds limit" errors. When combined chunk analyses exceed the model's context window, synthesis uses a hierarchical map-reduce strategy: chunks are batched into groups that fit within the token budget, merged in parallel, and the partial results are recursively merged until a single document remains. Small repos continue to use single-pass synthesis unchanged. Configurable via `MODEL_CONTEXT_LIMIT` env var (default: 128000). Token guards also protect the review/revision phases from overflow. 98 tests (was 91).
 
