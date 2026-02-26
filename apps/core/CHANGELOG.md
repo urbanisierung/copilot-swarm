@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.30
+
+### Patch Changes
+
+- bdc9e7f: Fix problem with token count exceeding.
+
 ## 0.0.29
 
 ### Patch Changes
