@@ -497,6 +497,7 @@ export class PipelineEngine {
       this.logger.info(msg.streamStart(label, task));
 
       const session = await this.sessions.createAgentSession(phase.agent, undefined, `implement/${streamKey}`);
+      const editedFiles = this.sessions.trackEditedFiles(session);
       let sessionPrimed = false;
 
       try {
@@ -569,9 +570,14 @@ export class PipelineEngine {
           const maxIter = review.maxIterations;
           for (let i = startIter; i <= maxIter; i++) {
             this.logger.info(msg.reviewIteration(i, maxIter));
+            const fileList =
+              editedFiles.size > 0
+                ? `\n\nFiles modified by the engineer:\n${[...editedFiles].map((f) => `- ${f}`).join("\n")}`
+                : "";
             const feedback = await this.sessions.callIsolated(
               review.agent,
-              `Review this implementation:\n${code}`,
+              `Spec:\n${ctx.spec}\n\nEngineer summary:\n${code}${fileList}\n\n` +
+                `Review the actual code changes. Use \`read_file\` to inspect each modified file listed above.`,
               undefined,
               `implement/${streamKey}/review-${ri}-${i}`,
             );
@@ -609,9 +615,12 @@ export class PipelineEngine {
           const maxQa = phase.qa.maxIterations;
           for (let i = startQa; i <= maxQa; i++) {
             this.logger.info(msg.qaIteration(i, maxQa));
+            const qaFileList =
+              editedFiles.size > 0 ? `\n\nFiles modified:\n${[...editedFiles].map((f) => `- ${f}`).join("\n")}` : "";
             const testReport = await this.sessions.callIsolated(
               phase.qa.agent,
-              `Spec:\n${ctx.spec}\n\nImplementation:\n${code}\n\nValidate the implementation against the spec.`,
+              `Spec:\n${ctx.spec}\n\nEngineer summary:\n${code}${qaFileList}\n\n` +
+                `Validate the implementation against the spec. Use \`read_file\` to inspect the modified files and \`run_terminal\` to run tests.`,
               undefined,
               `implement/${streamKey}/qa-${i}`,
             );
@@ -714,6 +723,21 @@ export class PipelineEngine {
     this.logger.info(msg.crossModelStart(this.pipeline.reviewModel));
     const maxIter = phase.maxIterations;
 
+    // Capture changed files for targeted review
+    let changedFiles: string[] = [];
+    try {
+      const modified = execSync("git diff --name-only", { cwd: this.config.repoRoot, encoding: "utf-8" }).trim();
+      const untracked = execSync("git ls-files --others --exclude-standard", {
+        cwd: this.config.repoRoot,
+        encoding: "utf-8",
+      }).trim();
+      changedFiles = [...new Set([...modified.split("\n"), ...untracked.split("\n")].filter(Boolean))];
+    } catch {
+      // git not available or not a repo — fall back to no file list
+    }
+    const cmFileList =
+      changedFiles.length > 0 ? `\n\nFiles changed in this run:\n${changedFiles.map((f) => `- ${f}`).join("\n")}` : "";
+
     const reviewed = await Promise.all(
       ctx.streamResults.map(async (code, idx) => {
         const label = msg.streamLabel(idx);
@@ -737,7 +761,8 @@ export class PipelineEngine {
               `Review this implementation for bugs, security issues, and spec compliance. ` +
               `You are using a different model than the one that wrote this code — focus on catching real problems, ` +
               `not style preferences.\n\n` +
-              `Implementation:\n${current}`,
+              `Engineer summary:\n${current}${cmFileList}\n\n` +
+              `Use \`read_file\` to inspect the actual code in the modified files listed above.`,
             this.pipeline.reviewModel,
             `cross-model/stream-${idx}/review-${i}`,
           );
