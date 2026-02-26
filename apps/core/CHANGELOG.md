@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.33
+
+### Patch Changes
+
+- f86cf9e: Performance improvements.
+
 ## 0.0.32
 
 ### Patch Changes
