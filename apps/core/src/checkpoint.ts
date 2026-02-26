@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { SwarmConfig } from "./config.js";
-import { latestPointerPath, runDir, sessionScopedRoot } from "./paths.js";
+import { latestPointerPath, modeLatestPointerPath, runDir, sessionScopedRoot } from "./paths.js";
 
 /** Snapshot of a single review/QA iteration's progress. */
 export interface IterationSnapshot {
@@ -60,7 +60,7 @@ export interface PipelineCheckpoint {
 /** Resolve checkpoint path — inside the run dir for new runs, or from latest pointer on resume. */
 async function checkpointPath(config: SwarmConfig): Promise<string> {
   if (config.resume) {
-    const latestRunId = await resolveLatestRunId(config);
+    const latestRunId = await resolveLatestRunId(config, config.command);
     if (latestRunId) {
       return path.join(sessionScopedRoot(config), "runs", latestRunId, "checkpoint.json");
     }
@@ -68,12 +68,49 @@ async function checkpointPath(config: SwarmConfig): Promise<string> {
   return path.join(runDir(config), "checkpoint.json");
 }
 
-async function resolveLatestRunId(config: SwarmConfig): Promise<string | null> {
+async function resolveLatestRunId(config: SwarmConfig, mode?: string): Promise<string | null> {
+  // Try mode-specific pointer first
+  const pointerPath = mode ? modeLatestPointerPath(config, mode) : latestPointerPath(config);
   try {
-    return (await fs.readFile(latestPointerPath(config), "utf-8")).trim();
+    return (await fs.readFile(pointerPath, "utf-8")).trim();
+  } catch {
+    // No pointer file — fall through
+  }
+
+  // Fallback: scan runs directory for the most recent checkpoint matching this mode.
+  // This handles pre-existing checkpoints saved before mode-specific pointers existed.
+  if (mode) {
+    return scanForLatestCheckpoint(config, mode);
+  }
+  return null;
+}
+
+/** Scan all run directories for the most recent checkpoint matching the given mode. */
+async function scanForLatestCheckpoint(config: SwarmConfig, mode: string): Promise<string | null> {
+  const runsRoot = path.join(sessionScopedRoot(config), "runs");
+  let entries: string[];
+  try {
+    entries = await fs.readdir(runsRoot);
   } catch {
     return null;
   }
+
+  // Run IDs are ISO timestamps (sorted lexicographically = chronologically). Scan newest first.
+  entries.sort().reverse();
+
+  for (const entry of entries) {
+    const cpPath = path.join(runsRoot, entry, "checkpoint.json");
+    try {
+      const content = await fs.readFile(cpPath, "utf-8");
+      const cp = JSON.parse(content) as { mode?: string };
+      if ((cp.mode ?? "run") === mode) {
+        return entry;
+      }
+    } catch {
+      // No checkpoint in this run dir — skip
+    }
+  }
+  return null;
 }
 
 export async function saveCheckpoint(config: SwarmConfig, checkpoint: PipelineCheckpoint): Promise<void> {
@@ -82,10 +119,13 @@ export async function saveCheckpoint(config: SwarmConfig, checkpoint: PipelineCh
   const filePath = path.join(dir, "checkpoint.json");
   await fs.writeFile(filePath, JSON.stringify(checkpoint, null, 2));
 
-  // Update latest pointer only for run/review modes (plan/analyze don't produce reviewable output)
-  if (!checkpoint.mode || checkpoint.mode === "run" || checkpoint.mode === "review") {
-    const root = sessionScopedRoot(config);
-    await fs.mkdir(root, { recursive: true });
+  // Update mode-specific latest pointer so --resume can find the checkpoint
+  const mode = checkpoint.mode ?? "run";
+  const root = sessionScopedRoot(config);
+  await fs.mkdir(root, { recursive: true });
+  await fs.writeFile(modeLatestPointerPath(config, mode), config.runId);
+  // Also write the generic `latest` for run/review (backward compat + review mode lookup)
+  if (mode === "run" || mode === "review") {
     await fs.writeFile(latestPointerPath(config), config.runId);
   }
 }
