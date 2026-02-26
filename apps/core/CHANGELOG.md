@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.31
+
+### Patch Changes
+
+- e8ddc53: Codex 5.3
+
 ## 0.0.30
 
 ### Patch Changes
