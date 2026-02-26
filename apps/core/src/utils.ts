@@ -114,3 +114,37 @@ export function topologicalWaves(tasks: DecomposedTask[]): number[][] {
 
   return waves;
 }
+
+// ---------------------------------------------------------------------------
+// Token estimation & context budgeting
+// ---------------------------------------------------------------------------
+
+/** Estimate token count from character length (~4 chars per token for English). */
+export function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
+/**
+ * Group items into batches where each batch's total estimated tokens stays
+ * within the given budget. Items are added greedily in order.
+ * An item that exceeds the budget on its own gets its own single-item batch.
+ */
+export function batchByTokenBudget<T>(items: T[], getText: (item: T) => string, budget: number): T[][] {
+  if (items.length === 0) return [];
+  const batches: T[][] = [];
+  let current: T[] = [];
+  let currentTokens = 0;
+
+  for (const item of items) {
+    const tokens = estimateTokens(getText(item));
+    if (current.length > 0 && currentTokens + tokens > budget) {
+      batches.push(current);
+      current = [];
+      currentTokens = 0;
+    }
+    current.push(item);
+    currentTokens += tokens;
+  }
+  if (current.length > 0) batches.push(current);
+  return batches;
+}

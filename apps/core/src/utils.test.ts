@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  batchByTokenBudget,
+  estimateTokens,
   hasFrontendWork,
   isFrontendTask,
   parseDecomposedTasks,
@@ -193,5 +195,59 @@ describe("topologicalWaves", () => {
     ];
     // ID 99 doesn't exist, so task 1 has no real deps
     expect(topologicalWaves(tasks)).toEqual([[0, 1]]);
+  });
+});
+
+describe("estimateTokens", () => {
+  it("estimates tokens from character count", () => {
+    expect(estimateTokens("")).toBe(0);
+    expect(estimateTokens("abcd")).toBe(1);
+    expect(estimateTokens("a".repeat(100))).toBe(25);
+    expect(estimateTokens("a".repeat(101))).toBe(26);
+  });
+});
+
+describe("batchByTokenBudget", () => {
+  it("returns empty for empty input", () => {
+    expect(batchByTokenBudget([], (s) => s, 1000)).toEqual([]);
+  });
+
+  it("puts everything in one batch when it fits", () => {
+    const items = ["hello", "world"];
+    const result = batchByTokenBudget(items, (s) => s, 1000);
+    expect(result).toEqual([["hello", "world"]]);
+  });
+
+  it("splits into multiple batches based on token budget", () => {
+    // Each item is 400 chars = 100 tokens. Budget of 150 tokens fits 1 item per batch.
+    const items = ["a".repeat(400), "b".repeat(400), "c".repeat(400)];
+    const result = batchByTokenBudget(items, (s) => s, 150);
+    expect(result).toEqual([["a".repeat(400)], ["b".repeat(400)], ["c".repeat(400)]]);
+  });
+
+  it("groups items that fit together", () => {
+    // Each item is 100 chars = 25 tokens. Budget of 60 fits 2 per batch.
+    const items = ["a".repeat(100), "b".repeat(100), "c".repeat(100), "d".repeat(100), "e".repeat(100)];
+    const result = batchByTokenBudget(items, (s) => s, 60);
+    expect(result.length).toBe(3);
+    expect(result[0]).toEqual(["a".repeat(100), "b".repeat(100)]);
+    expect(result[1]).toEqual(["c".repeat(100), "d".repeat(100)]);
+    expect(result[2]).toEqual(["e".repeat(100)]);
+  });
+
+  it("puts oversized items in their own batch", () => {
+    // Budget is 10 tokens (40 chars), but one item is 200 chars (50 tokens)
+    const items = ["small", "a".repeat(200), "tiny"];
+    const result = batchByTokenBudget(items, (s) => s, 10);
+    expect(result.length).toBe(3);
+    expect(result[0]).toEqual(["small"]);
+    expect(result[1]).toEqual(["a".repeat(200)]);
+    expect(result[2]).toEqual(["tiny"]);
+  });
+
+  it("works with custom getText function", () => {
+    const items = [{ text: "a".repeat(100) }, { text: "b".repeat(100) }];
+    const result = batchByTokenBudget(items, (item) => item.text, 30);
+    expect(result.length).toBe(2);
   });
 });

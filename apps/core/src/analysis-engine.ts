@@ -9,12 +9,15 @@ import type { PipelineConfig } from "./pipeline-types.js";
 import type { ProgressTracker } from "./progress-tracker.js";
 import { partitionChunks, type ScoutResult, scoutRepo } from "./repo-scanner.js";
 import { SessionManager } from "./session.js";
-import { responseContains } from "./utils.js";
+import { batchByTokenBudget, estimateTokens, responseContains } from "./utils.js";
 
 const MAX_REVIEW_ITERATIONS = 3;
 const APPROVAL_KEYWORD = "ANALYSIS_APPROVED";
 const DEFAULT_CHUNK_THRESHOLD = 500;
 const DEFAULT_CHUNK_MAX_FILES = 300;
+const DEFAULT_CONTEXT_LIMIT = 128_000;
+/** Fraction of context window available for prompt content (rest reserved for system msg + response). */
+const TOKEN_BUDGET_RATIO = 0.7;
 
 function readEnvPositiveInt(key: string, fallback: number): number {
   const value = process.env[key];
@@ -157,6 +160,18 @@ Key runtime dependencies and what they're used for (not devDependencies).
 6. Do NOT include code snippets longer than 3 lines. Reference file paths instead.
 7. **Your entire response must BE the merged analysis document.** Do NOT write it to a file using tools.`;
 
+const PARTIAL_SYNTHESIS_INSTRUCTIONS = `You are a Senior Software Architect merging a batch of chunk analyses into a single consolidated partial analysis.
+This is an intermediate merge step — another agent will later combine your output with other partial analyses into the final document.
+
+**Rules:**
+1. You MAY use \`list_dir\`, \`read_file\`, and \`run_terminal\` to verify claims and fill gaps.
+2. Merge the chunk analyses below into a SINGLE consolidated document.
+3. DEDUPLICATE information across chunks.
+4. Preserve all important details — architecture, key files, patterns, conventions, dependencies.
+5. Keep it under 400 lines. Be precise and factual.
+6. Do NOT include code snippets longer than 3 lines. Reference file paths instead.
+7. **OUTPUT THE COMPLETE DOCUMENT IN YOUR RESPONSE.** Do NOT write it to a file.`;
+
 const REVIEWER_INSTRUCTIONS = `You are a Senior Software Engineer reviewing a repository analysis document.
 Your goal is to verify the analysis is accurate, complete, and useful for an LLM that needs to understand this codebase.
 
@@ -196,6 +211,8 @@ export class AnalysisEngine {
   private readonly sessions: SessionManager;
   private activePhaseKey: string | null = null;
   private iterationProgress: Record<string, IterationSnapshot> = {};
+  private readonly contextLimit: number;
+  private readonly promptBudget: number;
 
   constructor(
     private readonly config: SwarmConfig,
@@ -205,6 +222,8 @@ export class AnalysisEngine {
   ) {
     this.sessions = new SessionManager(config, pipeline, logger);
     if (tracker) this.sessions.setTracker(tracker);
+    this.contextLimit = readEnvPositiveInt("MODEL_CONTEXT_LIMIT", DEFAULT_CONTEXT_LIMIT);
+    this.promptBudget = Math.floor(this.contextLimit * TOKEN_BUDGET_RATIO);
   }
 
   async start(): Promise<void> {
@@ -471,7 +490,7 @@ export class AnalysisEngine {
       }
     }
 
-    // Phase 3: Synthesis — merge all chunk analyses
+    // Phase 3: Synthesis — merge all chunk analyses (with hierarchical merge if needed)
     const synthesisKey = `analyze-synthesis-${chunks.length + 1}`;
     if (completedPhases.has(synthesisKey)) {
       this.logger.info(msg.phaseSkipped("analyze-synthesis"));
@@ -481,23 +500,14 @@ export class AnalysisEngine {
 
       const chunkSections = chunks
         .filter((c) => chunkResults[c.id])
-        .map((c) => `# Chunk: ${c.label}\nDirectories: ${c.directories.join(", ")}\n\n${chunkResults[c.id]}`)
-        .join("\n\n---\n\n");
+        .map((c) => ({
+          id: c.id,
+          label: c.label,
+          dirs: c.directories.join(", "),
+          content: chunkResults[c.id],
+        }));
 
-      const synthesisPrompt =
-        `${scoutOverview}\n\n---\n\n` +
-        "Below are independent analyses of different sections of the repository. " +
-        "Merge them into a single unified repository analysis document.\n\n" +
-        `${chunkSections}`;
-
-      analysis = await this.sessions.callIsolatedWithInstructions(
-        SYNTHESIS_INSTRUCTIONS,
-        synthesisPrompt,
-        `Synthesizing analysis (${this.pipeline.primaryModel})…`,
-        this.pipeline.primaryModel,
-        "analyze-synthesis/synthesis",
-        "synthesis",
-      );
+      analysis = await this.synthesizeChunks(chunkSections, scoutOverview);
 
       completedPhases.add(synthesisKey);
       this.tracker?.completePhase(synthesisKey);
@@ -533,6 +543,106 @@ export class AnalysisEngine {
     this.logger.info(msg.analyzeSaved(path.relative(this.config.repoRoot, outputPath)));
   }
 
+  /**
+   * Merge chunk analyses into a single document.
+   * Uses single-pass when content fits in context, otherwise hierarchical merge.
+   */
+  private async synthesizeChunks(
+    sections: { id: string; label: string; dirs: string; content: string }[],
+    scoutOverview: string,
+  ): Promise<string> {
+    const formatSection = (s: { label: string; dirs: string; content: string }) =>
+      `# Chunk: ${s.label}\nDirectories: ${s.dirs}\n\n${s.content}`;
+
+    const allSections = sections.map(formatSection).join("\n\n---\n\n");
+    const fullPrompt =
+      `${scoutOverview}\n\n---\n\n` +
+      "Below are independent analyses of different sections of the repository. " +
+      "Merge them into a single unified repository analysis document.\n\n" +
+      allSections;
+
+    const instructionTokens = estimateTokens(SYNTHESIS_INSTRUCTIONS);
+    const promptTokens = estimateTokens(fullPrompt);
+
+    if (instructionTokens + promptTokens <= this.promptBudget) {
+      // Single-pass — everything fits
+      return this.sessions.callIsolatedWithInstructions(
+        SYNTHESIS_INSTRUCTIONS,
+        fullPrompt,
+        `Synthesizing analysis (${this.pipeline.primaryModel})…`,
+        this.pipeline.primaryModel,
+        "analyze-synthesis/synthesis",
+        "synthesis",
+      );
+    }
+
+    // Hierarchical merge: batch chunks, merge each batch, recurse
+    this.logger.info(
+      `📐 Content exceeds context (${promptTokens + instructionTokens} est. tokens vs ${this.promptBudget} budget). Using hierarchical merge.`,
+    );
+
+    const overheadTokens = estimateTokens(scoutOverview) + instructionTokens + 200; // 200 for framing text
+    const contentBudget = this.promptBudget - overheadTokens;
+
+    const batches = batchByTokenBudget(sections, (s) => formatSection(s), contentBudget);
+    this.logger.info(`📐 Split ${sections.length} chunks into ${batches.length} merge batches.`);
+
+    // Merge each batch in parallel
+    const partials = await Promise.all(
+      batches.map(async (batch, batchIdx) => {
+        const batchSections = batch.map(formatSection).join("\n\n---\n\n");
+        const batchPrompt =
+          `${scoutOverview}\n\n---\n\n` +
+          "Below are chunk analyses to merge into a single consolidated document.\n\n" +
+          batchSections;
+
+        return this.sessions.callIsolatedWithInstructions(
+          PARTIAL_SYNTHESIS_INSTRUCTIONS,
+          batchPrompt,
+          `Merging batch ${batchIdx + 1}/${batches.length} (${this.pipeline.primaryModel})…`,
+          this.pipeline.primaryModel,
+          `analyze-synthesis/batch-${batchIdx}`,
+          "synthesis",
+        );
+      }),
+    );
+
+    // If we're down to 1 partial, do a final full synthesis pass
+    if (partials.length === 1) {
+      const finalPrompt =
+        `${scoutOverview}\n\n---\n\n` +
+        "Below is a consolidated analysis. Produce the final unified repository analysis document.\n\n" +
+        partials[0];
+
+      return this.sessions.callIsolatedWithInstructions(
+        SYNTHESIS_INSTRUCTIONS,
+        finalPrompt,
+        `Final synthesis (${this.pipeline.primaryModel})…`,
+        this.pipeline.primaryModel,
+        "analyze-synthesis/final",
+        "synthesis",
+      );
+    }
+
+    // Recurse: treat partials as new chunks
+    const partialSections = partials.map((content, i) => ({
+      id: `partial-${i}`,
+      label: `Partial synthesis ${i + 1}`,
+      dirs: batches[i].map((s) => s.dirs).join("; "),
+      content,
+    }));
+    return this.synthesizeChunks(partialSections, scoutOverview);
+  }
+
+  /** Truncate text to fit within a token budget, preserving the start. */
+  private truncateForBudget(text: string, budgetTokens: number): string {
+    const tokens = estimateTokens(text);
+    if (tokens <= budgetTokens) return text;
+    // Approximate character limit from token budget
+    const charLimit = budgetTokens * 4;
+    return `${text.substring(0, charLimit)}\n\n[… truncated — document exceeded context budget (${tokens} est. tokens vs ${budgetTokens} budget) …]`;
+  }
+
   private async runArchitectReviewLoop(
     model: string,
     phaseKey: string,
@@ -541,6 +651,8 @@ export class AnalysisEngine {
   ): Promise<string> {
     // Architect produces or refines the analysis
     this.logger.info(msg.analyzeArchitectPhase(model));
+
+    const instructionTokens = estimateTokens(ARCHITECT_INSTRUCTIONS);
 
     // Resume: check for draft from a previous run
     const draftProgress = this.iterationProgress[`${phaseKey}-draft`];
@@ -557,12 +669,13 @@ export class AnalysisEngine {
       );
       try {
         if (existingAnalysis) {
+          const guardedAnalysis = this.truncateForBudget(existingAnalysis, this.promptBudget - instructionTokens - 200);
           analysis = await this.sessions.send(
             architectSession,
             "Here is a repository analysis produced by a different model. " +
               "Independently explore the repository and verify, correct, and improve this analysis. " +
               "Produce the final revised document.\n\n" +
-              `Existing analysis:\n\n${existingAnalysis}`,
+              `Existing analysis:\n\n${guardedAnalysis}`,
             `Architect is analyzing repository (${model})…`,
           );
         } else {
@@ -593,12 +706,20 @@ export class AnalysisEngine {
       this.logger.info(msg.iterationResumed(progress.completedIterations, MAX_REVIEW_ITERATIONS));
     }
 
+    const reviewerInstructionTokens = estimateTokens(REVIEWER_INSTRUCTIONS);
+    const revisionInstructionTokens = instructionTokens + 200; // revision prefix overhead
+
     for (let i = startIteration; i <= MAX_REVIEW_ITERATIONS; i++) {
       this.logger.info(msg.analyzeIteration(i, MAX_REVIEW_ITERATIONS));
 
+      const guardedAnalysisForReview = this.truncateForBudget(
+        analysis,
+        this.promptBudget - reviewerInstructionTokens - 100,
+      );
+
       const feedback = await this.sessions.callIsolatedWithInstructions(
         REVIEWER_INSTRUCTIONS,
-        `Review this repository analysis document:\n\n${analysis}`,
+        `Review this repository analysis document:\n\n${guardedAnalysisForReview}`,
         `Senior engineer is reviewing (${model})…`,
         model,
         `${reviewProgressKey}/reviewer-${i}`,
@@ -612,11 +733,17 @@ export class AnalysisEngine {
 
       this.logger.info(msg.analyzeFeedback(feedback.substring(0, 80)));
 
+      // Budget for revision: analysis + feedback must fit together
+      const analysisBudget = Math.floor((this.promptBudget - revisionInstructionTokens) * 0.8);
+      const feedbackBudget = this.promptBudget - revisionInstructionTokens - analysisBudget;
+      const guardedAnalysis = this.truncateForBudget(analysis, analysisBudget);
+      const guardedFeedback = this.truncateForBudget(feedback, feedbackBudget);
+
       const revision = await this.sessions.callIsolatedWithInstructions(
         ARCHITECT_INSTRUCTIONS +
           "\n\n**CRITICAL:** You are revising an existing analysis based on reviewer feedback. " +
           "Output the COMPLETE revised document — do NOT output a summary or changelog.",
-        `Current analysis:\n\n${analysis}\n\nReviewer feedback:\n\n${feedback}\n\nRevise the analysis to address all issues. Output the COMPLETE document.`,
+        `Current analysis:\n\n${guardedAnalysis}\n\nReviewer feedback:\n\n${guardedFeedback}\n\nRevise the analysis to address all issues. Output the COMPLETE document.`,
         `Architect is revising analysis (${model})…`,
         model,
         `${reviewProgressKey}/revision-${i}`,
