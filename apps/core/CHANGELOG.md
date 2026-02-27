@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.34
+
+### Patch Changes
+
+- fa2bf62: Support multiple repos.
+
 ## 0.0.33
 
 ### Patch Changes
