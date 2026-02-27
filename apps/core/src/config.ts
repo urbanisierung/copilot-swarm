@@ -41,6 +41,7 @@ export type SwarmCommand =
   | "analyze"
   | "brainstorm"
   | "review"
+  | "fleet"
   | "session"
   | "finish"
   | "list";
@@ -59,6 +60,8 @@ interface CliArgs {
   verifyBuild: string | undefined;
   verifyTest: string | undefined;
   verifyLint: string | undefined;
+  fleetRepos: string[] | undefined;
+  fleetConfigPath: string | undefined;
 }
 
 export function readVersion(): string {
@@ -77,6 +80,7 @@ Commands:
   task             Lightweight autonomous mode — prereqs, PM review, then run
   analyze          Analyze the repository and generate a context document
   review           Review a previous run — provide feedback for agents to fix/improve
+  fleet            Multi-repo orchestration — coordinate work across repositories
   session          Manage sessions: create, list, use (group related runs)
   finish           Finalize the active session — summarize, log to changelog, clean up
   list             List all sessions across all repositories
@@ -93,6 +97,8 @@ Options:
   --verify-build <cmd> Shell command to verify the build (e.g. "npm run build")
   --verify-test <cmd>  Shell command to run tests (e.g. "npm test")
   --verify-lint <cmd>  Shell command to run linting (e.g. "npm run lint")
+  --repos <paths...>   Repository paths for fleet mode (space-separated)
+  --fleet-config <f>   Fleet config file path (default: fleet.config.yaml)
   -V, --version        Show version number
   -h, --help           Show this help message
 
@@ -127,6 +133,8 @@ Examples:
   swarm session use <id>                  Switch active session
   swarm finish                            Finalize active session
   swarm finish --session <id>             Finalize a specific session
+  swarm fleet "Add OAuth" --repos ~/auth ~/api ~/frontend
+  swarm fleet "Add OAuth" --fleet-config fleet.config.yaml
 
 Environment variables override defaults; CLI args override env vars.
 See documentation for all env var options.`;
@@ -149,6 +157,8 @@ function parseCliArgs(): CliArgs {
       "verify-build": { type: "string" },
       "verify-test": { type: "string" },
       "verify-lint": { type: "string" },
+      repos: { type: "string", multiple: true },
+      "fleet-config": { type: "string" },
     },
   });
 
@@ -174,6 +184,7 @@ function parseCliArgs(): CliArgs {
       positionals[0] === "analyze" ||
       positionals[0] === "brainstorm" ||
       positionals[0] === "review" ||
+      positionals[0] === "fleet" ||
       positionals[0] === "session" ||
       positionals[0] === "finish" ||
       positionals[0] === "list")
@@ -196,6 +207,8 @@ function parseCliArgs(): CliArgs {
     verifyBuild: values["verify-build"] as string | undefined,
     verifyTest: values["verify-test"] as string | undefined,
     verifyLint: values["verify-lint"] as string | undefined,
+    fleetRepos: values.repos as string[] | undefined,
+    fleetConfigPath: values["fleet-config"] as string | undefined,
   };
 }
 
@@ -275,6 +288,10 @@ export interface SwarmConfig {
   resolvedSessionId?: string;
   /** Verification commands from CLI flags (override YAML and auto-detect). */
   readonly verifyOverrides?: VerifyConfig;
+  /** Repository paths for fleet mode (from --repos). */
+  readonly fleetRepos?: string[];
+  /** Fleet config file path (from --fleet-config). */
+  readonly fleetConfigPath?: string;
 }
 
 export async function loadConfig(): Promise<SwarmConfig> {
@@ -354,5 +371,7 @@ export async function loadConfig(): Promise<SwarmConfig> {
     reviewRunId: cli.reviewRunId,
     sessionId: cli.sessionId,
     verifyOverrides,
+    fleetRepos: cli.fleetRepos,
+    fleetConfigPath: cli.fleetConfigPath,
   };
 }

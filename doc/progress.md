@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here, in reverse chronological order.
 
+## 2026-02-27
+
+### Added
+- **Fleet mode (multi-repo orchestration)** — New `swarm fleet` command for coordinating features across multiple repositories. A meta-orchestrator analyzes all repos in parallel, a strategist agent produces cross-repo plans with shared contracts and dependency-ordered execution waves, and independent `swarm task` processes run per repo per wave. A cross-repo reviewer validates consistency across all changes. Supports `fleet.config.yaml` for repo/role definitions and per-repo verify overrides, or `--repos` CLI args for ad-hoc use. Fleet-level checkpoint/resume tracks wave progress and per-repo completion. New agent instructions: `fleet-strategist.md` (cross-repo planning) and `fleet-reviewer.md` (consistency validation). Output goes to `.swarm/fleet/<runId>/`.
+
 ## 2026-02-26
 
 ### Fixed

@@ -408,6 +408,40 @@ if (config.command === "plan" || config.command === "auto") {
       const outDir = path.relative(config.repoRoot, brainstormsDir(config));
       printSummary(msg.summaryBrainstormComplete(elapsed), outDir, tracker);
     });
+} else if (config.command === "fleet") {
+  const { FleetEngine } = await import("./fleet-engine.js");
+  const { fleetConfigFromArgs, loadFleetConfig } = await import("./fleet-config.js");
+
+  const fleetConfig = config.fleetRepos
+    ? fleetConfigFromArgs(config.fleetRepos)
+    : loadFleetConfig(config.fleetConfigPath);
+
+  const startMs = Date.now();
+  const fleet = new FleetEngine(config, fleetConfig, logger);
+
+  activeShutdown = async () => {
+    await fleet.stop();
+  };
+
+  fleet
+    .start()
+    .then(() => fleet.execute())
+    .catch(showLogOnError)
+    .finally(() => {
+      fleet.stop();
+      const sec = Math.floor((Date.now() - startMs) / 1000);
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      const elapsed = `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+      console.log("");
+      console.log(msg.summaryDivider);
+      console.log(`✅ Fleet completed in ${elapsed}`);
+      console.log(`   Repos: ${fleetConfig.repos.length}`);
+      if (logger.logFilePath) {
+        console.log(msg.logFileHint(logger.logFilePath));
+      }
+      console.log(msg.summaryDivider);
+    });
 } else if (config.command === "review") {
   const { loadPreviousRun } = await import("./checkpoint.js");
   const prevRun = await loadPreviousRun(config, config.reviewRunId);
