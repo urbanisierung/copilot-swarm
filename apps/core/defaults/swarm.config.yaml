@@ -16,6 +16,8 @@ agents:
   code-reviewer:   builtin:eng-code-reviewer
   tester:          builtin:tester
   cross-model:     builtin:cross-model-reviewer
+  fleet-strategist: builtin:fleet-strategist
+  fleet-reviewer:  builtin:fleet-reviewer
 
 pipeline:
   - phase: spec

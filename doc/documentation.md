@@ -38,6 +38,7 @@ Commands:
   analyze          Analyze the repository and generate a context document
   brainstorm       Interactive discussion mode — explore ideas with a strategist agent
   review           Review a previous run — provide feedback for agents to fix/improve
+  fleet            Multi-repo orchestration — coordinate work across repositories
   session          Manage sessions: create, list, use (group related runs)
   finish           Finalize the active session — summarize, log to changelog, clean up
   list             List all sessions across all repositories
@@ -54,6 +55,8 @@ Options:
   --verify-build <cmd> Shell command to verify the build (e.g. "npm run build")
   --verify-test <cmd>  Shell command to run tests (e.g. "npm test")
   --verify-lint <cmd>  Shell command to run linting (e.g. "npm run lint")
+  --repos <paths...>   Repository paths for fleet mode (space-separated)
+  --fleet-config <f>   Fleet config file path (default: fleet.config.yaml)
   -V, --version        Show version number
   -h, --help           Show this help message
 ```
@@ -280,6 +283,52 @@ swarm brainstorm -e   # Open editor for a longer description
 **Output:**
 - `.swarm/brainstorms/<runId>.md` — Saved summary (session-scoped if a session is active)
 - The latest brainstorm summary is automatically loaded as context when running `swarm plan`, enriching the PM's understanding of your requirements
+
+### Fleet Mode (Multi-Repo)
+
+Use `swarm fleet` to orchestrate a feature that spans multiple repositories. A meta-orchestrator coordinates independent swarm instances per repo:
+
+```bash
+# Explicit repo list
+swarm fleet "Add OAuth login" --repos ~/auth-service ~/api-gateway ~/frontend
+
+# Config-driven
+swarm fleet "Add OAuth" --fleet-config fleet.config.yaml
+
+# With resume
+swarm fleet "Add OAuth" --repos ~/auth ~/api ~/frontend --resume
+```
+
+**Fleet config (`fleet.config.yaml`):**
+```yaml
+repos:
+  - path: ~/auth-service
+    role: "Authentication backend — manages OAuth tokens"
+  - path: ~/api-gateway
+    role: "API gateway — routes and validates requests"
+  - path: ~/frontend
+    role: "React frontend — user-facing OAuth login flow"
+
+overrides:
+  ~/frontend:
+    verifyBuild: "npm run build"
+    verifyTest: "npm test"
+
+integrationTest: "npm run test:integration"
+```
+
+**How it works:**
+1. **Analyze** — Runs `swarm analyze` on each repo in parallel to understand each codebase
+2. **Strategize** — A strategist agent receives all analyses and produces: shared contracts, per-repo tasks, dependency graph, and execution waves
+3. **Execute waves** — Repos with no cross-repo dependencies run in parallel (wave 1); repos depending on wave 1 outputs run next (wave 2), with prior wave results injected as context
+4. **Cross-repo review** — A reviewer agent checks consistency across all repo changes
+5. **Summary** — Unified output with per-repo results
+
+**Output:**
+- `.swarm/fleet/<runId>/strategy.md` — Cross-repo strategy with shared contracts and wave plan
+- `.swarm/fleet/<runId>/fleet-review.md` — Cross-repo consistency review
+- `.swarm/fleet/<runId>/fleet-summary.md` — Final summary
+- `.swarm/fleet/<runId>/fleet-checkpoint.json` — Checkpoint for resume
 
 ### Checkpoint & Resume
 

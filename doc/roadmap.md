@@ -48,3 +48,14 @@ Implementation roadmap for Copilot Swarm.
 - [x] Validate `pnpx @copilot-swarm/core` / `npx @copilot-swarm/core` works from a consuming repo (binary: `swarm`)
 
 See [`doc/standalone-execution.md`](standalone-execution.md) for the full extraction proposal.
+
+## Phase 6: Multi-Repo Orchestration ✅
+
+- [x] Fleet config schema (`fleet.config.yaml` format with repos, roles, overrides)
+- [x] Fleet config loader with validation and `--repos` CLI fallback
+- [x] Fleet engine — meta-orchestrator: analyze → strategize → wave execution → cross-repo review
+- [x] Fleet agent instructions: `fleet-strategist.md`, `fleet-reviewer.md`
+- [x] `swarm fleet` CLI command with `--repos` and `--fleet-config` options
+- [x] Fleet-level checkpoint/resume (wave progress, per-repo completion)
+- [x] Cross-repo context passing (shared contracts + prior wave output injection)
+- [x] Documentation updates (documentation, features, progress, roadmap)
