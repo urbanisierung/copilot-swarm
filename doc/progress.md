@@ -11,6 +11,7 @@ All notable changes to this project are documented here, in reverse chronologica
 - **Per-agent elapsed time in TUI** — The "Active Agents" column now shows how long each agent has been running (e.g. `pm  claude-sonnet-4  01:23`).
 - **Agent usage stats** — Every agent invocation is now recorded to `.swarm/stats.json` with invocation count, model used, and elapsed time. Stats accumulate across runs.
 - **`swarm stats` command** — New CLI command to view aggregated agent invocation statistics: call counts, total/average time, models used, and token counts (when available).
+- **Central backup store** — All `.swarm/` artifacts (sessions, checkpoints, plans, stats) are automatically synced to `~/.config/copilot-swarm/backups/` on every checkpoint save and session finish. New `swarm backup` (manual full sync) and `swarm restore` (recover from central store) commands.
 
 ## 2026-02-27
 

@@ -1,5 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { syncSession } from "./central-store.js";
 import type { SwarmConfig } from "./config.js";
 import { latestPointerPath, modeLatestPointerPath, runDir, sessionScopedRoot } from "./paths.js";
 
@@ -127,6 +128,11 @@ export async function saveCheckpoint(config: SwarmConfig, checkpoint: PipelineCh
   // Also write the generic `latest` for run/review (backward compat + review mode lookup)
   if (mode === "run" || mode === "review") {
     await fs.writeFile(latestPointerPath(config), config.runId);
+  }
+
+  // Sync session to central store (fire-and-forget)
+  if (config.resolvedSessionId) {
+    syncSession(config, config.resolvedSessionId).catch(() => {});
   }
 }
 

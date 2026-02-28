@@ -3,6 +3,7 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { CopilotSession } from "@github/copilot-sdk";
 import { CopilotClient } from "@github/copilot-sdk";
+import { syncStats } from "./central-store.js";
 import type { SessionRecord } from "./checkpoint.js";
 import type { SwarmConfig } from "./config.js";
 import { BUILTIN_AGENT_PREFIX, SessionEvent, SYSTEM_MESSAGE_MODE } from "./constants.js";
@@ -196,7 +197,9 @@ export class SessionManager {
       // Record agent stats (fire-and-forget)
       if (label && startTime) {
         const elapsedMs = Date.now() - startTime;
-        recordAgentInvocation(this.config, label, model, elapsedMs).catch(() => {});
+        recordAgentInvocation(this.config, label, model, elapsedMs)
+          .then(() => syncStats(this.config))
+          .catch(() => {});
       }
     }
     this._sessionStartTimes.delete(session.sessionId);

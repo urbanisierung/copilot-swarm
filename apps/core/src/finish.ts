@@ -8,6 +8,7 @@
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { syncSession, syncStats } from "./central-store.js";
 import type { PipelineCheckpoint } from "./checkpoint.js";
 import type { SwarmConfig } from "./config.js";
 import { markRegistryFinished } from "./global-registry.js";
@@ -114,6 +115,10 @@ export async function markSessionFinished(config: SwarmConfig, sessionId: string
 
   // Update global registry
   await markRegistryFinished(sessionId, config.repoRoot);
+
+  // Sync session and stats to central store (fire-and-forget)
+  syncSession(config, sessionId).catch(() => {});
+  syncStats(config).catch(() => {});
 }
 
 /** Append a changelog entry to .swarm/changelog.md */

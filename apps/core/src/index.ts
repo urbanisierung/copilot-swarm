@@ -94,6 +94,29 @@ if (config.command === "demo") {
   process.exit(0);
 }
 
+// Handle backup command
+if (config.command === "backup") {
+  const { syncAll } = await import("./central-store.js");
+  const count = await syncAll(config);
+  console.log(`✅ Backed up ${count} session(s) to central store.`);
+  process.exit(0);
+}
+
+// Handle restore command
+if (config.command === "restore") {
+  const { restoreAll, centralRepoDir } = await import("./central-store.js");
+  const dir = centralRepoDir(config.repoRoot);
+  try {
+    await import("node:fs/promises").then((f) => f.access(dir));
+  } catch {
+    console.log("No central backup found for this repository.");
+    process.exit(0);
+  }
+  const count = await restoreAll(config);
+  console.log(`✅ Restored ${count} session(s) from central store.`);
+  process.exit(0);
+}
+
 // Handle finish command before resolving session (resolves its own)
 if (config.command === "finish") {
   const { resolveSessionId, getSession } = await import("./session-store.js");

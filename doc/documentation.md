@@ -447,6 +447,20 @@ swarm stats
 
 Output shows a table of agents with: invocation count, total/average elapsed time, input/output token counts (when available), and which models were used. Stats are stored in `.swarm/stats.json` and accumulate automatically across runs.
 
+### Backup & Restore
+
+All `.swarm/` artifacts (sessions, checkpoints, plans, stats) are automatically synced to a central store (`~/.config/copilot-swarm/backups/`) on every checkpoint save and session finish. If the local `.swarm/` directory is lost, restore from the central backup:
+
+```bash
+# Manually sync all artifacts to central store
+swarm backup
+
+# Restore artifacts from central store
+swarm restore
+```
+
+The central store mirrors the full directory structure per repository, keyed by the repo's absolute path.
+
 ### TUI Dashboard
 
 A full-screen terminal dashboard displays progress for all modes (`run`, `plan`, `analyze`) when running in a TTY (interactive terminal). The dashboard shows:
