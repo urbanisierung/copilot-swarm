@@ -1,0 +1,276 @@
+{
+  "agents": {
+    "scout:acme-corp/web-dashboard-frontend": {
+      "invocations": 2,
+      "totalElapsedMs": 2502.090292769869,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-haiku-4.5": 2
+      }
+    },
+    "scout:acme-corp/shared-typescript-definitions": {
+      "invocations": 2,
+      "totalElapsedMs": 2661.218882411878,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-haiku-4.5": 2
+      }
+    },
+    "scout:acme-corp/billing-and-payments-service": {
+      "invocations": 2,
+      "totalElapsedMs": 3164.1456066533647,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-haiku-4.5": 2
+      }
+    },
+    "scout:acme-corp/api-gateway-service": {
+      "invocations": 2,
+      "totalElapsedMs": 3036.6170545203117,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-haiku-4.5": 2
+      }
+    },
+    "fleet-strategist": {
+      "invocations": 2,
+      "totalElapsedMs": 5000,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "pm:acme-corp/shared-typescript-definitions": {
+      "invocations": 2,
+      "totalElapsedMs": 2107.7922337981,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "pm:acme-corp/user-authentication-service": {
+      "invocations": 2,
+      "totalElapsedMs": 2509.555219572204,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "pm:acme-corp/billing-and-payments-service": {
+      "invocations": 2,
+      "totalElapsedMs": 2433.1684610407533,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "engineer:acme-corp/shared-typescript-definitions": {
+      "invocations": 2,
+      "totalElapsedMs": 5229.162928351474,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "engineer:acme-corp/user-authentication-service": {
+      "invocations": 2,
+      "totalElapsedMs": 5042.023161979458,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "engineer:acme-corp/billing-and-payments-service": {
+      "invocations": 2,
+      "totalElapsedMs": 5839.007407109995,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "reviewer:acme-corp/shared-typescript-definitions": {
+      "invocations": 2,
+      "totalElapsedMs": 2952.2845108880756,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "reviewer:acme-corp/user-authentication-service": {
+      "invocations": 2,
+      "totalElapsedMs": 2394.610302967497,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "reviewer:acme-corp/billing-and-payments-service": {
+      "invocations": 2,
+      "totalElapsedMs": 2745.4234094709377,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "pm:acme-corp/api-gateway-service": {
+      "invocations": 2,
+      "totalElapsedMs": 2550.97283279869,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "pm:acme-corp/web-dashboard-frontend": {
+      "invocations": 2,
+      "totalElapsedMs": 3147.2933866891667,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "engineer:acme-corp/web-dashboard-frontend": {
+      "invocations": 2,
+      "totalElapsedMs": 5853.667123313249,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "engineer:acme-corp/api-gateway-service": {
+      "invocations": 2,
+      "totalElapsedMs": 6185.598540689585,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "reviewer:acme-corp/web-dashboard-frontend": {
+      "invocations": 2,
+      "totalElapsedMs": 3384.1047983041644,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "reviewer:acme-corp/api-gateway-service": {
+      "invocations": 2,
+      "totalElapsedMs": 3360.288457787539,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "fleet-reviewer": {
+      "invocations": 2,
+      "totalElapsedMs": 4000,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "gpt-4.1": 2
+      }
+    },
+    "scout:acme-corp/user-authentication-service": {
+      "invocations": 1,
+      "totalElapsedMs": 1672.95773942975,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-haiku-4.5": 1
+      }
+    },
+    "scout": {
+      "invocations": 2,
+      "totalElapsedMs": 2000,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-haiku-4.5": 2
+      }
+    },
+    "chunk-analyzer-1": {
+      "invocations": 2,
+      "totalElapsedMs": 3606.4728155787175,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "chunk-analyzer-4": {
+      "invocations": 2,
+      "totalElapsedMs": 3653.514135766503,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "chunk-analyzer-2": {
+      "invocations": 2,
+      "totalElapsedMs": 4344.814178982722,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "chunk-analyzer-3": {
+      "invocations": 2,
+      "totalElapsedMs": 4582.195988857434,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "synthesis": {
+      "invocations": 2,
+      "totalElapsedMs": 2500,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "architect": {
+      "invocations": 2,
+      "totalElapsedMs": 3000,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "review-analyst": {
+      "invocations": 2,
+      "totalElapsedMs": 2000,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "gpt-4.1": 2
+      }
+    }
+  },
+  "totalRuns": 4,
+  "lastUpdated": "2026-02-28T06:52:02.082Z"
+}

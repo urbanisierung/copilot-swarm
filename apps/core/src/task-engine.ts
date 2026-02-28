@@ -163,7 +163,7 @@ export class TaskEngine {
       }
       return response;
     } finally {
-      await session.destroy();
+      await this.sessions.destroySession(session);
     }
   }
 }

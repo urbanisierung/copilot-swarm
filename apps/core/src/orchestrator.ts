@@ -12,6 +12,7 @@ import { runDir } from "./paths.js";
 import { loadPipelineConfig } from "./pipeline-config.js";
 import { PipelineEngine } from "./pipeline-engine.js";
 import { ProgressTracker } from "./progress-tracker.js";
+import { recordRunStart } from "./stats.js";
 import { TuiRenderer } from "./tui-renderer.js";
 
 export class SwarmOrchestrator {
@@ -54,6 +55,7 @@ export class SwarmOrchestrator {
 
   async execute(): Promise<void> {
     this.renderer?.start();
+    recordRunStart(this.config).catch(() => {});
     let success = false;
     try {
       await this.executeWithRetries();

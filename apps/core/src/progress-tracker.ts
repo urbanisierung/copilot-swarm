@@ -23,6 +23,7 @@ export interface LogEntry {
 export interface ActiveAgentInfo {
   label: string;
   model: string;
+  startedAt: number;
 }
 
 const PHASE_NAMES: Record<string, string> = {
@@ -69,7 +70,7 @@ export class ProgressTracker {
 
   /** Register an active agent session (shown in TUI right column). */
   addActiveAgent(sessionId: string, label: string, model: string): void {
-    this._activeAgentSessions.set(sessionId, { label, model });
+    this._activeAgentSessions.set(sessionId, { label, model, startedAt: Date.now() });
     this.addActiveModel(model);
   }
 
