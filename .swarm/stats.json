@@ -1,96 +1,96 @@
 {
   "agents": {
     "pm": {
-      "invocations": 4,
-      "totalElapsedMs": 6000,
+      "invocations": 8,
+      "totalElapsedMs": 12000,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
-        "claude-sonnet-4": 4
+        "claude-sonnet-4": 8
       }
     },
     "pm-reviewer": {
-      "invocations": 4,
-      "totalElapsedMs": 4000,
+      "invocations": 8,
+      "totalElapsedMs": 8000,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
-        "claude-sonnet-4": 4
+        "claude-sonnet-4": 8
       }
     },
     "spec-reviewer": {
-      "invocations": 4,
-      "totalElapsedMs": 4000,
+      "invocations": 8,
+      "totalElapsedMs": 8000,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
-        "claude-sonnet-4": 4
+        "claude-sonnet-4": 8
       }
     },
     "decompose-agent": {
-      "invocations": 4,
-      "totalElapsedMs": 3000,
+      "invocations": 8,
+      "totalElapsedMs": 6000,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
-        "claude-haiku-4.5": 4
+        "claude-haiku-4.5": 8
       }
     },
     "designer": {
-      "invocations": 4,
-      "totalElapsedMs": 6000,
+      "invocations": 8,
+      "totalElapsedMs": 12000,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
-        "claude-sonnet-4": 4
+        "claude-sonnet-4": 8
       }
     },
     "design-reviewer": {
-      "invocations": 4,
-      "totalElapsedMs": 3000,
-      "totalInputTokens": 0,
-      "totalOutputTokens": 0,
-      "models": {
-        "claude-sonnet-4": 4
-      }
-    },
-    "engineer": {
-      "invocations": 16,
-      "totalElapsedMs": 34558.793349229025,
-      "totalInputTokens": 0,
-      "totalOutputTokens": 0,
-      "models": {
-        "claude-sonnet-4": 16
-      }
-    },
-    "code-reviewer": {
-      "invocations": 12,
-      "totalElapsedMs": 15206.051461139976,
-      "totalInputTokens": 0,
-      "totalOutputTokens": 0,
-      "models": {
-        "claude-sonnet-4": 12
-      }
-    },
-    "qa": {
-      "invocations": 12,
-      "totalElapsedMs": 15380.62652896535,
-      "totalInputTokens": 0,
-      "totalOutputTokens": 0,
-      "models": {
-        "claude-sonnet-4": 12
-      }
-    },
-    "cross-model-reviewer": {
-      "invocations": 4,
+      "invocations": 8,
       "totalElapsedMs": 6000,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
-        "gpt-4.1": 4
+        "claude-sonnet-4": 8
+      }
+    },
+    "engineer": {
+      "invocations": 32,
+      "totalElapsedMs": 66697.35460341789,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 32
+      }
+    },
+    "code-reviewer": {
+      "invocations": 24,
+      "totalElapsedMs": 30002.52803878557,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 24
+      }
+    },
+    "qa": {
+      "invocations": 24,
+      "totalElapsedMs": 29808.738586666816,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 24
+      }
+    },
+    "cross-model-reviewer": {
+      "invocations": 8,
+      "totalElapsedMs": 12000,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "gpt-4.1": 8
       }
     }
   },
-  "totalRuns": 4,
-  "lastUpdated": "2026-02-28T05:50:17.004Z"
+  "totalRuns": 8,
+  "lastUpdated": "2026-02-28T06:12:34.752Z"
 }

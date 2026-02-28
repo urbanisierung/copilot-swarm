@@ -122,10 +122,14 @@ export class TuiRenderer {
     const agentLines: string[] = [];
     if (agents.length > 0) {
       agentLines.push("\x1b[2mActive Agents\x1b[0m");
+      const maxLabel = Math.max(...agents.map((a) => a.label.length));
+      const maxModel = Math.max(...agents.map((a) => a.model.length));
       for (const a of agents) {
         const elapsed = this.fmtElapsed(Date.now() - a.startedAt);
+        const paddedLabel = a.label.padEnd(maxLabel);
+        const paddedModel = a.model.padEnd(maxModel);
         agentLines.push(
-          `${spin}  ${a.label}  \x1b[2m${this.trunc(a.model, colRight - elapsed.length - 8)}  ${elapsed}\x1b[0m`,
+          `${spin}  ${paddedLabel}  \x1b[2m${paddedModel}  ${elapsed}\x1b[0m`,
         );
       }
     }
