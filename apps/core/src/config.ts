@@ -45,7 +45,8 @@ export type SwarmCommand =
   | "session"
   | "finish"
   | "list"
-  | "stats";
+  | "stats"
+  | "demo";
 
 interface CliArgs {
   command: SwarmCommand;
@@ -86,6 +87,7 @@ Commands:
   finish           Finalize the active session — summarize, log to changelog, clean up
   list             List all sessions across all repositories
   stats            Show agent invocation statistics
+  demo             Interactive TUI demo — guided walkthrough of all modes
 
 Options:
   -v, --verbose        Enable verbose streaming output
@@ -190,7 +192,8 @@ function parseCliArgs(): CliArgs {
       positionals[0] === "session" ||
       positionals[0] === "finish" ||
       positionals[0] === "list" ||
-      positionals[0] === "stats")
+      positionals[0] === "stats" ||
+      positionals[0] === "demo")
   ) {
     command = positionals[0] as SwarmCommand;
     promptParts = positionals.slice(1);
@@ -324,9 +327,9 @@ export async function loadConfig(): Promise<SwarmConfig> {
       cli.command !== "session" &&
       cli.command !== "finish" &&
       cli.command !== "list" &&
-      cli.command !== "stats"
+      cli.command !== "stats" &&
+      cli.command !== "demo"
     ) {
-      // No prompt provided — open editor by default on interactive terminals
       issueBody = await openTextarea();
       if (!issueBody) {
         console.error("Error: Editor cancelled — no prompt provided.");
@@ -341,6 +344,7 @@ export async function loadConfig(): Promise<SwarmConfig> {
     cli.command !== "finish" &&
     cli.command !== "list" &&
     cli.command !== "stats" &&
+    cli.command !== "demo" &&
     !cli.resume &&
     (!issueBody || issueBody === "")
   ) {

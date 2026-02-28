@@ -87,6 +87,13 @@ if (config.command === "stats") {
   process.exit(0);
 }
 
+// Handle demo command
+if (config.command === "demo") {
+  const { runDemo } = await import("./demo.js");
+  await runDemo(config);
+  process.exit(0);
+}
+
 // Handle finish command before resolving session (resolves its own)
 if (config.command === "finish") {
   const { resolveSessionId, getSession } = await import("./session-store.js");
