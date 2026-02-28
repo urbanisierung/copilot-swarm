@@ -1,0 +1,96 @@
+{
+  "agents": {
+    "pm": {
+      "invocations": 4,
+      "totalElapsedMs": 6000,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 4
+      }
+    },
+    "pm-reviewer": {
+      "invocations": 4,
+      "totalElapsedMs": 4000,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 4
+      }
+    },
+    "spec-reviewer": {
+      "invocations": 4,
+      "totalElapsedMs": 4000,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 4
+      }
+    },
+    "decompose-agent": {
+      "invocations": 4,
+      "totalElapsedMs": 3000,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-haiku-4.5": 4
+      }
+    },
+    "designer": {
+      "invocations": 4,
+      "totalElapsedMs": 6000,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 4
+      }
+    },
+    "design-reviewer": {
+      "invocations": 4,
+      "totalElapsedMs": 3000,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 4
+      }
+    },
+    "engineer": {
+      "invocations": 16,
+      "totalElapsedMs": 34558.793349229025,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 16
+      }
+    },
+    "code-reviewer": {
+      "invocations": 12,
+      "totalElapsedMs": 15206.051461139976,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 12
+      }
+    },
+    "qa": {
+      "invocations": 12,
+      "totalElapsedMs": 15380.62652896535,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 12
+      }
+    },
+    "cross-model-reviewer": {
+      "invocations": 4,
+      "totalElapsedMs": 6000,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "gpt-4.1": 4
+      }
+    }
+  },
+  "totalRuns": 4,
+  "lastUpdated": "2026-02-28T05:50:17.004Z"
+}
