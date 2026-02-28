@@ -1,96 +1,204 @@
 {
   "agents": {
-    "pm": {
-      "invocations": 8,
-      "totalElapsedMs": 12000,
+    "scout:api-gateway": {
+      "invocations": 2,
+      "totalElapsedMs": 2662.003100400253,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
-        "claude-sonnet-4": 8
+        "claude-haiku-4.5": 2
       }
     },
-    "pm-reviewer": {
-      "invocations": 8,
-      "totalElapsedMs": 8000,
+    "scout:billing-service": {
+      "invocations": 2,
+      "totalElapsedMs": 2654.895157735957,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
-        "claude-sonnet-4": 8
+        "claude-haiku-4.5": 2
       }
     },
-    "spec-reviewer": {
-      "invocations": 8,
-      "totalElapsedMs": 8000,
+    "scout:shared-types": {
+      "invocations": 2,
+      "totalElapsedMs": 2719.4855028558704,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
-        "claude-sonnet-4": 8
+        "claude-haiku-4.5": 2
       }
     },
-    "decompose-agent": {
-      "invocations": 8,
-      "totalElapsedMs": 6000,
+    "scout:web-dashboard": {
+      "invocations": 2,
+      "totalElapsedMs": 2904.626713594477,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
-        "claude-haiku-4.5": 8
+        "claude-haiku-4.5": 2
       }
     },
-    "designer": {
-      "invocations": 8,
-      "totalElapsedMs": 12000,
+    "scout:user-service": {
+      "invocations": 2,
+      "totalElapsedMs": 3762.5391811024915,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
-        "claude-sonnet-4": 8
+        "claude-haiku-4.5": 2
       }
     },
-    "design-reviewer": {
-      "invocations": 8,
-      "totalElapsedMs": 6000,
+    "fleet-strategist": {
+      "invocations": 2,
+      "totalElapsedMs": 5000,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
-        "claude-sonnet-4": 8
+        "claude-sonnet-4": 2
       }
     },
-    "engineer": {
-      "invocations": 32,
-      "totalElapsedMs": 66697.35460341789,
+    "pm:billing-service": {
+      "invocations": 2,
+      "totalElapsedMs": 2313.972678254154,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
-        "claude-sonnet-4": 32
+        "claude-sonnet-4": 2
       }
     },
-    "code-reviewer": {
-      "invocations": 24,
-      "totalElapsedMs": 30002.52803878557,
+    "pm:shared-types": {
+      "invocations": 2,
+      "totalElapsedMs": 2317.7774433505497,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
-        "claude-sonnet-4": 24
+        "claude-sonnet-4": 2
       }
     },
-    "qa": {
-      "invocations": 24,
-      "totalElapsedMs": 29808.738586666816,
+    "pm:user-service": {
+      "invocations": 2,
+      "totalElapsedMs": 2771.6616792883515,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
-        "claude-sonnet-4": 24
+        "claude-sonnet-4": 2
       }
     },
-    "cross-model-reviewer": {
-      "invocations": 8,
-      "totalElapsedMs": 12000,
+    "engineer:user-service": {
+      "invocations": 2,
+      "totalElapsedMs": 5414.554935506425,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
-        "gpt-4.1": 8
+        "claude-sonnet-4": 2
+      }
+    },
+    "engineer:shared-types": {
+      "invocations": 2,
+      "totalElapsedMs": 6206.470506465888,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "engineer:billing-service": {
+      "invocations": 2,
+      "totalElapsedMs": 5622.72430097655,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "reviewer:user-service": {
+      "invocations": 2,
+      "totalElapsedMs": 2798.6497215204404,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "reviewer:billing-service": {
+      "invocations": 2,
+      "totalElapsedMs": 2376.361507971683,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "reviewer:shared-types": {
+      "invocations": 2,
+      "totalElapsedMs": 2915.072448867426,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "pm:web-dashboard": {
+      "invocations": 2,
+      "totalElapsedMs": 2821.650521957349,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "pm:api-gateway": {
+      "invocations": 2,
+      "totalElapsedMs": 3051.744377723588,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "engineer:web-dashboard": {
+      "invocations": 2,
+      "totalElapsedMs": 6620.7321470287725,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "engineer:api-gateway": {
+      "invocations": 2,
+      "totalElapsedMs": 7263.089461019092,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "reviewer:web-dashboard": {
+      "invocations": 2,
+      "totalElapsedMs": 3464.0780610153215,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "reviewer:api-gateway": {
+      "invocations": 2,
+      "totalElapsedMs": 3115.950494946014,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 2
+      }
+    },
+    "fleet-reviewer": {
+      "invocations": 2,
+      "totalElapsedMs": 4000,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "gpt-4.1": 2
       }
     }
   },
-  "totalRuns": 8,
-  "lastUpdated": "2026-02-28T06:12:34.752Z"
+  "totalRuns": 2,
+  "lastUpdated": "2026-02-28T06:36:21.288Z"
 }

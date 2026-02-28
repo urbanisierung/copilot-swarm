@@ -2,12 +2,6 @@ import type { ProgressTracker, StreamInfo, StreamStatus } from "./progress-track
 
 const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
-const PHASE_ICON: Record<string, string> = {
-  pending: "○",
-  done: "✅",
-  skipped: "⏭",
-};
-
 const STREAM_DISPLAY: Record<StreamStatus, { icon: string; label: string }> = {
   queued: { icon: "○", label: "Queued" },
   engineering: { icon: "🔨", label: "Coding" },
@@ -109,10 +103,26 @@ export class TuiRenderer {
     const colRight = width - 4 - colLeft - 2; // 2 for separator
     const phaseLines: string[] = [];
     for (const phase of this.tracker.phases) {
-      const icon = phase.status === "active" ? spin : (PHASE_ICON[phase.status] ?? "○");
-      let line = `${icon}  ${phase.name}`;
+      // Normalize icon width: emojis (✅⏭) are 2 cells; spinner/○ are 1 cell
+      let icon: string;
+      let iconCells: number;
+      if (phase.status === "active") {
+        icon = spin;
+        iconCells = 1;
+      } else if (phase.status === "done") {
+        icon = "✅";
+        iconCells = 2;
+      } else if (phase.status === "skipped") {
+        icon = "⏭";
+        iconCells = 2;
+      } else {
+        icon = "○";
+        iconCells = 1;
+      }
+      const iconPad = " ".repeat(3 - iconCells); // align to 3 cols total (icon + gap)
+      let line = `${icon}${iconPad}${phase.name}`;
       if (phase.status === "active" && this.tracker.activeAgent) {
-        const agent = this.trunc(this.tracker.activeAgent, colLeft - this.visLen(line) - 3);
+        const agent = this.trunc(this.tracker.activeAgent, colLeft - this.visLen(line) - iconCells - 1);
         line += `  \x1b[2m${agent}\x1b[0m`;
       }
       phaseLines.push(line);
@@ -128,9 +138,7 @@ export class TuiRenderer {
         const elapsed = this.fmtElapsed(Date.now() - a.startedAt);
         const paddedLabel = a.label.padEnd(maxLabel);
         const paddedModel = a.model.padEnd(maxModel);
-        agentLines.push(
-          `${spin}  ${paddedLabel}  \x1b[2m${paddedModel}  ${elapsed}\x1b[0m`,
-        );
+        agentLines.push(`${spin}  ${paddedLabel}  \x1b[2m${paddedModel}  ${elapsed}\x1b[0m`);
       }
     }
 
@@ -148,8 +156,9 @@ export class TuiRenderer {
       lines.push("  Streams");
       for (const s of this.tracker.streams) {
         const d = this.streamIcon(s, spin);
+        const iconPad = " ".repeat(3 - d.cells); // normalize icon+gap to 3 cols
         const task = this.trunc(s.task, width - 24);
-        lines.push(`    ${s.label}  ${d.icon} ${d.label.padEnd(8)} ${task}`);
+        lines.push(`    ${s.label}  ${d.icon}${iconPad}${d.label.padEnd(8)} ${task}`);
       }
       lines.push("");
     }
@@ -233,10 +242,13 @@ export class TuiRenderer {
     return s;
   }
 
-  private streamIcon(s: StreamInfo, spin: string): { icon: string; label: string } {
+  private streamIcon(s: StreamInfo, spin: string): { icon: string; label: string; cells: number } {
     const d = STREAM_DISPLAY[s.status];
     const active = s.status === "engineering" || s.status === "reviewing" || s.status === "testing";
-    return { icon: active ? spin : d.icon, label: d.label };
+    if (active) return { icon: spin, label: d.label, cells: 1 };
+    // queued ○ = 1 cell; emojis (✅❌🔨🔍🧪⏭) = 2 cells
+    const singleCell = s.status === "queued";
+    return { icon: d.icon, label: d.label, cells: singleCell ? 1 : 2 };
   }
 
   private fmtElapsed(ms: number): string {
@@ -258,10 +270,17 @@ export class TuiRenderer {
     return message.replace(/^\s*(?:\p{Emoji_Presentation}|\p{Extended_Pictographic})+\s*/u, "").trim();
   }
 
-  /** Approximate visible length (ignores ANSI escape sequences). */
+  /** Approximate visible length (ignores ANSI escape sequences, accounts for wide chars). */
   private visLen(s: string): number {
     // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping ANSI escapes requires matching ESC
-    return s.replace(/\x1b\[[0-9;]*m/g, "").length;
+    const stripped = s.replace(/\x1b\[[0-9;]*m/g, "");
+    let len = 0;
+    for (const ch of stripped) {
+      // Common emoji/wide chars used in this TUI occupy 2 cells
+      const cp = ch.codePointAt(0) ?? 0;
+      len += cp > 0x2fff || (cp >= 0x2300 && cp <= 0x23ff) || (cp >= 0x2600 && cp <= 0x27bf) ? 2 : 1;
+    }
+    return len;
   }
 
   private pad(n: number): string {

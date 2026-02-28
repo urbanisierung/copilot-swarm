@@ -10,6 +10,7 @@
     "test": "turbo run test",
     "verify": "turbo run build typecheck check test",
     "demo": "npx tsx apps/core/scripts/demo-tui.ts",
+    "demo:fleet": "npx tsx apps/core/scripts/demo-fleet.ts",
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "turbo run build && changeset publish"
