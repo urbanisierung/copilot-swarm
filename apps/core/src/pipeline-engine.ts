@@ -454,7 +454,7 @@ export class PipelineEngine {
       await writeRoleSummary(this.effectiveConfig, phase.agent, design);
       return design;
     } finally {
-      await session.destroy();
+      await this.sessions.destroySession(session);
     }
   }
 
@@ -658,7 +658,7 @@ export class PipelineEngine {
 
         return code;
       } finally {
-        await session.destroy();
+        await this.sessions.destroySession(session);
       }
     };
 

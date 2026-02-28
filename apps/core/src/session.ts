@@ -10,6 +10,7 @@ import type { Logger } from "./logger.js";
 import { msg } from "./messages.js";
 import type { PipelineConfig } from "./pipeline-types.js";
 import type { ProgressTracker } from "./progress-tracker.js";
+import { recordAgentInvocation } from "./stats.js";
 
 const PACKAGE_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const BUNDLED_AGENTS_DIR = path.join(PACKAGE_DIR, "defaults", "agents");
@@ -20,6 +21,7 @@ export class SessionManager {
   private readonly _sessionLog: Record<string, SessionRecord> = {};
   private readonly _sessionModels = new Map<string, string>();
   private readonly _sessionLabels = new Map<string, string>();
+  private readonly _sessionStartTimes = new Map<string, number>();
   private tracker?: ProgressTracker;
 
   constructor(
@@ -155,6 +157,7 @@ export class SessionManager {
     const label = agentLabel ?? "agent";
     this._sessionModels.set(session.sessionId, resolvedModel);
     this._sessionLabels.set(session.sessionId, label);
+    this._sessionStartTimes.set(session.sessionId, Date.now());
     if (this.tracker) {
       this.tracker.addActiveAgent(session.sessionId, label, resolvedModel);
     }
@@ -182,13 +185,21 @@ export class SessionManager {
     return response?.data.content ?? "";
   }
 
-  private async destroySession(session: CopilotSession): Promise<void> {
+  async destroySession(session: CopilotSession): Promise<void> {
     const model = this._sessionModels.get(session.sessionId);
+    const label = this._sessionLabels.get(session.sessionId);
+    const startTime = this._sessionStartTimes.get(session.sessionId);
     if (model) {
       this.tracker?.removeActiveAgent(session.sessionId);
       this._sessionModels.delete(session.sessionId);
       this._sessionLabels.delete(session.sessionId);
+      // Record agent stats (fire-and-forget)
+      if (label && startTime) {
+        const elapsedMs = Date.now() - startTime;
+        recordAgentInvocation(this.config, label, model, elapsedMs).catch(() => {});
+      }
     }
+    this._sessionStartTimes.delete(session.sessionId);
     this._editedFiles.delete(session.sessionId);
     await session.destroy();
   }

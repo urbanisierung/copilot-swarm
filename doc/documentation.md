@@ -42,6 +42,7 @@ Commands:
   session          Manage sessions: create, list, use (group related runs)
   finish           Finalize the active session — summarize, log to changelog, clean up
   list             List all sessions across all repositories
+  stats            Show agent invocation statistics
 
 Options:
   -v, --verbose        Enable verbose streaming output
@@ -436,6 +437,16 @@ swarm list
 
 Output shows session ID, name, repository path, status (active/finished), and creation timestamp. This is useful for finding sessions in other repos or reviewing past work.
 
+### Stats Command
+
+View aggregated agent invocation statistics across all runs.
+
+```bash
+swarm stats
+```
+
+Output shows a table of agents with: invocation count, total/average elapsed time, input/output token counts (when available), and which models were used. Stats are stored in `.swarm/stats.json` and accumulate automatically across runs.
+
 ### TUI Dashboard
 
 A full-screen terminal dashboard displays progress for all modes (`run`, `plan`, `analyze`) when running in a TTY (interactive terminal). The dashboard shows:
@@ -443,7 +454,7 @@ A full-screen terminal dashboard displays progress for all modes (`run`, `plan`,
 - **Header** — Tool name, CLI version, active model, current working directory, and elapsed time
 - **Phase progress** — Status of each phase (pending, active, done, skipped)
 - **Stream status** — Per-stream status during implementation (queued, coding, review, testing, done, failed) — `run` mode only
-- **Active agent** — Which agent is currently working
+- **Active agents** — Currently running agents with model name and elapsed time
 - **Activity log** — Recent log entries
 
 In `plan` mode, the TUI automatically pauses to show agent questions and accept user input, then resumes after each answer.
@@ -754,6 +765,7 @@ All output is organized under the `.swarm/` directory:
       chunk-<id>.md
   brainstorms/                    # Brainstorm discussion summaries
     <runId>.md
+  stats.json                      # Aggregated agent usage statistics
   latest                          # Pointer to the most recent run ID
 ```
 

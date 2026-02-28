@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here, in reverse chronological order.
 
+## 2026-02-28
+
+### Fixed
+- **TUI active agents leak** — Sessions created via `createAgentSession()` and destroyed with the SDK's `session.destroy()` bypassed `SessionManager.destroySession()`, so agents stayed in the TUI "Active Agents" column with spinning indicators forever. Fixed by making `destroySession()` public and using it in all engines (pipeline, brainstorm, task, planning). This also fixes the "too many models rendered" issue — only agents currently executing now appear in the right column.
+
+### Added
+- **Per-agent elapsed time in TUI** — The "Active Agents" column now shows how long each agent has been running (e.g. `pm  claude-sonnet-4  01:23`).
+- **Agent usage stats** — Every agent invocation is now recorded to `.swarm/stats.json` with invocation count, model used, and elapsed time. Stats accumulate across runs.
+- **`swarm stats` command** — New CLI command to view aggregated agent invocation statistics: call counts, total/average time, models used, and token counts (when available).
+
 ## 2026-02-27
 
 ### Added

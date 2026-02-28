@@ -79,6 +79,14 @@ if (config.command === "list") {
   process.exit(0);
 }
 
+// Handle stats command
+if (config.command === "stats") {
+  const { loadStats, formatStats } = await import("./stats.js");
+  const stats = await loadStats(config);
+  console.log(formatStats(stats));
+  process.exit(0);
+}
+
 // Handle finish command before resolving session (resolves its own)
 if (config.command === "finish") {
   const { resolveSessionId, getSession } = await import("./session-store.js");

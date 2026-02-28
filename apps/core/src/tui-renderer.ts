@@ -123,7 +123,10 @@ export class TuiRenderer {
     if (agents.length > 0) {
       agentLines.push("\x1b[2mActive Agents\x1b[0m");
       for (const a of agents) {
-        agentLines.push(`${spin}  ${a.label}  \x1b[2m${this.trunc(a.model, colRight - 6)}\x1b[0m`);
+        const elapsed = this.fmtElapsed(Date.now() - a.startedAt);
+        agentLines.push(
+          `${spin}  ${a.label}  \x1b[2m${this.trunc(a.model, colRight - elapsed.length - 8)}  ${elapsed}\x1b[0m`,
+        );
       }
     }
 

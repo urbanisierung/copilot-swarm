@@ -44,7 +44,8 @@ export type SwarmCommand =
   | "fleet"
   | "session"
   | "finish"
-  | "list";
+  | "list"
+  | "stats";
 
 interface CliArgs {
   command: SwarmCommand;
@@ -84,6 +85,7 @@ Commands:
   session          Manage sessions: create, list, use (group related runs)
   finish           Finalize the active session — summarize, log to changelog, clean up
   list             List all sessions across all repositories
+  stats            Show agent invocation statistics
 
 Options:
   -v, --verbose        Enable verbose streaming output
@@ -187,7 +189,8 @@ function parseCliArgs(): CliArgs {
       positionals[0] === "fleet" ||
       positionals[0] === "session" ||
       positionals[0] === "finish" ||
-      positionals[0] === "list")
+      positionals[0] === "list" ||
+      positionals[0] === "stats")
   ) {
     command = positionals[0] as SwarmCommand;
     promptParts = positionals.slice(1);
@@ -320,7 +323,8 @@ export async function loadConfig(): Promise<SwarmConfig> {
       cli.command !== "analyze" &&
       cli.command !== "session" &&
       cli.command !== "finish" &&
-      cli.command !== "list"
+      cli.command !== "list" &&
+      cli.command !== "stats"
     ) {
       // No prompt provided — open editor by default on interactive terminals
       issueBody = await openTextarea();
@@ -336,6 +340,7 @@ export async function loadConfig(): Promise<SwarmConfig> {
     cli.command !== "session" &&
     cli.command !== "finish" &&
     cli.command !== "list" &&
+    cli.command !== "stats" &&
     !cli.resume &&
     (!issueBody || issueBody === "")
   ) {

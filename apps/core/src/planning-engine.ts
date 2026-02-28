@@ -763,7 +763,7 @@ export class PlanningEngine {
         "PM",
       );
     } finally {
-      await session.destroy();
+      await this.sessions.destroySession(session);
     }
 
     // Extract everything after REQUIREMENTS_CLEAR keyword
@@ -874,7 +874,7 @@ export class PlanningEngine {
       this.logger.stopSpinner();
       response = await this.recoverClarification(phaseKey, spec, response, clearKeyword, phaseLabel);
     } finally {
-      await session.destroy();
+      await this.sessions.destroySession(session);
     }
 
     const idx = response.toUpperCase().indexOf(clearKeyword);
@@ -905,7 +905,7 @@ export class PlanningEngine {
 
       return analysis;
     } finally {
-      await session.destroy();
+      await this.sessions.destroySession(session);
     }
   }
 

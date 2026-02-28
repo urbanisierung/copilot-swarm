@@ -61,3 +61,8 @@ export function modeLatestPointerPath(config: SwarmConfig, mode: string): string
   }
   return latestPointerPath(config);
 }
+
+/** Aggregated stats file: .swarm/stats.json */
+export function statsFilePath(config: SwarmConfig): string {
+  return path.join(swarmRoot(config), "stats.json");
+}

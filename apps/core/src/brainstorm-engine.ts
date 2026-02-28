@@ -147,7 +147,7 @@ export class BrainstormEngine {
 
       summary = response;
     } finally {
-      await session.destroy();
+      await this.sessions.destroySession(session);
     }
 
     this.tracker?.completePhase("brainstorm-discuss-0");
