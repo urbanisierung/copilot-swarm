@@ -1,44 +1,35 @@
 {
   "agents": {
-    "scout:api-gateway": {
+    "scout:acme-corp/web-dashboard-frontend": {
       "invocations": 2,
-      "totalElapsedMs": 2662.003100400253,
+      "totalElapsedMs": 2502.090292769869,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
         "claude-haiku-4.5": 2
       }
     },
-    "scout:billing-service": {
+    "scout:acme-corp/shared-typescript-definitions": {
       "invocations": 2,
-      "totalElapsedMs": 2654.895157735957,
+      "totalElapsedMs": 2661.218882411878,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
         "claude-haiku-4.5": 2
       }
     },
-    "scout:shared-types": {
+    "scout:acme-corp/billing-and-payments-service": {
       "invocations": 2,
-      "totalElapsedMs": 2719.4855028558704,
+      "totalElapsedMs": 3164.1456066533647,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
         "claude-haiku-4.5": 2
       }
     },
-    "scout:web-dashboard": {
+    "scout:acme-corp/api-gateway-service": {
       "invocations": 2,
-      "totalElapsedMs": 2904.626713594477,
-      "totalInputTokens": 0,
-      "totalOutputTokens": 0,
-      "models": {
-        "claude-haiku-4.5": 2
-      }
-    },
-    "scout:user-service": {
-      "invocations": 2,
-      "totalElapsedMs": 3762.5391811024915,
+      "totalElapsedMs": 3036.6170545203117,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
@@ -54,135 +45,135 @@
         "claude-sonnet-4": 2
       }
     },
-    "pm:billing-service": {
+    "pm:acme-corp/shared-typescript-definitions": {
       "invocations": 2,
-      "totalElapsedMs": 2313.972678254154,
+      "totalElapsedMs": 2107.7922337981,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
         "claude-sonnet-4": 2
       }
     },
-    "pm:shared-types": {
+    "pm:acme-corp/user-authentication-service": {
       "invocations": 2,
-      "totalElapsedMs": 2317.7774433505497,
+      "totalElapsedMs": 2509.555219572204,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
         "claude-sonnet-4": 2
       }
     },
-    "pm:user-service": {
+    "pm:acme-corp/billing-and-payments-service": {
       "invocations": 2,
-      "totalElapsedMs": 2771.6616792883515,
+      "totalElapsedMs": 2433.1684610407533,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
         "claude-sonnet-4": 2
       }
     },
-    "engineer:user-service": {
+    "engineer:acme-corp/shared-typescript-definitions": {
       "invocations": 2,
-      "totalElapsedMs": 5414.554935506425,
+      "totalElapsedMs": 5229.162928351474,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
         "claude-sonnet-4": 2
       }
     },
-    "engineer:shared-types": {
+    "engineer:acme-corp/user-authentication-service": {
       "invocations": 2,
-      "totalElapsedMs": 6206.470506465888,
+      "totalElapsedMs": 5042.023161979458,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
         "claude-sonnet-4": 2
       }
     },
-    "engineer:billing-service": {
+    "engineer:acme-corp/billing-and-payments-service": {
       "invocations": 2,
-      "totalElapsedMs": 5622.72430097655,
+      "totalElapsedMs": 5839.007407109995,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
         "claude-sonnet-4": 2
       }
     },
-    "reviewer:user-service": {
+    "reviewer:acme-corp/shared-typescript-definitions": {
       "invocations": 2,
-      "totalElapsedMs": 2798.6497215204404,
+      "totalElapsedMs": 2952.2845108880756,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
         "claude-sonnet-4": 2
       }
     },
-    "reviewer:billing-service": {
+    "reviewer:acme-corp/user-authentication-service": {
       "invocations": 2,
-      "totalElapsedMs": 2376.361507971683,
+      "totalElapsedMs": 2394.610302967497,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
         "claude-sonnet-4": 2
       }
     },
-    "reviewer:shared-types": {
+    "reviewer:acme-corp/billing-and-payments-service": {
       "invocations": 2,
-      "totalElapsedMs": 2915.072448867426,
+      "totalElapsedMs": 2745.4234094709377,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
         "claude-sonnet-4": 2
       }
     },
-    "pm:web-dashboard": {
+    "pm:acme-corp/api-gateway-service": {
       "invocations": 2,
-      "totalElapsedMs": 2821.650521957349,
+      "totalElapsedMs": 2550.97283279869,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
         "claude-sonnet-4": 2
       }
     },
-    "pm:api-gateway": {
+    "pm:acme-corp/web-dashboard-frontend": {
       "invocations": 2,
-      "totalElapsedMs": 3051.744377723588,
+      "totalElapsedMs": 3147.2933866891667,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
         "claude-sonnet-4": 2
       }
     },
-    "engineer:web-dashboard": {
+    "engineer:acme-corp/web-dashboard-frontend": {
       "invocations": 2,
-      "totalElapsedMs": 6620.7321470287725,
+      "totalElapsedMs": 5853.667123313249,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
         "claude-sonnet-4": 2
       }
     },
-    "engineer:api-gateway": {
+    "engineer:acme-corp/api-gateway-service": {
       "invocations": 2,
-      "totalElapsedMs": 7263.089461019092,
+      "totalElapsedMs": 6185.598540689585,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
         "claude-sonnet-4": 2
       }
     },
-    "reviewer:web-dashboard": {
+    "reviewer:acme-corp/web-dashboard-frontend": {
       "invocations": 2,
-      "totalElapsedMs": 3464.0780610153215,
+      "totalElapsedMs": 3384.1047983041644,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
         "claude-sonnet-4": 2
       }
     },
-    "reviewer:api-gateway": {
+    "reviewer:acme-corp/api-gateway-service": {
       "invocations": 2,
-      "totalElapsedMs": 3115.950494946014,
+      "totalElapsedMs": 3360.288457787539,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
@@ -197,8 +188,17 @@
       "models": {
         "gpt-4.1": 2
       }
+    },
+    "scout:acme-corp/user-authentication-service": {
+      "invocations": 1,
+      "totalElapsedMs": 1672.95773942975,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-haiku-4.5": 1
+      }
     }
   },
   "totalRuns": 2,
-  "lastUpdated": "2026-02-28T06:36:21.288Z"
+  "lastUpdated": "2026-02-28T06:42:26.368Z"
 }

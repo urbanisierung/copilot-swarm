@@ -50,11 +50,11 @@ if (statsOnly) {
 // ---------------------------------------------------------------------------
 
 const REPOS = [
-  { name: "api-gateway", role: "API Gateway (Node.js)" },
-  { name: "user-service", role: "User microservice (Go)" },
-  { name: "billing-service", role: "Billing microservice (Python)" },
-  { name: "web-dashboard", role: "React frontend" },
-  { name: "shared-types", role: "Shared TypeScript types" },
+  { name: "acme-corp/api-gateway-service", role: "API Gateway (Node.js)" },
+  { name: "acme-corp/user-authentication-service", role: "User microservice (Go)" },
+  { name: "acme-corp/billing-and-payments-service", role: "Billing microservice (Python)" },
+  { name: "acme-corp/web-dashboard-frontend", role: "React frontend" },
+  { name: "acme-corp/shared-typescript-definitions", role: "Shared TypeScript types" },
 ];
 
 const MODELS = {
@@ -75,12 +75,12 @@ const FLEET_PHASES = [
 
 // Add fleet phase names to tracker's display
 const FLEET_PHASE_NAMES: Record<string, string> = {
-  "fleet-analyze": "Analyze Repos",
-  "fleet-strategize": "Cross-Repo Strategy",
-  "fleet-wave-1": "Wave 1 — Foundation",
-  "fleet-wave-2": "Wave 2 — Consumers",
-  "fleet-cross-review": "Cross-Repo Review",
-  "fleet-summary": "Summary",
+  "fleet-analyze": "Analyze Repositories",
+  "fleet-strategize": "Cross-Repo Dependency Strategy",
+  "fleet-wave-1": "Wave 1 — Foundation Services & Shared Types",
+  "fleet-wave-2": "Wave 2 — Consumer Applications",
+  "fleet-cross-review": "Cross-Repository Consistency Review",
+  "fleet-summary": "Summary & Documentation",
 };
 
 // ---------------------------------------------------------------------------
