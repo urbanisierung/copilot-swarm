@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.35
+
+### Patch Changes
+
+- d07a0df: CLI TUI improvements
+
 ## 0.0.34
 
 ### Patch Changes
