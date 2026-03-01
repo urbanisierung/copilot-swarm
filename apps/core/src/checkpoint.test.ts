@@ -24,6 +24,7 @@ function makeConfig(runId: string): SwarmConfig {
     maxAutoResume: 3,
     reviewRunId: undefined,
     sessionId: undefined,
+    autoModel: false,
   };
 }
 

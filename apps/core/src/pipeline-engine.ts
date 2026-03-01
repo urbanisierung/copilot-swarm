@@ -503,7 +503,15 @@ export class PipelineEngine {
       const streamKey = `stream-${idx}`;
       this.logger.info(msg.streamStart(label, task));
 
-      const session = await this.sessions.createAgentSession(phase.agent, undefined, `implement/${streamKey}`);
+      // Auto-model: classify task complexity to select the appropriate model
+      let streamModel: string | undefined;
+      if (this.config.autoModel) {
+        this.logger.info(msg.autoModelClassifying(task));
+        streamModel = await this.sessions.classifyModelForTask(task);
+        this.logger.info(msg.autoModelSelected(streamModel));
+      }
+
+      const session = await this.sessions.createAgentSession(phase.agent, streamModel, `implement/${streamKey}`);
       const editedFiles = this.sessions.trackEditedFiles(session);
       let sessionPrimed = false;
 

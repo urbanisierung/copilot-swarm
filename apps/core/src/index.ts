@@ -117,6 +117,23 @@ if (config.command === "restore") {
   process.exit(0);
 }
 
+// Handle digest command
+if (config.command === "digest") {
+  const pipeline = (await import("./pipeline-config.js")).loadPipelineConfig(config.repoRoot);
+  const logger = new Logger(config.verbose, config.runId);
+  const { runDigest } = await import("./digest.js");
+
+  // Resolve session so paths work
+  try {
+    config.resolvedSessionId = await resolveSessionId(config);
+  } catch {
+    // No session — digest will use unsessioned paths
+  }
+
+  await runDigest(config, pipeline, logger);
+  process.exit(0);
+}
+
 // Handle finish command before resolving session (resolves its own)
 if (config.command === "finish") {
   const { resolveSessionId, getSession } = await import("./session-store.js");

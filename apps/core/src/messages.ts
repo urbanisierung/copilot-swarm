@@ -179,4 +179,13 @@ export const msg = {
     return `🔀 ${parts.join(", ")}`;
   },
   summaryOutput: (path: string) => `📁 Output: ${path}`,
+
+  // --- Digest Mode ---
+  digestNoRun: "❌ No previous run found. Run 'swarm run' first, then use 'swarm digest' to see highlights.",
+  digestStart: "📋 Generating run digest…",
+  digestComplete: "\n✅ Digest complete.",
+
+  // --- Auto-Model ---
+  autoModelClassifying: (task: string) => `🤖 Classifying model for: ${task.substring(0, 60)}…`,
+  autoModelSelected: (model: string) => `   → Selected: ${model}`,
 } as const;

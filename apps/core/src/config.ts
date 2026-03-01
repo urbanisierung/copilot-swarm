@@ -42,6 +42,7 @@ export type SwarmCommand =
   | "brainstorm"
   | "review"
   | "fleet"
+  | "digest"
   | "session"
   | "finish"
   | "list"
@@ -59,6 +60,7 @@ interface CliArgs {
   editor: boolean;
   resume: boolean;
   noTui: boolean;
+  autoModel: boolean;
   reviewRunId: string | undefined;
   sessionId: string | undefined;
   verifyBuild: string | undefined;
@@ -84,6 +86,7 @@ Commands:
   task             Lightweight autonomous mode — prereqs, PM review, then run
   analyze          Analyze the repository and generate a context document
   review           Review a previous run — provide feedback for agents to fix/improve
+  digest           Show a concise highlights summary of a completed run
   fleet            Multi-repo orchestration — coordinate work across repositories
   session          Manage sessions: create, list, use (group related runs)
   finish           Finalize the active session — summarize, log to changelog, clean up
@@ -99,9 +102,10 @@ Options:
   -p, --plan <file>    Use a plan file as input (reads the refined requirements section)
   -f, --file <file>    Read prompt from a file instead of inline text
   -r, --resume         Resume from the last checkpoint (skip completed phases)
-  --run <runId>        Specify which run to review (default: latest)
+  --run <runId>        Specify which run to review/digest (default: latest)
   --session <id>       Use a specific session (default: active session)
   --no-tui             Disable TUI dashboard (use plain log output)
+  --auto-model         Auto-select model per task (use fast model when primary isn't needed)
   --verify-build <cmd> Shell command to verify the build (e.g. "npm run build")
   --verify-test <cmd>  Shell command to run tests (e.g. "npm test")
   --verify-lint <cmd>  Shell command to run linting (e.g. "npm run lint")
@@ -136,6 +140,8 @@ Examples:
   swarm brainstorm "Should we use SSR?"   Explore ideas interactively
   swarm review "Fix the auth bug"         Review latest run with feedback
   swarm review -e --run 2026-02-17T08-00  Review a specific run
+  swarm digest                            Show highlights of the latest run
+  swarm digest --run 2026-02-17T08-00     Digest a specific run
   swarm session create "Dark mode feature" Create a new session
   swarm session list                      List all sessions
   swarm session use <id>                  Switch active session
@@ -143,6 +149,7 @@ Examples:
   swarm finish --session <id>             Finalize a specific session
   swarm fleet "Add OAuth" --repos ~/auth ~/api ~/frontend
   swarm fleet "Add OAuth" --fleet-config fleet.config.yaml
+  swarm run --auto-model "Fix validation"  Use fast model for simple tasks
 
 Environment variables override defaults; CLI args override env vars.
 See documentation for all env var options.`;
@@ -158,6 +165,7 @@ function parseCliArgs(): CliArgs {
       resume: { type: "boolean", short: "r", default: false },
       editor: { type: "boolean", short: "e", default: false },
       "no-tui": { type: "boolean", default: false },
+      "auto-model": { type: "boolean", default: false },
       plan: { type: "string", short: "p" },
       file: { type: "string", short: "f" },
       run: { type: "string" },
@@ -193,6 +201,7 @@ function parseCliArgs(): CliArgs {
       positionals[0] === "brainstorm" ||
       positionals[0] === "review" ||
       positionals[0] === "fleet" ||
+      positionals[0] === "digest" ||
       positionals[0] === "session" ||
       positionals[0] === "finish" ||
       positionals[0] === "list" ||
@@ -214,6 +223,7 @@ function parseCliArgs(): CliArgs {
     editor: values.editor as boolean,
     resume: values.resume as boolean,
     noTui: values["no-tui"] as boolean,
+    autoModel: values["auto-model"] as boolean,
     reviewRunId: values.run as string | undefined,
     sessionId: values.session as string | undefined,
     verifyBuild: values["verify-build"] as string | undefined,
@@ -300,6 +310,8 @@ export interface SwarmConfig {
   resolvedSessionId?: string;
   /** Verification commands from CLI flags (override YAML and auto-detect). */
   readonly verifyOverrides?: VerifyConfig;
+  /** When true, auto-select model per task (fast model for simple tasks). */
+  readonly autoModel: boolean;
   /** Repository paths for fleet mode (from --repos). */
   readonly fleetRepos?: string[];
   /** Fleet config file path (from --fleet-config). */
@@ -330,6 +342,7 @@ export async function loadConfig(): Promise<SwarmConfig> {
       process.stdin.isTTY &&
       !cli.resume &&
       cli.command !== "analyze" &&
+      cli.command !== "digest" &&
       cli.command !== "session" &&
       cli.command !== "finish" &&
       cli.command !== "list" &&
@@ -348,6 +361,7 @@ export async function loadConfig(): Promise<SwarmConfig> {
 
   if (
     cli.command !== "analyze" &&
+    cli.command !== "digest" &&
     cli.command !== "session" &&
     cli.command !== "finish" &&
     cli.command !== "list" &&
@@ -392,5 +406,6 @@ export async function loadConfig(): Promise<SwarmConfig> {
     verifyOverrides,
     fleetRepos: cli.fleetRepos,
     fleetConfigPath: cli.fleetConfigPath,
+    autoModel: cli.autoModel || readEnvBoolean("AUTO_MODEL", false),
   };
 }
