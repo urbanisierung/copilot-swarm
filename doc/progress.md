@@ -5,6 +5,7 @@ All notable changes to this project are documented here, in reverse chronologica
 ## 2026-03-01
 
 ### Added
+- **Interactive stream selection** — During TUI mode, users can navigate streams with arrow keys (↑↓) to select one and see a detail panel with full task description, model, and current activity. Press Escape or `q` to deselect. Works in all modes that use streams (run, analyze, fleet).
 - **Digest mode** — New `swarm digest` command that shows a concise highlights summary of a completed run. Reads the latest (or `--run <runId>`) run's artifacts (checkpoint, summary, role files), sends them to the fast model for synthesis, and prints a human-readable overview to stdout: what was done, key decisions, files changed, verification status. No TUI needed — pure text output.
 - **Auto-model selection** — New `--auto-model` flag (or `AUTO_MODEL=true` env var) enables per-task model selection during the implement phase. Before each task stream, a fast-model classifier assesses the task's complexity and selects `primaryModel` for complex work (architecture, security, algorithms) or `fastModel` for simple tasks (CRUD, config, docs, boilerplate). Added `classifyModelForTask()` method to `SessionManager`. Saves cost on mixed-complexity runs without sacrificing quality.
 - **Demo scenarios** — Added "Run (auto-model)" and "Digest" demo scenarios to `swarm demo`. Auto-model demo shows smart model selection per task with 3 streams at different complexity levels. Digest demo shows a mock highlights output.

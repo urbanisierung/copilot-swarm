@@ -128,7 +128,10 @@ async function runAnalyze() {
   ]);
   const chunkWork = [0, 1, 2, 3].map(async (idx) => {
     tracker.updateStream(idx, "engineering");
+    tracker.updateStreamModel(idx, MODELS.primary);
+    tracker.updateStreamDetail(idx, "Analyzing code chunk…");
     await mockAgent(`chunk-analyzer-${idx + 1}`, MODELS.primary, dur(3000 + Math.random() * 2000));
+    tracker.updateStreamDetail(idx, "Complete");
     tracker.updateStream(idx, "done");
   });
   await Promise.all(chunkWork);
@@ -203,11 +206,15 @@ async function runSingleRepoAutoModel() {
     tracker.addLog(`🤖 Stream ${idx + 1}: classifying → ${task.model === MODELS.fast ? "FAST" : "PRIMARY"}`);
     await mockAgent("model-classifier", MODELS.fast, dur(500));
     tracker.addLog(`   → Selected: ${task.model}`);
+    tracker.updateStreamModel(idx, task.model);
 
     tracker.updateStream(idx, "engineering");
+    tracker.updateStreamDetail(idx, "Implementing task…");
     await mockAgent("engineer", task.model, dur(2500 + Math.random() * 2000));
     tracker.updateStream(idx, "reviewing");
+    tracker.updateStreamDetail(idx, "Code review by reviewer");
     await mockAgent("code-reviewer", MODELS.primary, dur(1200 + Math.random() * 800));
+    tracker.updateStreamDetail(idx, "Complete");
     tracker.updateStream(idx, "done");
   });
   await Promise.all(streamWork);
@@ -320,11 +327,15 @@ async function runSingleRepo() {
   tracker.initStreams(tasks);
   const streamWork = tasks.map(async (_task, idx) => {
     tracker.updateStream(idx, "engineering");
+    tracker.updateStreamDetail(idx, "Implementing task…");
     await mockAgent("engineer", MODELS.primary, dur(3500 + Math.random() * 2000));
     tracker.updateStream(idx, "reviewing");
+    tracker.updateStreamDetail(idx, "Code review by reviewer");
     await mockAgent("code-reviewer", MODELS.primary, dur(1500 + Math.random() * 1000));
     tracker.updateStream(idx, "testing");
+    tracker.updateStreamDetail(idx, "QA testing by tester");
     await mockAgent("qa", MODELS.primary, dur(1500 + Math.random() * 1000));
+    tracker.updateStreamDetail(idx, "Complete");
     tracker.updateStream(idx, "done");
   });
   await Promise.all(streamWork);
@@ -428,12 +439,18 @@ async function runFleet() {
   await Promise.all(
     wave1.map(async (repo, idx) => {
       tracker.updateStream(idx, "engineering");
+      tracker.updateStreamModel(idx, MODELS.primary);
+      tracker.updateStreamDetail(idx, "PM drafting specification…");
       await mockAgent(`pm:${repo.name}`, MODELS.primary, dur(1500 + Math.random() * 1000));
+      tracker.updateStreamDetail(idx, "Implementing changes…");
       await mockAgent(`engineer:${repo.name}`, MODELS.primary, dur(3000 + Math.random() * 2000));
       tracker.updateStream(idx, "reviewing");
+      tracker.updateStreamDetail(idx, "Code review…");
       await mockAgent(`reviewer:${repo.name}`, MODELS.primary, dur(1500 + Math.random() * 1000));
       tracker.updateStream(idx, "testing");
+      tracker.updateStreamDetail(idx, "Running tests…");
       await sleep(dur(1000));
+      tracker.updateStreamDetail(idx, "Complete");
       tracker.updateStream(idx, "done");
     }),
   );
@@ -448,12 +465,18 @@ async function runFleet() {
   await Promise.all(
     wave2.map(async (repo, idx) => {
       tracker.updateStream(idx, "engineering");
+      tracker.updateStreamModel(idx, MODELS.primary);
+      tracker.updateStreamDetail(idx, "PM drafting specification…");
       await mockAgent(`pm:${repo.name}`, MODELS.primary, dur(1500 + Math.random() * 1000));
+      tracker.updateStreamDetail(idx, "Implementing changes…");
       await mockAgent(`engineer:${repo.name}`, MODELS.primary, dur(3500 + Math.random() * 2000));
       tracker.updateStream(idx, "reviewing");
+      tracker.updateStreamDetail(idx, "Code review…");
       await mockAgent(`reviewer:${repo.name}`, MODELS.primary, dur(1500 + Math.random() * 1000));
       tracker.updateStream(idx, "testing");
+      tracker.updateStreamDetail(idx, "Running tests…");
       await sleep(dur(1000));
+      tracker.updateStreamDetail(idx, "Complete");
       tracker.updateStream(idx, "done");
     }),
   );

@@ -12,6 +12,8 @@ export interface StreamInfo {
   label: string;
   task: string;
   status: StreamStatus;
+  model?: string;
+  detail?: string;
 }
 
 export interface LogEntry {
@@ -156,6 +158,18 @@ export class ProgressTracker {
   updateStream(index: number, status: StreamStatus): void {
     if (this.streams[index]) {
       this.streams[index].status = status;
+    }
+  }
+
+  updateStreamModel(index: number, model: string): void {
+    if (this.streams[index]) {
+      this.streams[index].model = model;
+    }
+  }
+
+  updateStreamDetail(index: number, detail: string): void {
+    if (this.streams[index]) {
+      this.streams[index].detail = detail;
     }
   }
 

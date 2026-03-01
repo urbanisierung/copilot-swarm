@@ -509,6 +509,7 @@ export class PipelineEngine {
         this.logger.info(msg.autoModelClassifying(task));
         streamModel = await this.sessions.classifyModelForTask(task);
         this.logger.info(msg.autoModelSelected(streamModel));
+        this.tracker?.updateStreamModel(idx, streamModel);
       }
 
       const session = await this.sessions.createAgentSession(phase.agent, streamModel, `implement/${streamKey}`);
@@ -524,6 +525,7 @@ export class PipelineEngine {
         } else {
           this.logger.info(msg.streamEngineering(label));
           this.tracker?.updateStream(idx, "engineering");
+          this.tracker?.updateStreamDetail(idx, "Implementing task…");
 
           const depContext = buildDepContext(idx);
           // Include repo analysis but cap it to avoid blowing context
@@ -582,6 +584,7 @@ export class PipelineEngine {
 
           this.logger.info(msg.streamCodeReview(label, review.agent));
           this.tracker?.updateStream(idx, "reviewing");
+          this.tracker?.updateStreamDetail(idx, `Code review by ${review.agent}`);
           const maxIter = review.maxIterations;
           for (let i = startIter; i <= maxIter; i++) {
             this.logger.info(msg.reviewIteration(i, maxIter));
@@ -627,6 +630,7 @@ export class PipelineEngine {
 
           this.logger.info(msg.streamQa(label));
           this.tracker?.updateStream(idx, "testing");
+          this.tracker?.updateStreamDetail(idx, `QA testing by ${phase.qa.agent}`);
           const maxQa = phase.qa.maxIterations;
           for (let i = startQa; i <= maxQa; i++) {
             this.logger.info(msg.qaIteration(i, maxQa));
