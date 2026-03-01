@@ -59,3 +59,11 @@ See [`doc/standalone-execution.md`](standalone-execution.md) for the full extrac
 - [x] Fleet-level checkpoint/resume (wave progress, per-repo completion)
 - [x] Cross-repo context passing (shared contracts + prior wave output injection)
 - [x] Documentation updates (documentation, features, progress, roadmap)
+
+## Phase 7: Run Insights & Smart Models ✅
+
+- [x] `swarm digest` command — concise highlights summary of a completed run (fast model synthesis)
+- [x] `--auto-model` flag — per-task model selection during implement phase (fast-model complexity classifier)
+- [x] `classifyModelForTask()` in SessionManager — automatic PRIMARY/FAST classification
+- [x] Demo scenarios for digest and auto-model in `swarm demo`
+- [x] Documentation updates (documentation, features, progress, roadmap)

@@ -269,8 +269,63 @@
       "models": {
         "gpt-4.1": 2
       }
+    },
+    "pm": {
+      "invocations": 3,
+      "totalElapsedMs": 3750,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 3
+      }
+    },
+    "pm-reviewer": {
+      "invocations": 3,
+      "totalElapsedMs": 1800,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 3
+      }
+    },
+    "decompose-agent": {
+      "invocations": 3,
+      "totalElapsedMs": 1500,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-haiku-4.5": 3
+      }
+    },
+    "model-classifier": {
+      "invocations": 3,
+      "totalElapsedMs": 750,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-haiku-4.5": 3
+      }
+    },
+    "engineer": {
+      "invocations": 9,
+      "totalElapsedMs": 15010.431975490428,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-haiku-4.5": 6,
+        "claude-sonnet-4": 3
+      }
+    },
+    "code-reviewer": {
+      "invocations": 9,
+      "totalElapsedMs": 7112.627208870081,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 9
+      }
     }
   },
-  "totalRuns": 4,
-  "lastUpdated": "2026-02-28T06:52:02.082Z"
+  "totalRuns": 7,
+  "lastUpdated": "2026-03-01T07:50:22.420Z"
 }

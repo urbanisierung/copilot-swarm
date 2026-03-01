@@ -262,4 +262,31 @@ export class SessionManager {
     }
     return "";
   }
+
+  /**
+   * Classify whether a task requires the primary model or can use the fast model.
+   * Uses the fast model itself to make the assessment — returns the selected model name.
+   */
+  async classifyModelForTask(taskDescription: string): Promise<string> {
+    const instructions =
+      "You are a task complexity classifier. Given a task description, decide if it needs a powerful model or if a fast/lightweight model suffices.\n\n" +
+      "Reply with EXACTLY one word: PRIMARY or FAST.\n\n" +
+      "Use PRIMARY for: complex architecture, multi-file refactoring, nuanced logic, security-sensitive code, novel algorithms.\n" +
+      "Use FAST for: simple CRUD, config changes, renaming, adding tests for existing code, documentation, straightforward bug fixes, boilerplate.";
+
+    const session = await this.createSessionWithInstructions(instructions, this.pipeline.fastModel, "model-classifier");
+    try {
+      const response = await this.send(session, `Task: ${taskDescription}`, "Classifying task complexity…");
+      const answer = response.trim().toUpperCase();
+      if (answer.includes("FAST")) {
+        return this.pipeline.fastModel;
+      }
+      return this.pipeline.primaryModel;
+    } catch {
+      // On failure, default to primary model
+      return this.pipeline.primaryModel;
+    } finally {
+      await this.destroySession(session);
+    }
+  }
 }

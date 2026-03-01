@@ -20,6 +20,8 @@ export class TuiRenderer {
   private cleanedUp = false;
   private prevLines: string[] = [];
   private readonly onExit = () => this.cleanup();
+  private selectedStream = -1;
+  private readonly onKeypress = (data: Buffer) => this.handleKey(data);
 
   constructor(private readonly tracker: ProgressTracker) {}
 
@@ -28,6 +30,7 @@ export class TuiRenderer {
     process.stdout.write("\x1b[?25l"); // Hide cursor
 
     process.on("exit", this.onExit);
+    this.startKeyListener();
 
     this.interval = setInterval(() => {
       this.frame = (this.frame + 1) % SPINNER.length;
@@ -50,6 +53,7 @@ export class TuiRenderer {
       clearInterval(this.interval);
       this.interval = null;
     }
+    this.stopKeyListener();
     process.stdout.write("\x1b[?25h"); // Show cursor
     process.stdout.write("\x1b[?1049l"); // Leave alternate screen
   }
@@ -59,6 +63,7 @@ export class TuiRenderer {
     this.prevLines = []; // Force full redraw
     process.stdout.write("\x1b[?1049h"); // Alternate screen
     process.stdout.write("\x1b[?25l"); // Hide cursor
+    this.startKeyListener();
     this.interval = setInterval(() => {
       this.frame = (this.frame + 1) % SPINNER.length;
       this.render();
@@ -68,9 +73,51 @@ export class TuiRenderer {
   private cleanup(): void {
     if (this.cleanedUp) return;
     this.cleanedUp = true;
+    this.stopKeyListener();
     process.stdout.write("\x1b[?25h"); // Show cursor
     process.stdout.write("\x1b[?1049l"); // Leave alternate screen
     process.removeListener("exit", this.onExit);
+  }
+
+  private startKeyListener(): void {
+    if (process.stdin.isTTY) {
+      process.stdin.setRawMode(true);
+      process.stdin.resume();
+      process.stdin.on("data", this.onKeypress);
+    }
+  }
+
+  private stopKeyListener(): void {
+    if (process.stdin.isTTY) {
+      process.stdin.removeListener("data", this.onKeypress);
+      process.stdin.setRawMode(false);
+      process.stdin.pause();
+    }
+  }
+
+  private handleKey(data: Buffer): void {
+    const seq = data.toString();
+    const streamCount = this.tracker.streams.length;
+    if (streamCount === 0) return;
+
+    if (seq === "\x1b[A") {
+      // Arrow up
+      if (this.selectedStream <= 0) {
+        this.selectedStream = streamCount - 1;
+      } else {
+        this.selectedStream--;
+      }
+    } else if (seq === "\x1b[B") {
+      // Arrow down
+      if (this.selectedStream >= streamCount - 1) {
+        this.selectedStream = 0;
+      } else {
+        this.selectedStream++;
+      }
+    } else if (seq === "\x1b" || seq === "q") {
+      // Escape or q — deselect
+      this.selectedStream = -1;
+    }
   }
 
   private render(): void {
@@ -158,7 +205,26 @@ export class TuiRenderer {
         const d = this.streamIcon(s, spin);
         const iconPad = " ".repeat(3 - d.cells); // normalize icon+gap to 3 cols
         const task = this.trunc(s.task, width - 24);
-        lines.push(`    ${s.label}  ${d.icon}${iconPad}${d.label.padEnd(8)} ${task}`);
+        const indicator = s.index === this.selectedStream ? "\x1b[36m▸\x1b[0m" : " ";
+        const highlight = s.index === this.selectedStream ? "\x1b[36m" : "";
+        const reset = s.index === this.selectedStream ? "\x1b[0m" : "";
+        lines.push(`  ${indicator} ${highlight}${s.label}  ${d.icon}${iconPad}${d.label.padEnd(8)} ${task}${reset}`);
+      }
+
+      // ── Detail panel for selected stream ──
+      if (this.selectedStream >= 0 && this.selectedStream < this.tracker.streams.length) {
+        const sel = this.tracker.streams[this.selectedStream];
+        const di = this.streamIcon(sel, spin);
+        lines.push(`  ${"╍".repeat(width - 4)}`);
+        lines.push(`  \x1b[36m${sel.label}\x1b[0m  ${di.icon} ${di.label}`);
+        // Wrap task text to fit within width
+        const taskLines = this.wrapText(sel.task, width - 6);
+        for (const tl of taskLines) {
+          lines.push(`    ${tl}`);
+        }
+        if (sel.model) lines.push(`    \x1b[2mModel: ${sel.model}\x1b[0m`);
+        if (sel.detail) lines.push(`    \x1b[2m${this.trunc(sel.detail, width - 8)}\x1b[0m`);
+        lines.push(`  ${"╍".repeat(width - 4)}`);
       }
       lines.push("");
     }
@@ -185,9 +251,15 @@ export class TuiRenderer {
     // ── Footer ──
     lines.push(sep);
     const progress = `Phase ${this.tracker.completedPhaseCount}/${this.tracker.totalPhaseCount}`;
-    const hint = "  \x1b[2m--no-tui for plain output\x1b[0m";
-    // hint visible length = 26
-    const fPad = width - 26 - progress.length;
+    const hintText =
+      this.tracker.streams.length > 0
+        ? this.selectedStream >= 0
+          ? "↑↓ navigate  Esc deselect  --no-tui plain"
+          : "↑↓ select stream  --no-tui for plain output"
+        : "--no-tui for plain output";
+    const hint = `  \x1b[2m${hintText}\x1b[0m`;
+    const hintLen = hintText.length + 2;
+    const fPad = width - hintLen - progress.length;
     lines.push(`${hint}${this.pad(Math.max(1, fPad))}${progress}`);
 
     // ── Write only changed lines — pad to full width instead of clearing to prevent flicker ──
@@ -263,6 +335,25 @@ export class TuiRenderer {
     const flat = text.replace(/\n/g, " ");
     if (flat.length <= max) return flat;
     return `${flat.substring(0, max - 1)}…`;
+  }
+
+  /** Wrap text into lines that fit within maxWidth. */
+  private wrapText(text: string, maxWidth: number): string[] {
+    const flat = text.replace(/\n/g, " ");
+    if (flat.length <= maxWidth) return [flat];
+    const result: string[] = [];
+    let remaining = flat;
+    while (remaining.length > 0) {
+      if (remaining.length <= maxWidth) {
+        result.push(remaining);
+        break;
+      }
+      let breakAt = remaining.lastIndexOf(" ", maxWidth);
+      if (breakAt <= 0) breakAt = maxWidth;
+      result.push(remaining.substring(0, breakAt));
+      remaining = remaining.substring(breakAt).trimStart();
+    }
+    return result;
   }
 
   /** Remove leading emoji + whitespace for cleaner log display. */

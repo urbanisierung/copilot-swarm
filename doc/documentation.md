@@ -38,6 +38,7 @@ Commands:
   analyze          Analyze the repository and generate a context document
   brainstorm       Interactive discussion mode — explore ideas with a strategist agent
   review           Review a previous run — provide feedback for agents to fix/improve
+  digest           Show a concise highlights summary of a completed run
   fleet            Multi-repo orchestration — coordinate work across repositories
   session          Manage sessions: create, list, use (group related runs)
   finish           Finalize the active session — summarize, log to changelog, clean up
@@ -50,9 +51,10 @@ Options:
   -p, --plan <file>    Use a plan file as input (reads the refined requirements section)
   -f, --file <file>    Read prompt from a file instead of inline text
   -r, --resume         Resume from the last checkpoint (skip completed phases)
-  --run <runId>        Specify which run to review (default: latest)
+  --run <runId>        Specify which run to review/digest (default: latest)
   --session <id>       Use a specific session (default: active session)
   --no-tui             Disable TUI dashboard (use plain log output)
+  --auto-model         Auto-select model per task (use fast model when primary isn't needed)
   --verify-build <cmd> Shell command to verify the build (e.g. "npm run build")
   --verify-test <cmd>  Shell command to run tests (e.g. "npm test")
   --verify-lint <cmd>  Shell command to run linting (e.g. "npm run lint")
@@ -284,6 +286,41 @@ swarm brainstorm -e   # Open editor for a longer description
 **Output:**
 - `.swarm/brainstorms/<runId>.md` — Saved summary (session-scoped if a session is active)
 - The latest brainstorm summary is automatically loaded as context when running `swarm plan`, enriching the PM's understanding of your requirements
+
+### Digest Mode
+
+Use `swarm digest` to see a concise highlights summary of a completed run. Reads the latest (or specified) run's artifacts and uses the fast model to produce a human-readable overview:
+
+```bash
+swarm digest                            # Digest the latest run
+swarm digest --run 2026-03-01T07-00     # Digest a specific run
+swarm digest --session abc123           # Digest latest run in a specific session
+```
+
+**Output example:**
+```
+─────────────────────────────────────────────────
+📋 Run Digest — 2026-03-01T07-00-00-000Z
+─────────────────────────────────────────────────
+
+## What was done
+Implemented OAuth2 PKCE flow with token rotation,
+added database index, updated environment docs.
+
+## Key decisions
+- PKCE stores code verifier in httpOnly cookie
+- Token rotation uses sliding window expiry
+
+## Files changed
+- src/auth/oauth2-pkce.ts (new)
+- src/auth/token-rotation.ts (new)
+- migrations/003_add_email_index.sql (new)
+
+## Status
+✅ Build passed  ✅ Tests passed (3 new, 247 total)
+
+─────────────────────────────────────────────────
+```
 
 ### Fleet Mode (Multi-Repo)
 
@@ -650,6 +687,7 @@ For long or detailed prompts, use one of these approaches:
 | `SESSION_TIMEOUT_MS` | `1800000` | Timeout in milliseconds for each agent session call (default: 30 minutes). |
 | `MAX_AUTO_RESUME` | `3` | Max automatic resume attempts on pipeline failure (set to `0` to disable). |
 | `MAX_RETRIES` | `2` | Max retry attempts for failed or empty agent responses. |
+| `AUTO_MODEL` | `false` | When `true`, auto-select model per task. Simple tasks use the fast model instead of primary. Equivalent to `--auto-model` flag. |
 
 ### Optional (Model Overrides)
 
@@ -745,6 +783,28 @@ For greenfield projects, auto-detection runs after the implement phase (when pro
 - The fix agent makes corrections, then all commands are re-run.
 - Loops up to `maxIterations` (default: 3). If still failing, a failure summary is written.
 - If all commands pass on any iteration, the phase completes immediately.
+
+### Auto-Model Selection
+
+Use `--auto-model` (or `AUTO_MODEL=true`) to let the system automatically select the most cost-effective model per implementation task. A fast-model classifier assesses each task's complexity before execution:
+
+```bash
+swarm run --auto-model "Add user settings page"
+swarm task --auto-model "Fix validation bugs"
+AUTO_MODEL=true swarm auto "Refactor auth module"
+```
+
+**How it works:**
+1. During the implement phase, before each task stream starts, the fast model receives the task description
+2. It classifies the task as `PRIMARY` (complex: architecture, security, algorithms) or `FAST` (simple: CRUD, config, docs, boilerplate)
+3. The selected model is used for that task's engineering agent
+4. Review and QA still use their configured models (unchanged)
+
+**Classification criteria:**
+- **PRIMARY**: Complex architecture, multi-file refactoring, nuanced logic, security-sensitive code, novel algorithms
+- **FAST**: Simple CRUD, config changes, renaming, adding tests for existing code, documentation, straightforward bug fixes
+
+This saves cost on runs with mixed-complexity tasks without sacrificing quality where it matters.
 
 ### Agent Source Resolution
 

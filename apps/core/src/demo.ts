@@ -128,7 +128,10 @@ async function runAnalyze() {
   ]);
   const chunkWork = [0, 1, 2, 3].map(async (idx) => {
     tracker.updateStream(idx, "engineering");
+    tracker.updateStreamModel(idx, MODELS.primary);
+    tracker.updateStreamDetail(idx, "Analyzing code chunk…");
     await mockAgent(`chunk-analyzer-${idx + 1}`, MODELS.primary, dur(3000 + Math.random() * 2000));
+    tracker.updateStreamDetail(idx, "Complete");
     tracker.updateStream(idx, "done");
   });
   await Promise.all(chunkWork);
@@ -161,6 +164,115 @@ async function runAnalyze() {
   await sleep(dur(1500));
   tui.stop();
   printDemoSummary("analyze");
+}
+
+// ---------------------------------------------------------------------------
+// Scenario: Single-repo run with auto-model
+// ---------------------------------------------------------------------------
+
+async function runSingleRepoAutoModel() {
+  initTracker();
+  tracker.initPhases([{ phase: "spec" }, { phase: "decompose" }, { phase: "implement" }, { phase: "verify" }]);
+  tui.start();
+  await recordRunStart(cfg);
+
+  const specKey = "spec-0";
+  tracker.activatePhase(specKey);
+  tracker.setActiveAgent("pm drafting specification…");
+  await mockAgent("pm", MODELS.primary, dur(2500));
+  await mockAgent("pm-reviewer", MODELS.primary, dur(1200));
+  tracker.setActiveAgent(null);
+  tracker.completePhase(specKey);
+
+  const decompKey = "decompose-1";
+  tracker.activatePhase(decompKey);
+  tracker.setActiveAgent("breaking down tasks…");
+  await mockAgent("decompose-agent", MODELS.fast, dur(1000));
+  tracker.setActiveAgent(null);
+  tracker.completePhase(decompKey);
+
+  const implKey = "implement-2";
+  tracker.activatePhase(implKey);
+  tracker.setActiveAgent(null);
+  const tasks = [
+    { desc: "[DB] Add index on users.email column", model: MODELS.fast },
+    { desc: "[API] Implement OAuth2 PKCE flow with token rotation", model: MODELS.primary },
+    { desc: "[CONFIG] Update environment variables documentation", model: MODELS.fast },
+  ];
+  tracker.initStreams(tasks.map((t) => t.desc));
+
+  const streamWork = tasks.map(async (task, idx) => {
+    // Auto-model classification step
+    tracker.addLog(`🤖 Stream ${idx + 1}: classifying → ${task.model === MODELS.fast ? "FAST" : "PRIMARY"}`);
+    await mockAgent("model-classifier", MODELS.fast, dur(500));
+    tracker.addLog(`   → Selected: ${task.model}`);
+    tracker.updateStreamModel(idx, task.model);
+
+    tracker.updateStream(idx, "engineering");
+    tracker.updateStreamDetail(idx, "Implementing task…");
+    await mockAgent("engineer", task.model, dur(2500 + Math.random() * 2000));
+    tracker.updateStream(idx, "reviewing");
+    tracker.updateStreamDetail(idx, "Code review by reviewer");
+    await mockAgent("code-reviewer", MODELS.primary, dur(1200 + Math.random() * 800));
+    tracker.updateStreamDetail(idx, "Complete");
+    tracker.updateStream(idx, "done");
+  });
+  await Promise.all(streamWork);
+  tracker.completePhase(implKey);
+
+  const verifyKey = "verify-3";
+  tracker.activatePhase(verifyKey);
+  tracker.setActiveAgent("running verification…");
+  await sleep(dur(800));
+  tracker.addLog("✅ Build passed");
+  await sleep(dur(600));
+  tracker.addLog("✅ Tests passed");
+  tracker.setActiveAgent(null);
+  tracker.completePhase(verifyKey);
+
+  tracker.addLog("🐝 Swarm run complete (auto-model enabled)");
+  await sleep(dur(1500));
+  tui.stop();
+  printDemoSummary("single-repo run (auto-model)");
+}
+
+// ---------------------------------------------------------------------------
+// Scenario: Digest
+// ---------------------------------------------------------------------------
+
+async function runDigestDemo() {
+  console.log("");
+  console.log("─".repeat(48));
+  console.log("📋 Run Digest — 2026-03-01T07-00-00-000Z");
+  console.log("─".repeat(48));
+  console.log("");
+  console.log("## What was done");
+  console.log("");
+  console.log("Implemented OAuth2 PKCE authentication flow with");
+  console.log("token rotation, added database index for user");
+  console.log("lookups, and updated environment documentation.");
+  console.log("");
+  console.log("## Key decisions");
+  console.log("");
+  console.log("- Used fast model for simple tasks (DB index,");
+  console.log("  docs update), primary model for complex OAuth flow");
+  console.log("- PKCE flow stores code verifier in httpOnly cookie");
+  console.log("- Token rotation uses sliding window expiry");
+  console.log("");
+  console.log("## Files changed");
+  console.log("");
+  console.log("- src/auth/oauth2-pkce.ts (new)");
+  console.log("- src/auth/token-rotation.ts (new)");
+  console.log("- migrations/003_add_email_index.sql (new)");
+  console.log("- docs/environment.md (updated)");
+  console.log("- src/auth/index.ts (updated)");
+  console.log("");
+  console.log("## Status");
+  console.log("");
+  console.log("✅ Build passed  ✅ Tests passed (3 new, 247 total)");
+  console.log("");
+  console.log("─".repeat(48));
+  console.log("✅ Digest complete.");
 }
 
 // ---------------------------------------------------------------------------
@@ -215,11 +327,15 @@ async function runSingleRepo() {
   tracker.initStreams(tasks);
   const streamWork = tasks.map(async (_task, idx) => {
     tracker.updateStream(idx, "engineering");
+    tracker.updateStreamDetail(idx, "Implementing task…");
     await mockAgent("engineer", MODELS.primary, dur(3500 + Math.random() * 2000));
     tracker.updateStream(idx, "reviewing");
+    tracker.updateStreamDetail(idx, "Code review by reviewer");
     await mockAgent("code-reviewer", MODELS.primary, dur(1500 + Math.random() * 1000));
     tracker.updateStream(idx, "testing");
+    tracker.updateStreamDetail(idx, "QA testing by tester");
     await mockAgent("qa", MODELS.primary, dur(1500 + Math.random() * 1000));
+    tracker.updateStreamDetail(idx, "Complete");
     tracker.updateStream(idx, "done");
   });
   await Promise.all(streamWork);
@@ -323,12 +439,18 @@ async function runFleet() {
   await Promise.all(
     wave1.map(async (repo, idx) => {
       tracker.updateStream(idx, "engineering");
+      tracker.updateStreamModel(idx, MODELS.primary);
+      tracker.updateStreamDetail(idx, "PM drafting specification…");
       await mockAgent(`pm:${repo.name}`, MODELS.primary, dur(1500 + Math.random() * 1000));
+      tracker.updateStreamDetail(idx, "Implementing changes…");
       await mockAgent(`engineer:${repo.name}`, MODELS.primary, dur(3000 + Math.random() * 2000));
       tracker.updateStream(idx, "reviewing");
+      tracker.updateStreamDetail(idx, "Code review…");
       await mockAgent(`reviewer:${repo.name}`, MODELS.primary, dur(1500 + Math.random() * 1000));
       tracker.updateStream(idx, "testing");
+      tracker.updateStreamDetail(idx, "Running tests…");
       await sleep(dur(1000));
+      tracker.updateStreamDetail(idx, "Complete");
       tracker.updateStream(idx, "done");
     }),
   );
@@ -343,12 +465,18 @@ async function runFleet() {
   await Promise.all(
     wave2.map(async (repo, idx) => {
       tracker.updateStream(idx, "engineering");
+      tracker.updateStreamModel(idx, MODELS.primary);
+      tracker.updateStreamDetail(idx, "PM drafting specification…");
       await mockAgent(`pm:${repo.name}`, MODELS.primary, dur(1500 + Math.random() * 1000));
+      tracker.updateStreamDetail(idx, "Implementing changes…");
       await mockAgent(`engineer:${repo.name}`, MODELS.primary, dur(3500 + Math.random() * 2000));
       tracker.updateStream(idx, "reviewing");
+      tracker.updateStreamDetail(idx, "Code review…");
       await mockAgent(`reviewer:${repo.name}`, MODELS.primary, dur(1500 + Math.random() * 1000));
       tracker.updateStream(idx, "testing");
+      tracker.updateStreamDetail(idx, "Running tests…");
       await sleep(dur(1000));
+      tracker.updateStreamDetail(idx, "Complete");
       tracker.updateStream(idx, "done");
     }),
   );
@@ -472,8 +600,10 @@ export async function runDemo(config: SwarmConfig): Promise<void> {
       { key: "1", label: "Analyze — deep codebase analysis" },
       { key: "2", label: "Plan — multi-agent planning pipeline" },
       { key: "3", label: "Run — full single-repo implementation" },
-      { key: "4", label: "Fleet — multi-repo orchestration" },
-      { key: "5", label: "Stats — view agent usage statistics" },
+      { key: "4", label: "Run (auto-model) — smart model selection per task" },
+      { key: "5", label: "Digest — concise highlights of a completed run" },
+      { key: "6", label: "Fleet — multi-repo orchestration" },
+      { key: "7", label: "Stats — view agent usage statistics" },
       { key: "q", label: "Quit" },
     ]);
 
@@ -497,12 +627,24 @@ export async function runDemo(config: SwarmConfig): Promise<void> {
         break;
       }
       case "4": {
+        console.log("\n  ▶ Starting Run (auto-model) demo…\n");
+        await sleep(500);
+        await runSingleRepoAutoModel();
+        break;
+      }
+      case "5": {
+        console.log("\n  ▶ Showing Digest demo…\n");
+        await sleep(500);
+        await runDigestDemo();
+        break;
+      }
+      case "6": {
         console.log("\n  ▶ Starting Fleet (multi-repo) demo…\n");
         await sleep(500);
         await runFleet();
         break;
       }
-      case "5": {
+      case "7": {
         const stats = await loadStats(cfg);
         console.log("");
         console.log(formatStats(stats));

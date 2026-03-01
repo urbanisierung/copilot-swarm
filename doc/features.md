@@ -51,6 +51,9 @@ High-level feature list for Copilot Swarm.
 | **Engineer-to-PM clarification** | 2026-02-16 | During `implement` phase, engineers can signal `CLARIFICATION_NEEDED` to route questions to the PM agent autonomously. PM answers with context from the spec. Fully automatic — no user interaction. Configurable via `clarificationAgent` and `clarificationKeyword` in pipeline config |
 | **Verbose streaming mode** | 2026-02 | `VERBOSE=true` streams agent deltas, tool calls, and intent updates to stdout |
 | **Role summaries** | 2026-02 | Each agent writes a timestamped summary to `.swarm/runs/<runId>/roles/` for audit trail |
+| **Digest mode** | 2026-03-01 | `swarm digest` — Show a concise highlights summary of a completed run. Reads the latest (or `--run <runId>`) run's artifacts (checkpoint, summary, role files) and uses the fast model to produce a human-readable overview: what was done, key decisions, files changed, verification status. Printed directly to stdout |
+| **Auto-model selection** | 2026-03-01 | `--auto-model` flag (or `AUTO_MODEL=true`) enables per-task model selection during the implement phase. A fast-model classifier assesses each task's complexity and selects `primaryModel` for complex work (architecture, security, algorithms) or `fastModel` for simple tasks (CRUD, config, docs, boilerplate). Saves cost on mixed-complexity runs without sacrificing quality |
+| **Interactive stream selection** | 2026-03-01 | During TUI mode, navigate streams with ↑↓ arrow keys to see a detail panel with full task description, model, and current activity. Press Escape/q to deselect. Works in all modes that use streams (run, analyze, fleet) |
 
 ## Pipeline Phases
 
