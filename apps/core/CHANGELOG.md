@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.36
+
+### Patch Changes
+
+- 793a69b: CLI improvements
+
 ## 0.0.35
 
 ### Patch Changes
