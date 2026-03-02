@@ -96,12 +96,103 @@ export class FleetEngine {
     }
   }
 
+  /**
+   * Validate all repos are on their default branch, sync with remote, and create feature branches.
+   * Fails early if any repo is not on its default branch, has uncommitted changes, or can't sync.
+   */
+  private prepareBranches(branchName: string): void {
+    const repos = this.fleetConfig.repos;
+    this.logger.info(`🌿 Preparing branch "${branchName}" in ${repos.length} repo(s)...`);
+
+    // Phase 1: Validate all repos before making any changes
+    const repoStates: { repoPath: string; defaultBranch: string }[] = [];
+
+    for (const repo of repos) {
+      const label = path.basename(repo.path);
+      const git = (args: string) =>
+        execSync(`git ${args}`, { cwd: repo.path, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
+
+      // Detect default branch
+      let defaultBranch: string;
+      try {
+        const ref = git("symbolic-ref refs/remotes/origin/HEAD");
+        defaultBranch = ref.replace("refs/remotes/origin/", "");
+      } catch {
+        // Fallback: try common names
+        try {
+          git("rev-parse --verify refs/heads/main");
+          defaultBranch = "main";
+        } catch {
+          try {
+            git("rev-parse --verify refs/heads/master");
+            defaultBranch = "master";
+          } catch {
+            throw new Error(`${label}: Cannot determine default branch. Run "git remote set-head origin --auto".`);
+          }
+        }
+      }
+
+      // Check current branch
+      const currentBranch = git("rev-parse --abbrev-ref HEAD");
+      if (currentBranch !== defaultBranch) {
+        throw new Error(
+          `${label}: Currently on branch "${currentBranch}", expected "${defaultBranch}". ` +
+            `Switch to ${defaultBranch} before using --create-branch.`,
+        );
+      }
+
+      // Check for uncommitted changes
+      const status = git("status --porcelain");
+      if (status) {
+        throw new Error(`${label}: Has uncommitted changes. Commit or stash them before using --create-branch.`);
+      }
+
+      // Check if branch already exists
+      try {
+        git(`rev-parse --verify refs/heads/${branchName}`);
+        throw new Error(`${label}: Branch "${branchName}" already exists.`);
+      } catch (err) {
+        // Branch doesn't exist — good (unless it's our own error)
+        if (err instanceof Error && err.message.includes("already exists")) throw err;
+      }
+
+      repoStates.push({ repoPath: repo.path, defaultBranch });
+    }
+
+    // Phase 2: All validation passed — sync and create branches
+    for (const { repoPath, defaultBranch } of repoStates) {
+      const label = path.basename(repoPath);
+      const git = (args: string) =>
+        execSync(`git ${args}`, { cwd: repoPath, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
+
+      // Pull latest
+      try {
+        git(`pull --ff-only origin ${defaultBranch}`);
+      } catch {
+        throw new Error(`${label}: Cannot fast-forward ${defaultBranch} from origin. Resolve divergence manually.`);
+      }
+
+      // Create and checkout branch
+      git(`checkout -b ${branchName}`);
+      this.logger.info(`  ✅ ${label}: created branch "${branchName}"`);
+    }
+
+    this.logger.info(`🌿 All repos on branch "${branchName}"`);
+  }
+
   async execute(): Promise<void> {
     const outDir = fleetOutputDir(this.config);
     fs.mkdirSync(outDir, { recursive: true });
 
     const checkpoint = this.loadCheckpoint();
     const repos = this.fleetConfig.repos;
+
+    // Pre-phase: Create branches in all repos if requested
+    if (this.config.fleetBranch && !checkpoint.completedPhases.includes("create-branch")) {
+      this.prepareBranches(this.config.fleetBranch);
+      checkpoint.completedPhases.push("create-branch");
+      this.saveCheckpoint(checkpoint);
+    }
 
     // Phase 1: Analyze all repos
     let analyses = checkpoint.analyses;

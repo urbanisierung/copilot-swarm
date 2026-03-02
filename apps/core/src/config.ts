@@ -87,6 +87,7 @@ interface CliArgs {
   fleetRepos: string[] | undefined;
   fleetConfigPath: string | undefined;
   fleetMode: FleetMode | undefined;
+  fleetBranch: string | undefined;
 }
 
 export function readVersion(): string {
@@ -130,6 +131,7 @@ Options:
   --verify-lint <cmd>  Shell command to run linting (e.g. "npm run lint")
   --repos <paths...>   Repository paths for fleet mode (space-separated)
   --fleet-config <f>   Fleet config file path (default: fleet.config.yaml)
+  --create-branch <n>  Create a branch in all fleet repos before execution
   -V, --version        Show version number
   -h, --help           Show this help message
 
@@ -170,6 +172,7 @@ Examples:
   swarm fleet analyze --repos ~/auth ~/api     Analyze all repos (no execution)
   swarm fleet plan "Add OAuth" --repos ~/auth ~/api  Cross-repo plan (no execution)
   swarm fleet "Add OAuth" --fleet-config fleet.config.yaml
+  swarm fleet "Add OAuth" --repos ~/auth ~/api --create-branch feat/oauth
   swarm run --auto-model "Fix validation"  Use fast model for simple tasks
 
 Environment variables override defaults; CLI args override env vars.
@@ -196,6 +199,7 @@ function parseCliArgs(): CliArgs {
       "verify-lint": { type: "string" },
       repos: { type: "string", multiple: true },
       "fleet-config": { type: "string" },
+      "create-branch": { type: "string" },
     },
   });
 
@@ -260,6 +264,7 @@ function parseCliArgs(): CliArgs {
     fleetRepos: values.repos as string[] | undefined,
     fleetConfigPath: values["fleet-config"] as string | undefined,
     fleetMode,
+    fleetBranch: values["create-branch"] as string | undefined,
   };
 }
 
@@ -349,6 +354,8 @@ export interface SwarmConfig {
   readonly fleetConfigPath?: string;
   /** Fleet subcommand: analyze-only or plan-only (omit for full pipeline). */
   readonly fleetMode?: FleetMode;
+  /** Branch name to create in all fleet repos before execution. */
+  readonly fleetBranch?: string;
 }
 
 export async function loadConfig(): Promise<SwarmConfig> {
@@ -450,6 +457,7 @@ export async function loadConfig(): Promise<SwarmConfig> {
     fleetRepos: cli.fleetRepos,
     fleetConfigPath: cli.fleetConfigPath,
     fleetMode: cli.fleetMode,
+    fleetBranch: cli.fleetBranch,
     autoModel: cli.autoModel || readEnvBoolean("AUTO_MODEL", false),
   };
 }

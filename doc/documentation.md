@@ -61,6 +61,7 @@ Options:
   --verify-lint <cmd>  Shell command to run linting (e.g. "npm run lint")
   --repos <paths...>   Repository paths for fleet mode (space-separated)
   --fleet-config <f>   Fleet config file path (default: fleet.config.yaml)
+  --create-branch <n>  Create a branch in all fleet repos before execution
   -V, --version        Show version number
   -h, --help           Show this help message
 ```
@@ -342,6 +343,9 @@ swarm fleet plan "Add OAuth" --repos ~/auth ~/api ~/frontend
 
 # With resume
 swarm fleet "Add OAuth" --repos ~/auth ~/api ~/frontend --resume
+
+# Create a feature branch in all repos before execution
+swarm fleet "Add OAuth" --repos ~/auth ~/api --create-branch feat/oauth
 ```
 
 **Fleet config (`fleet.config.yaml`):**
@@ -383,6 +387,25 @@ integrationTest: "npm run test:integration"
 - `.swarm/fleet/<runId>/fleet-review.md` — Cross-repo consistency review
 - `.swarm/fleet/<runId>/fleet-summary.md` — Final summary
 - `.swarm/fleet/<runId>/fleet-checkpoint.json` — Checkpoint for resume
+
+**Branch management (`--create-branch`):**
+
+Use `--create-branch <name>` to safely create a feature branch across all fleet repos before execution:
+
+```bash
+swarm fleet "Add OAuth" --repos ~/auth ~/api --create-branch feat/oauth
+```
+
+Before creating any branches, the tool validates every repo:
+1. Must be on its default branch (e.g., `main` or `master`) — fails otherwise
+2. Must have no uncommitted changes — fails otherwise
+3. The target branch must not already exist — fails otherwise
+
+If validation passes for all repos:
+1. Pulls the latest from the remote default branch (fast-forward only)
+2. Creates and checks out the new branch in each repo
+
+If any repo fails validation, **no repos are modified** (fail-fast).
 
 ### Checkpoint & Resume
 
