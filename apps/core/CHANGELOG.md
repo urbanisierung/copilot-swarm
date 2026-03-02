@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.38
+
+### Patch Changes
+
+- 035ee24: Fleet improvements
+
 ## 0.0.37
 
 ### Patch Changes

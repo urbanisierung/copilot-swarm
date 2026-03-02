@@ -1,6 +1,6 @@
 {
   "name": "@copilot-swarm/core",
-  "version": "0.0.37",
+  "version": "0.0.38",
   "description": "Multi-agent orchestrator for GitHub Copilot — coordinates PM, designer, engineer, reviewer, and tester agents through a declarative pipeline",
   "license": "MIT",
   "type": "module",
