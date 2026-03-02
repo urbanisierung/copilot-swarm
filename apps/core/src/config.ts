@@ -420,7 +420,7 @@ export async function loadConfig(): Promise<SwarmConfig> {
       cli.command !== "demo" &&
       cli.command !== "backup" &&
       cli.command !== "restore" &&
-      !(cli.command === "fleet" && cli.fleetMode === "analyze")
+      !(cli.command === "fleet" && (cli.fleetMode === "analyze" || cli.fleetMode === "cleanup"))
     ) {
       issueBody = await openTextarea();
       if (!issueBody) {

@@ -196,61 +196,57 @@ export class FleetEngine {
     this.logger.info(`🌿 All repos on branch "${branchName}"`);
   }
 
+  private cleanupRepo(repoPath: string, branchName: string): void {
+    const label = path.basename(repoPath);
+    const git = (args: string) =>
+      execSync(`git ${args}`, { cwd: repoPath, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
+
+    let defaultBranch: string;
+    try {
+      const ref = git("symbolic-ref refs/remotes/origin/HEAD");
+      defaultBranch = ref.replace("refs/remotes/origin/", "");
+    } catch {
+      try {
+        git("rev-parse --verify refs/heads/main");
+        defaultBranch = "main";
+      } catch {
+        try {
+          git("rev-parse --verify refs/heads/master");
+          defaultBranch = "master";
+        } catch {
+          this.logger.warn(`  ⚠️  ${label}: Cannot determine default branch — skipping`);
+          return;
+        }
+      }
+    }
+
+    const currentBranch = git("rev-parse --abbrev-ref HEAD");
+
+    if (currentBranch === branchName) {
+      git("checkout -- .");
+      git("clean -fd");
+      git(`checkout ${defaultBranch}`);
+    } else if (currentBranch !== defaultBranch) {
+      git("checkout -- .");
+      git("clean -fd");
+      git(`checkout ${defaultBranch}`);
+    }
+
+    try {
+      git(`branch -D ${branchName}`);
+    } catch {
+      // branch doesn't exist — fine
+    }
+  }
+
   private cleanupBranches(branchName: string): void {
     const repos = this.fleetConfig.repos;
     this.logger.info(`🧹 Cleaning up branch "${branchName}" in ${repos.length} repo(s)...`);
 
     for (const repo of repos) {
       const label = path.basename(repo.path);
-      const git = (args: string) =>
-        execSync(`git ${args}`, { cwd: repo.path, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
-
-      // Detect default branch
-      let defaultBranch: string;
-      try {
-        const ref = git("symbolic-ref refs/remotes/origin/HEAD");
-        defaultBranch = ref.replace("refs/remotes/origin/", "");
-      } catch {
-        try {
-          git("rev-parse --verify refs/heads/main");
-          defaultBranch = "main";
-        } catch {
-          try {
-            git("rev-parse --verify refs/heads/master");
-            defaultBranch = "master";
-          } catch {
-            this.logger.warn(`  ⚠️  ${label}: Cannot determine default branch — skipping`);
-            continue;
-          }
-        }
-      }
-
-      // Check current branch
-      const currentBranch = git("rev-parse --abbrev-ref HEAD");
-
-      if (currentBranch === branchName) {
-        // Discard all changes (tracked + untracked)
-        git("checkout -- .");
-        git("clean -fd");
-        // Switch to default branch
-        git(`checkout ${defaultBranch}`);
-        this.logger.info(`  ✅ ${label}: switched to "${defaultBranch}"`);
-      } else if (currentBranch === defaultBranch) {
-        this.logger.info(`  ℹ️  ${label}: already on "${defaultBranch}"`);
-      } else {
-        this.logger.warn(`  ⚠️  ${label}: on unexpected branch "${currentBranch}" — switching to "${defaultBranch}"`);
-        git("checkout -- .");
-        git("clean -fd");
-        git(`checkout ${defaultBranch}`);
-      }
-
-      // Delete the feature branch locally
-      try {
-        git(`branch -D ${branchName}`);
-        this.logger.info(`  🗑️  ${label}: deleted local branch "${branchName}"`);
-      } catch {
-        this.logger.info(`  ℹ️  ${label}: branch "${branchName}" does not exist locally`);
-      }
+      this.cleanupRepo(repo.path, branchName);
+      this.logger.info(`  ✅ ${label}: cleaned up`);
     }
 
     this.logger.info(`🧹 Cleanup complete — all repos on their default branch`);
@@ -350,6 +346,19 @@ export class FleetEngine {
     const strategyPath = path.join(outDir, "strategy.md");
     fs.writeFileSync(strategyPath, this.formatStrategy(strategy), "utf-8");
     this.logger.info(`📋 Strategy saved to ${strategyPath}`);
+
+    // Auto-cleanup repos not included in any wave (nothing to do for them)
+    if (this.config.fleetBranch) {
+      const reposInWaves = new Set(strategy.waves.flat());
+      const unusedRepos = this.fleetConfig.repos.filter((r) => !reposInWaves.has(r.path));
+      if (unusedRepos.length > 0) {
+        this.logger.info(`🧹 Auto-cleaning ${unusedRepos.length} repo(s) not needed by strategy...`);
+        for (const repo of unusedRepos) {
+          this.cleanupRepo(repo.path, this.config.fleetBranch);
+          this.logger.info(`  ✅ ${path.basename(repo.path)}: no changes needed — branch cleaned up`);
+        }
+      }
+    }
 
     // Fleet plan mode: stop after strategy
     if (this.config.fleetMode === "plan") {
