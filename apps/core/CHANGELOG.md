@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.41
+
+### Patch Changes
+
+- ba530b0: TUI for fleet mode.
+
 ## 0.0.40
 
 ### Patch Changes
