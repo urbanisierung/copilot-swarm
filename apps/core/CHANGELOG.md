@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.42
+
+### Patch Changes
+
+- ab1fc4b: Cleanup
+
 ## 0.0.41
 
 ### Patch Changes
