@@ -67,7 +67,7 @@ export type SwarmCommand =
   | "backup"
   | "restore";
 
-export type FleetMode = "analyze" | "plan";
+export type FleetMode = "analyze" | "plan" | "cleanup";
 
 interface CliArgs {
   command: SwarmCommand;
@@ -173,6 +173,7 @@ Examples:
   swarm fleet plan "Add OAuth" ./auth ./api  Cross-repo plan (no execution)
   swarm fleet "Add OAuth" --fleet-config fleet.config.yaml
   swarm fleet "Add OAuth" ./auth ./api --create-branch feat/oauth
+  swarm fleet cleanup feat/oauth ./auth ./api  Discard changes, delete branch
   swarm run --auto-model "Fix validation"  Use fast model for simple tasks
 
 Environment variables override defaults; CLI args override env vars.
@@ -239,11 +240,26 @@ function parseCliArgs(): CliArgs {
     promptParts = positionals.slice(1);
   }
 
-  // Parse fleet subcommand: `swarm fleet analyze ...` or `swarm fleet plan ...`
+  // Parse fleet subcommand: `swarm fleet analyze ...` or `swarm fleet plan ...` or `swarm fleet cleanup ...`
   let fleetMode: FleetMode | undefined;
-  if (command === "fleet" && promptParts.length > 0 && (promptParts[0] === "analyze" || promptParts[0] === "plan")) {
+  if (
+    command === "fleet" &&
+    promptParts.length > 0 &&
+    (promptParts[0] === "analyze" || promptParts[0] === "plan" || promptParts[0] === "cleanup")
+  ) {
     fleetMode = promptParts[0] as FleetMode;
     promptParts = promptParts.slice(1);
+  }
+
+  // For fleet cleanup, treat the first non-path positional as the branch name
+  let fleetBranch = values["create-branch"] as string | undefined;
+  if (command === "fleet" && fleetMode === "cleanup" && !fleetBranch && promptParts.length > 0) {
+    const isPathLike = (s: string) =>
+      s.startsWith("./") || s.startsWith("/") || s.startsWith("~/") || s.startsWith("../");
+    if (!isPathLike(promptParts[0])) {
+      fleetBranch = promptParts[0];
+      promptParts = promptParts.slice(1);
+    }
   }
 
   // In fleet mode, treat path-like positional args as repo paths
@@ -278,7 +294,7 @@ function parseCliArgs(): CliArgs {
     fleetRepos,
     fleetConfigPath: values["fleet-config"] as string | undefined,
     fleetMode,
-    fleetBranch: values["create-branch"] as string | undefined,
+    fleetBranch,
   };
 }
 
@@ -424,7 +440,7 @@ export async function loadConfig(): Promise<SwarmConfig> {
     cli.command !== "demo" &&
     cli.command !== "backup" &&
     cli.command !== "restore" &&
-    !(cli.command === "fleet" && cli.fleetMode === "analyze") &&
+    !(cli.command === "fleet" && (cli.fleetMode === "analyze" || cli.fleetMode === "cleanup")) &&
     !cli.resume &&
     (!issueBody || issueBody === "")
   ) {
