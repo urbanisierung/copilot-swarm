@@ -362,15 +362,23 @@ overrides:
 integrationTest: "npm run test:integration"
 ```
 
-**How it works:**
+**How it works (full pipeline — `swarm fleet "prompt"`):**
 1. **Analyze** — Runs `swarm analyze` on each repo in parallel to understand each codebase
 2. **Strategize** — A strategist agent receives all analyses and produces: shared contracts, per-repo tasks, dependency graph, and execution waves
 3. **Execute waves** — Repos with no cross-repo dependencies run in parallel (wave 1); repos depending on wave 1 outputs run next (wave 2), with prior wave results injected as context
 4. **Cross-repo review** — A reviewer agent checks consistency across all repo changes
 5. **Summary** — Unified output with per-repo results
 
+**How it works (interactive planning — `swarm fleet plan "prompt"`):**
+1. **Analyze** — Same as full pipeline
+2. **PM clarification** — A PM agent asks clarifying questions about the cross-repo feature (scope, contracts, data flow). Interactive Q&A via split-pane editor
+3. **Engineer clarification** — An engineer agent asks technical questions (API shapes, deployment order, testing). Interactive Q&A via split-pane editor
+4. **Strategize** — Strategist receives enriched context from PM and engineer rounds to produce a higher-quality cross-repo plan
+5. Stops here — review the strategy before running the full pipeline
+
 **Output:**
 - `.swarm/fleet/<runId>/fleet-analysis.md` — Combined analysis of all repos (analyze mode)
+- `.swarm/fleet/<runId>/fleet-plan.md` — Refined requirements and engineering decisions (plan mode)
 - `.swarm/fleet/<runId>/strategy.md` — Cross-repo strategy with shared contracts and wave plan
 - `.swarm/fleet/<runId>/fleet-review.md` — Cross-repo consistency review
 - `.swarm/fleet/<runId>/fleet-summary.md` — Final summary

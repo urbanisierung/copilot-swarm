@@ -8,7 +8,8 @@ All notable changes to this project are documented here, in reverse chronologica
 - **Non-git directory crash** — Running any `swarm` command (including `-V` and `--help`) outside a git repository caused an unhandled `execSync` error at module load time. Fixed by deferring git detection to after CLI arg parsing. `--version` and `--help` now work anywhere. Commands that don't require a git repo (`fleet`, `list`) fall back to `process.cwd()`. All other commands print a clear error message instead of a stack trace.
 
 ### Added
-- **Fleet subcommands** — `swarm fleet analyze` runs analysis across all repos without executing (outputs `fleet-analysis.md`). `swarm fleet plan "prompt"` runs analysis + strategize to produce a cross-repo strategy without executing waves. The default `swarm fleet "prompt"` still runs the full pipeline.
+- **Fleet subcommands** — `swarm fleet analyze` runs analysis across all repos without executing (outputs `fleet-analysis.md`). `swarm fleet plan "prompt"` runs analysis + interactive planning (PM and engineer clarification rounds with the user, adapted for multi-repo context) + strategize, producing a cross-repo strategy without executing waves. The default `swarm fleet "prompt"` still runs the full autonomous pipeline.
+- **Fleet interactive planning** — `swarm fleet plan` includes interactive Q&A rounds: a PM agent asks clarifying questions about the cross-repo feature (scope, contracts, data flow), then an engineer agent asks technical questions (API shapes, deployment order, testing strategy). User answers via the split-pane editor. The enriched context feeds into the strategist for a better cross-repo plan. Non-interactive environments auto-skip questions. Checkpoint/resume preserves Q&A history.
 
 ## 2026-03-01
 

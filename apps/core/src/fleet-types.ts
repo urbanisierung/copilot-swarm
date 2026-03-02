@@ -43,6 +43,12 @@ export interface FleetStrategy {
   readonly waves: readonly string[][];
 }
 
+/** Q&A pair from interactive clarification. */
+export interface FleetQAPair {
+  question: string;
+  answer: string;
+}
+
 /** Fleet-level checkpoint state. */
 export interface FleetCheckpoint {
   completedPhases: string[];
@@ -50,6 +56,12 @@ export interface FleetCheckpoint {
   strategy?: FleetStrategy;
   waveResults: Record<string, string>[];
   currentWave: number;
+  /** Refined requirements from interactive PM clarification. */
+  pmRequirements?: string;
+  /** Engineering decisions from interactive engineer clarification. */
+  engDecisions?: string;
+  /** Saved Q&A pairs per phase for resume. */
+  answeredQuestions?: Record<string, FleetQAPair[]>;
 }
 
 /** Root fleet configuration loaded from `fleet.config.yaml`. */
