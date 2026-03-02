@@ -383,13 +383,17 @@ integrationTest: "npm run test:integration"
 4. **Strategize** — Strategist receives enriched context from PM and engineer rounds to produce a higher-quality cross-repo plan
 5. Stops here — review the strategy before running the full pipeline
 
-**Output:**
-- `.swarm/fleet/<runId>/fleet-analysis.md` — Combined analysis of all repos (analyze mode)
-- `.swarm/fleet/<runId>/fleet-plan.md` — Refined requirements and engineering decisions (plan mode)
-- `.swarm/fleet/<runId>/strategy.md` — Cross-repo strategy with shared contracts and wave plan
-- `.swarm/fleet/<runId>/fleet-review.md` — Cross-repo consistency review
-- `.swarm/fleet/<runId>/fleet-summary.md` — Final summary
-- `.swarm/fleet/<runId>/fleet-checkpoint.json` — Checkpoint for resume
+**Output (central store — `~/.config/copilot-swarm/fleet/`):**
+
+Fleet output is stored centrally (not inside any single repo) since it spans multiple repositories:
+
+- `~/.config/copilot-swarm/fleet/<runId>/fleet-analysis.md` — Combined analysis of all repos (analyze mode)
+- `~/.config/copilot-swarm/fleet/<runId>/fleet-plan.md` — Refined requirements and engineering decisions (plan mode)
+- `~/.config/copilot-swarm/fleet/<runId>/strategy.md` — Cross-repo strategy with shared contracts and wave plan
+- `~/.config/copilot-swarm/fleet/<runId>/fleet-review.md` — Cross-repo consistency review
+- `~/.config/copilot-swarm/fleet/<runId>/fleet-summary.md` — Final summary
+- `~/.config/copilot-swarm/fleet/<runId>/fleet-checkpoint.json` — Checkpoint for resume
+- `~/.config/copilot-swarm/fleet/latest` — Points to the most recent fleet run
 
 **Branch management (`--create-branch`):**
 
