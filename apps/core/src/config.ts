@@ -7,7 +7,23 @@ import { resolveGitHubIssue } from "./github-issue.js";
 import type { VerifyConfig } from "./pipeline-types.js";
 import { openTextarea } from "./textarea.js";
 
-const repoRoot = execSync("git rev-parse --show-toplevel", { encoding: "utf-8" }).trim();
+/** Lazily detect git repo root — returns null if not in a git repo. */
+let _repoRoot: string | null | undefined;
+function detectRepoRoot(): string | null {
+  if (_repoRoot === undefined) {
+    try {
+      _repoRoot = execSync("git rev-parse --show-toplevel", {
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", "pipe"],
+      }).trim();
+    } catch {
+      _repoRoot = null;
+    }
+  }
+  return _repoRoot;
+}
+
+const COMMANDS_WITHOUT_GIT: ReadonlySet<string> = new Set(["fleet", "list"]);
 
 function readEnvString(key: string, fallback: string): string {
   const value = process.env[key];
@@ -236,7 +252,8 @@ function parseCliArgs(): CliArgs {
 
 /** Extract the "Refined Requirements" section (and optional Engineering/Design Decisions) from a plan file. */
 function readPlanFile(filePath: string): string {
-  const resolved = path.isAbsolute(filePath) ? filePath : path.join(repoRoot, filePath);
+  const root = detectRepoRoot() ?? process.cwd();
+  const resolved = path.isAbsolute(filePath) ? filePath : path.join(root, filePath);
   if (!fs.existsSync(resolved)) {
     console.error(`Error: Plan file not found: ${resolved}`);
     process.exit(1);
@@ -275,7 +292,8 @@ function readPlanFile(filePath: string): string {
 
 /** Read the entire contents of a file as the prompt. */
 function readPromptFile(filePath: string): string {
-  const resolved = path.isAbsolute(filePath) ? filePath : path.join(repoRoot, filePath);
+  const root = detectRepoRoot() ?? process.cwd();
+  const resolved = path.isAbsolute(filePath) ? filePath : path.join(root, filePath);
   if (!fs.existsSync(resolved)) {
     console.error(`Error: Prompt file not found: ${resolved}`);
     process.exit(1);
@@ -380,6 +398,14 @@ export async function loadConfig(): Promise<SwarmConfig> {
 
   const swarmDir = readEnvString("SWARM_DIR", ".swarm");
   const runId = new Date().toISOString().replace(/[:.]/g, "-");
+
+  // Resolve repo root — fail clearly for commands that require a git repo
+  const gitRoot = detectRepoRoot();
+  if (!gitRoot && !COMMANDS_WITHOUT_GIT.has(cli.command)) {
+    console.error("Error: Not a git repository. Most swarm commands must be run inside a git repository.");
+    process.exit(1);
+  }
+  const repoRoot = gitRoot ?? process.cwd();
 
   // Build verify overrides from CLI flags (only include flags that were explicitly set)
   const hasVerifyFlags = cli.verifyBuild !== undefined || cli.verifyTest !== undefined || cli.verifyLint !== undefined;
