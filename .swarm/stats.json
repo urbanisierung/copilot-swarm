@@ -28,21 +28,21 @@
       }
     },
     "scout:acme-corp/api-gateway-service": {
-      "invocations": 2,
-      "totalElapsedMs": 3036.6170545203117,
+      "invocations": 3,
+      "totalElapsedMs": 4225.154145953835,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
-        "claude-haiku-4.5": 2
+        "claude-haiku-4.5": 3
       }
     },
     "fleet-strategist": {
-      "invocations": 2,
-      "totalElapsedMs": 5000,
+      "invocations": 3,
+      "totalElapsedMs": 6750,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
-        "claude-sonnet-4": 2
+        "claude-sonnet-4": 3
       }
     },
     "pm:acme-corp/shared-typescript-definitions": {
@@ -127,12 +127,12 @@
       }
     },
     "pm:acme-corp/api-gateway-service": {
-      "invocations": 2,
-      "totalElapsedMs": 2550.97283279869,
+      "invocations": 3,
+      "totalElapsedMs": 3786.799582626066,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
-        "claude-sonnet-4": 2
+        "claude-sonnet-4": 3
       }
     },
     "pm:acme-corp/web-dashboard-frontend": {
@@ -154,12 +154,12 @@
       }
     },
     "engineer:acme-corp/api-gateway-service": {
-      "invocations": 2,
-      "totalElapsedMs": 6185.598540689585,
+      "invocations": 3,
+      "totalElapsedMs": 8290.874756771658,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
-        "claude-sonnet-4": 2
+        "claude-sonnet-4": 3
       }
     },
     "reviewer:acme-corp/web-dashboard-frontend": {
@@ -172,21 +172,21 @@
       }
     },
     "reviewer:acme-corp/api-gateway-service": {
-      "invocations": 2,
-      "totalElapsedMs": 3360.288457787539,
+      "invocations": 3,
+      "totalElapsedMs": 4394.7850773198215,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
-        "claude-sonnet-4": 2
+        "claude-sonnet-4": 3
       }
     },
     "fleet-reviewer": {
-      "invocations": 2,
-      "totalElapsedMs": 4000,
+      "invocations": 3,
+      "totalElapsedMs": 5500,
       "totalInputTokens": 0,
       "totalOutputTokens": 0,
       "models": {
-        "gpt-4.1": 2
+        "gpt-4.1": 3
       }
     },
     "scout:acme-corp/user-authentication-service": {
@@ -324,8 +324,152 @@
       "models": {
         "claude-sonnet-4": 9
       }
+    },
+    "scout:acme-corp/billing-service": {
+      "invocations": 1,
+      "totalElapsedMs": 1304.3882329723929,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-haiku-4.5": 1
+      }
+    },
+    "scout:acme-corp/shared-types": {
+      "invocations": 1,
+      "totalElapsedMs": 1337.2305464714514,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-haiku-4.5": 1
+      }
+    },
+    "scout:acme-corp/web-dashboard": {
+      "invocations": 1,
+      "totalElapsedMs": 1576.5336101742334,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-haiku-4.5": 1
+      }
+    },
+    "scout:acme-corp/user-auth-service": {
+      "invocations": 1,
+      "totalElapsedMs": 1676.7116008978437,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-haiku-4.5": 1
+      }
+    },
+    "pm:acme-corp/shared-types": {
+      "invocations": 1,
+      "totalElapsedMs": 845.0544195905103,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 1
+      }
+    },
+    "pm:acme-corp/user-auth-service": {
+      "invocations": 1,
+      "totalElapsedMs": 875.8074054136795,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 1
+      }
+    },
+    "pm:acme-corp/billing-service": {
+      "invocations": 1,
+      "totalElapsedMs": 1125.9410792775245,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 1
+      }
+    },
+    "engineer:acme-corp/user-auth-service": {
+      "invocations": 1,
+      "totalElapsedMs": 1661.2681252055363,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 1
+      }
+    },
+    "engineer:acme-corp/billing-service": {
+      "invocations": 1,
+      "totalElapsedMs": 2105.4448258797474,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 1
+      }
+    },
+    "engineer:acme-corp/shared-types": {
+      "invocations": 1,
+      "totalElapsedMs": 2487.8095970268223,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 1
+      }
+    },
+    "reviewer:acme-corp/user-auth-service": {
+      "invocations": 1,
+      "totalElapsedMs": 905.6221833701438,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 1
+      }
+    },
+    "reviewer:acme-corp/shared-types": {
+      "invocations": 1,
+      "totalElapsedMs": 894.811147143791,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 1
+      }
+    },
+    "reviewer:acme-corp/billing-service": {
+      "invocations": 1,
+      "totalElapsedMs": 1188.7006884924804,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 1
+      }
+    },
+    "pm:acme-corp/web-dashboard": {
+      "invocations": 1,
+      "totalElapsedMs": 885.8647325639095,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 1
+      }
+    },
+    "engineer:acme-corp/web-dashboard": {
+      "invocations": 1,
+      "totalElapsedMs": 2718.4453358678506,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 1
+      }
+    },
+    "reviewer:acme-corp/web-dashboard": {
+      "invocations": 1,
+      "totalElapsedMs": 908.9984060726233,
+      "totalInputTokens": 0,
+      "totalOutputTokens": 0,
+      "models": {
+        "claude-sonnet-4": 1
+      }
     }
   },
-  "totalRuns": 7,
-  "lastUpdated": "2026-03-01T07:50:22.420Z"
+  "totalRuns": 8,
+  "lastUpdated": "2026-03-02T14:43:26.933Z"
 }
