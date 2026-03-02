@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.40
+
+### Patch Changes
+
+- c4e602d: Fix fleet
+
 ## 0.0.39
 
 ### Patch Changes
