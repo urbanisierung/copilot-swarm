@@ -329,23 +329,26 @@ added database index, updated environment docs.
 Use `swarm fleet` to orchestrate a feature that spans multiple repositories. A meta-orchestrator coordinates independent swarm instances per repo:
 
 ```bash
-# Explicit repo list
-swarm fleet "Add OAuth login" --repos ~/auth-service ~/api-gateway ~/frontend
+# Explicit repo list (--repos flag)
+swarm fleet "Add OAuth login" --repos ~/auth-service --repos ~/api-gateway --repos ~/frontend
+
+# Positional repo paths (paths starting with ./ / ~/ are auto-detected as repos)
+swarm fleet "Add OAuth" ./auth-service ./api-gateway ./frontend
 
 # Config-driven
 swarm fleet "Add OAuth" --fleet-config fleet.config.yaml
 
 # Analyze all repos only (no execution)
-swarm fleet analyze --repos ~/auth-service ~/api-gateway ~/frontend
+swarm fleet analyze ./auth-service ./api-gateway ./frontend
 
 # Cross-repo plan only (analyze + strategize, no execution)
-swarm fleet plan "Add OAuth" --repos ~/auth ~/api ~/frontend
+swarm fleet plan "Add OAuth" ./auth ~/api ~/frontend
 
 # With resume
-swarm fleet "Add OAuth" --repos ~/auth ~/api ~/frontend --resume
+swarm fleet "Add OAuth" ./auth ./api ./frontend --resume
 
 # Create a feature branch in all repos before execution
-swarm fleet "Add OAuth" --repos ~/auth ~/api --create-branch feat/oauth
+swarm fleet "Add OAuth" ./auth ./api --create-branch feat/oauth
 ```
 
 **Fleet config (`fleet.config.yaml`):**

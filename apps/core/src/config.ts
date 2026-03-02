@@ -168,11 +168,11 @@ Examples:
   swarm session use <id>                  Switch active session
   swarm finish                            Finalize active session
   swarm finish --session <id>             Finalize a specific session
-  swarm fleet "Add OAuth" --repos ~/auth ~/api ~/frontend
-  swarm fleet analyze --repos ~/auth ~/api     Analyze all repos (no execution)
-  swarm fleet plan "Add OAuth" --repos ~/auth ~/api  Cross-repo plan (no execution)
+  swarm fleet "Add OAuth" ./auth ./api ./frontend
+  swarm fleet analyze ./auth ./api           Analyze all repos (no execution)
+  swarm fleet plan "Add OAuth" ./auth ./api  Cross-repo plan (no execution)
   swarm fleet "Add OAuth" --fleet-config fleet.config.yaml
-  swarm fleet "Add OAuth" --repos ~/auth ~/api --create-branch feat/oauth
+  swarm fleet "Add OAuth" ./auth ./api --create-branch feat/oauth
   swarm run --auto-model "Fix validation"  Use fast model for simple tasks
 
 Environment variables override defaults; CLI args override env vars.
@@ -246,6 +246,20 @@ function parseCliArgs(): CliArgs {
     promptParts = promptParts.slice(1);
   }
 
+  // In fleet mode, treat path-like positional args as repo paths
+  // This allows: swarm fleet analyze ./repo1 ./repo2
+  // Also fixes: --repos ~/a ~/b ~/c (parseArgs only captures the first value)
+  let fleetRepos = values.repos as string[] | undefined;
+  if (command === "fleet") {
+    const isPathLike = (s: string) =>
+      s.startsWith("./") || s.startsWith("/") || s.startsWith("~/") || s.startsWith("../");
+    const pathArgs = promptParts.filter(isPathLike);
+    if (pathArgs.length > 0) {
+      fleetRepos = [...(fleetRepos ?? []), ...pathArgs];
+      promptParts = promptParts.filter((p) => !isPathLike(p));
+    }
+  }
+
   return {
     command,
     verbose: values.verbose as boolean,
@@ -261,7 +275,7 @@ function parseCliArgs(): CliArgs {
     verifyBuild: values["verify-build"] as string | undefined,
     verifyTest: values["verify-test"] as string | undefined,
     verifyLint: values["verify-lint"] as string | undefined,
-    fleetRepos: values.repos as string[] | undefined,
+    fleetRepos,
     fleetConfigPath: values["fleet-config"] as string | undefined,
     fleetMode,
     fleetBranch: values["create-branch"] as string | undefined,

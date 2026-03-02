@@ -81,7 +81,18 @@ export function loadFleetConfig(configPath?: string): FleetConfig {
   const resolved = configPath ? path.resolve(configPath) : path.resolve(FLEET_CONFIG_FILE);
 
   if (!fs.existsSync(resolved)) {
-    fail(`Fleet config not found: ${resolved}`);
+    fail(
+      `Fleet config not found: ${resolved}\n\n` +
+        "To use fleet mode, provide repositories using one of:\n" +
+        '  swarm fleet "prompt" ./repo1 ./repo2           Positional repo paths\n' +
+        '  swarm fleet "prompt" --repos ./repo1 --repos ./repo2\n' +
+        '  swarm fleet "prompt" --fleet-config config.yaml\n\n' +
+        "Example fleet.config.yaml:\n" +
+        "  repos:\n" +
+        '    - path: ./auth-service\n      role: "Auth backend"\n' +
+        '    - path: ./frontend\n      role: "React frontend"\n\n' +
+        "Run 'swarm --help' or see doc/documentation.md for details.",
+    );
   }
 
   let parsed: unknown;
@@ -100,7 +111,7 @@ export function fleetConfigFromArgs(repoPaths: string[]): FleetConfig {
     repos: repoPaths.map((p) => {
       const resolved = resolveRepoPath(p);
       if (!fs.existsSync(resolved)) {
-        fail(`Repository path does not exist: ${resolved}`);
+        fail(`Repository path does not exist: ${resolved}\n  Check the path and try again.`);
       }
       const name = path.basename(resolved);
       return { path: resolved, role: name };
