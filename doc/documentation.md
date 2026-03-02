@@ -40,6 +40,7 @@ Commands:
   review           Review a previous run — provide feedback for agents to fix/improve
   digest           Show a concise highlights summary of a completed run
   fleet            Multi-repo orchestration — coordinate work across repositories
+                     Subcommands: analyze (analysis only), plan (analyze + strategize)
   session          Manage sessions: create, list, use (group related runs)
   finish           Finalize the active session — summarize, log to changelog, clean up
   list             List all sessions across all repositories
@@ -333,6 +334,12 @@ swarm fleet "Add OAuth login" --repos ~/auth-service ~/api-gateway ~/frontend
 # Config-driven
 swarm fleet "Add OAuth" --fleet-config fleet.config.yaml
 
+# Analyze all repos only (no execution)
+swarm fleet analyze --repos ~/auth-service ~/api-gateway ~/frontend
+
+# Cross-repo plan only (analyze + strategize, no execution)
+swarm fleet plan "Add OAuth" --repos ~/auth ~/api ~/frontend
+
 # With resume
 swarm fleet "Add OAuth" --repos ~/auth ~/api ~/frontend --resume
 ```
@@ -363,6 +370,7 @@ integrationTest: "npm run test:integration"
 5. **Summary** — Unified output with per-repo results
 
 **Output:**
+- `.swarm/fleet/<runId>/fleet-analysis.md` — Combined analysis of all repos (analyze mode)
 - `.swarm/fleet/<runId>/strategy.md` — Cross-repo strategy with shared contracts and wave plan
 - `.swarm/fleet/<runId>/fleet-review.md` — Cross-repo consistency review
 - `.swarm/fleet/<runId>/fleet-summary.md` — Final summary

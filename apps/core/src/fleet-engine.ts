@@ -75,6 +75,14 @@ export class FleetEngine {
       this.logger.info("⏭️  Skipping analysis (completed in previous run)");
     }
 
+    // Fleet analyze mode: stop after analysis
+    if (this.config.fleetMode === "analyze") {
+      const analysisPath = path.join(outDir, "fleet-analysis.md");
+      fs.writeFileSync(analysisPath, this.formatAnalyses(analyses), "utf-8");
+      this.logger.info(`✅ Fleet analysis complete — saved to ${analysisPath}`);
+      return;
+    }
+
     // Phase 2: Strategize
     let strategy = checkpoint.strategy;
     if (!checkpoint.completedPhases.includes("strategize")) {
@@ -93,6 +101,12 @@ export class FleetEngine {
     const strategyPath = path.join(outDir, "strategy.md");
     fs.writeFileSync(strategyPath, this.formatStrategy(strategy), "utf-8");
     this.logger.info(`📋 Strategy saved to ${strategyPath}`);
+
+    // Fleet plan mode: stop after strategy
+    if (this.config.fleetMode === "plan") {
+      this.logger.info("✅ Fleet planning complete — review the strategy before running the full pipeline.");
+      return;
+    }
 
     // Phase 3: Execute waves
     if (!checkpoint.completedPhases.includes("execute")) {
@@ -416,6 +430,15 @@ export class FleetEngine {
   }
 
   // --- Formatting ---
+
+  private formatAnalyses(analyses: Record<string, string>): string {
+    const parts: string[] = ["# Fleet Analysis\n"];
+    for (const repo of this.fleetConfig.repos) {
+      const analysis = analyses[repo.path] ?? "No analysis available.";
+      parts.push(`## ${path.basename(repo.path)} (${repo.path})\n\n**Role:** ${repo.role}\n\n${analysis}\n`);
+    }
+    return parts.join("\n");
+  }
 
   private formatStrategy(strategy: FleetStrategy): string {
     const parts: string[] = ["# Fleet Strategy\n"];

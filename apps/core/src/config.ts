@@ -67,6 +67,8 @@ export type SwarmCommand =
   | "backup"
   | "restore";
 
+export type FleetMode = "analyze" | "plan";
+
 interface CliArgs {
   command: SwarmCommand;
   verbose: boolean;
@@ -84,6 +86,7 @@ interface CliArgs {
   verifyLint: string | undefined;
   fleetRepos: string[] | undefined;
   fleetConfigPath: string | undefined;
+  fleetMode: FleetMode | undefined;
 }
 
 export function readVersion(): string {
@@ -164,6 +167,8 @@ Examples:
   swarm finish                            Finalize active session
   swarm finish --session <id>             Finalize a specific session
   swarm fleet "Add OAuth" --repos ~/auth ~/api ~/frontend
+  swarm fleet analyze --repos ~/auth ~/api     Analyze all repos (no execution)
+  swarm fleet plan "Add OAuth" --repos ~/auth ~/api  Cross-repo plan (no execution)
   swarm fleet "Add OAuth" --fleet-config fleet.config.yaml
   swarm run --auto-model "Fix validation"  Use fast model for simple tasks
 
@@ -230,6 +235,13 @@ function parseCliArgs(): CliArgs {
     promptParts = positionals.slice(1);
   }
 
+  // Parse fleet subcommand: `swarm fleet analyze ...` or `swarm fleet plan ...`
+  let fleetMode: FleetMode | undefined;
+  if (command === "fleet" && promptParts.length > 0 && (promptParts[0] === "analyze" || promptParts[0] === "plan")) {
+    fleetMode = promptParts[0] as FleetMode;
+    promptParts = promptParts.slice(1);
+  }
+
   return {
     command,
     verbose: values.verbose as boolean,
@@ -247,6 +259,7 @@ function parseCliArgs(): CliArgs {
     verifyLint: values["verify-lint"] as string | undefined,
     fleetRepos: values.repos as string[] | undefined,
     fleetConfigPath: values["fleet-config"] as string | undefined,
+    fleetMode,
   };
 }
 
@@ -334,6 +347,8 @@ export interface SwarmConfig {
   readonly fleetRepos?: string[];
   /** Fleet config file path (from --fleet-config). */
   readonly fleetConfigPath?: string;
+  /** Fleet subcommand: analyze-only or plan-only (omit for full pipeline). */
+  readonly fleetMode?: FleetMode;
 }
 
 export async function loadConfig(): Promise<SwarmConfig> {
@@ -367,7 +382,8 @@ export async function loadConfig(): Promise<SwarmConfig> {
       cli.command !== "stats" &&
       cli.command !== "demo" &&
       cli.command !== "backup" &&
-      cli.command !== "restore"
+      cli.command !== "restore" &&
+      !(cli.command === "fleet" && cli.fleetMode === "analyze")
     ) {
       issueBody = await openTextarea();
       if (!issueBody) {
@@ -387,6 +403,7 @@ export async function loadConfig(): Promise<SwarmConfig> {
     cli.command !== "demo" &&
     cli.command !== "backup" &&
     cli.command !== "restore" &&
+    !(cli.command === "fleet" && cli.fleetMode === "analyze") &&
     !cli.resume &&
     (!issueBody || issueBody === "")
   ) {
@@ -432,6 +449,7 @@ export async function loadConfig(): Promise<SwarmConfig> {
     verifyOverrides,
     fleetRepos: cli.fleetRepos,
     fleetConfigPath: cli.fleetConfigPath,
+    fleetMode: cli.fleetMode,
     autoModel: cli.autoModel || readEnvBoolean("AUTO_MODEL", false),
   };
 }

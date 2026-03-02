@@ -7,6 +7,9 @@ All notable changes to this project are documented here, in reverse chronologica
 ### Fixed
 - **Non-git directory crash** — Running any `swarm` command (including `-V` and `--help`) outside a git repository caused an unhandled `execSync` error at module load time. Fixed by deferring git detection to after CLI arg parsing. `--version` and `--help` now work anywhere. Commands that don't require a git repo (`fleet`, `list`) fall back to `process.cwd()`. All other commands print a clear error message instead of a stack trace.
 
+### Added
+- **Fleet subcommands** — `swarm fleet analyze` runs analysis across all repos without executing (outputs `fleet-analysis.md`). `swarm fleet plan "prompt"` runs analysis + strategize to produce a cross-repo strategy without executing waves. The default `swarm fleet "prompt"` still runs the full pipeline.
+
 ## 2026-03-01
 
 ### Added
