@@ -192,7 +192,76 @@ export class FleetEngine {
     this.logger.info(`🌿 All repos on branch "${branchName}"`);
   }
 
+  private cleanupBranches(branchName: string): void {
+    const repos = this.fleetConfig.repos;
+    this.logger.info(`🧹 Cleaning up branch "${branchName}" in ${repos.length} repo(s)...`);
+
+    for (const repo of repos) {
+      const label = path.basename(repo.path);
+      const git = (args: string) =>
+        execSync(`git ${args}`, { cwd: repo.path, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
+
+      // Detect default branch
+      let defaultBranch: string;
+      try {
+        const ref = git("symbolic-ref refs/remotes/origin/HEAD");
+        defaultBranch = ref.replace("refs/remotes/origin/", "");
+      } catch {
+        try {
+          git("rev-parse --verify refs/heads/main");
+          defaultBranch = "main";
+        } catch {
+          try {
+            git("rev-parse --verify refs/heads/master");
+            defaultBranch = "master";
+          } catch {
+            this.logger.warn(`  ⚠️  ${label}: Cannot determine default branch — skipping`);
+            continue;
+          }
+        }
+      }
+
+      // Check current branch
+      const currentBranch = git("rev-parse --abbrev-ref HEAD");
+
+      if (currentBranch === branchName) {
+        // Discard all changes (tracked + untracked)
+        git("checkout -- .");
+        git("clean -fd");
+        // Switch to default branch
+        git(`checkout ${defaultBranch}`);
+        this.logger.info(`  ✅ ${label}: switched to "${defaultBranch}"`);
+      } else if (currentBranch === defaultBranch) {
+        this.logger.info(`  ℹ️  ${label}: already on "${defaultBranch}"`);
+      } else {
+        this.logger.warn(`  ⚠️  ${label}: on unexpected branch "${currentBranch}" — switching to "${defaultBranch}"`);
+        git("checkout -- .");
+        git("clean -fd");
+        git(`checkout ${defaultBranch}`);
+      }
+
+      // Delete the feature branch locally
+      try {
+        git(`branch -D ${branchName}`);
+        this.logger.info(`  🗑️  ${label}: deleted local branch "${branchName}"`);
+      } catch {
+        this.logger.info(`  ℹ️  ${label}: branch "${branchName}" does not exist locally`);
+      }
+    }
+
+    this.logger.info(`🧹 Cleanup complete — all repos on their default branch`);
+  }
+
   async execute(): Promise<void> {
+    // Fleet cleanup mode: discard changes, switch to default branch, delete feature branch
+    if (this.config.fleetMode === "cleanup") {
+      if (!this.config.fleetBranch) {
+        throw new Error("Branch name required for cleanup. Usage: swarm fleet cleanup <branch-name> ./repo1 ./repo2");
+      }
+      this.cleanupBranches(this.config.fleetBranch);
+      return;
+    }
+
     const outDir = fleetOutputDir(this.config);
     fs.mkdirSync(outDir, { recursive: true });
 

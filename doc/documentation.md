@@ -414,6 +414,21 @@ If validation passes for all repos:
 
 If any repo fails validation, **no repos are modified** (fail-fast).
 
+**Branch cleanup (`fleet cleanup`):**
+
+If something goes wrong after `--create-branch`, use `fleet cleanup` to revert all repos:
+
+```bash
+swarm fleet cleanup feat/oauth ./auth ./api
+```
+
+This will:
+1. Discard all local changes (tracked and untracked files)
+2. Switch each repo back to its default branch
+3. Delete the feature branch locally
+
+Repos already on the default branch or without the branch are handled gracefully.
+
 ### Checkpoint & Resume
 
 Long-running pipeline executions are checkpointed at multiple granularity levels. If a run fails (e.g., due to a timeout), it resumes from the exact point of failure:
