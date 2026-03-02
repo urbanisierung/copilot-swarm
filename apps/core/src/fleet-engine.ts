@@ -293,23 +293,20 @@ export class FleetEngine {
     const analyses: Record<string, string> = {};
     const swarmBin = resolveSwarmBin();
 
-    // Run analyses in parallel
+    // Run all repo analyses truly in parallel using async spawn
     const promises = this.fleetConfig.repos.map(async (repo) => {
-      this.logger.info(`  📂 Analyzing ${path.basename(repo.path)}...`);
+      const label = path.basename(repo.path);
+      this.logger.info(`  📂 Analyzing ${label}...`);
+
       try {
-        execSync(`${swarmBin} analyze --no-tui`, {
-          cwd: repo.path,
-          encoding: "utf-8",
-          stdio: "pipe",
-          timeout: 600_000,
-        });
+        await this.runChildProcess(swarmBin, repo.path, "analyze --no-tui", 1_800_000);
+        this.logger.info(`  ✅ ${label} analysis complete`);
       } catch (err) {
         this.logger.warn(`  ⚠️  Analysis failed for ${repo.path}: ${err instanceof Error ? err.message : String(err)}`);
       }
 
       // Read the generated analysis
       const analysisFile = path.join(repo.path, ".swarm", "analysis", "repo-analysis.md");
-      // Also check session-scoped paths
       const swarmDir = path.join(repo.path, ".swarm");
       const analysis = this.findAnalysisFile(swarmDir) ?? (fs.existsSync(analysisFile) ? analysisFile : null);
 
@@ -322,6 +319,39 @@ export class FleetEngine {
 
     await Promise.all(promises);
     return analyses;
+  }
+
+  /** Run a swarm CLI command in a child process (async, non-blocking). */
+  private runChildProcess(swarmBin: string, cwd: string, args: string, timeout: number): Promise<string> {
+    const cmd = `${swarmBin} ${args}`;
+    return new Promise<string>((resolve, reject) => {
+      const child = spawn("sh", ["-c", cmd], {
+        cwd,
+        stdio: ["ignore", "pipe", "pipe"],
+        timeout,
+      });
+
+      let stdout = "";
+      let stderr = "";
+      child.stdout.on("data", (data: Buffer) => {
+        stdout += data.toString();
+      });
+      child.stderr.on("data", (data: Buffer) => {
+        stderr += data.toString();
+      });
+
+      child.on("close", (code) => {
+        if (code === 0) {
+          resolve(stdout);
+        } else {
+          reject(new Error(stderr.slice(-500) || `exited with code ${code}`));
+        }
+      });
+
+      child.on("error", (err) => {
+        reject(err);
+      });
+    });
   }
 
   private findAnalysisFile(swarmDir: string): string | null {
@@ -541,8 +571,14 @@ export class FleetEngine {
     if (!this.sessions) throw new Error("Sessions not initialized");
 
     const repoContexts = this.buildRepoContexts(analyses);
+    const exactPaths = this.fleetConfig.repos.map((r) => r.path).join("\n- ");
 
-    const prompt = `## Feature Request\n\n${this.config.issueBody}\n\n## Repository Analyses\n\n${repoContexts}\n\nProduce a cross-repo strategy with shared contracts, per-repo tasks, dependencies, and execution waves.`;
+    const prompt =
+      `## Feature Request\n\n${this.config.issueBody}\n\n` +
+      `## Available Repositories (ONLY use these exact paths)\n\n- ${exactPaths}\n\n` +
+      `## Repository Analyses\n\n${repoContexts}\n\n` +
+      "Produce a cross-repo strategy with shared contracts, per-repo tasks, dependencies, and execution waves.\n" +
+      "IMPORTANT: In Per-Repo Tasks and Execution Waves, use ONLY the exact absolute paths listed above. Do not invent repos.";
 
     const response = await this.sessions.callIsolated("fleet-strategist", prompt, undefined, "fleet-strategize");
 
@@ -598,7 +634,48 @@ export class FleetEngine {
       waves.push(this.fleetConfig.repos.map((r) => r.path));
     }
 
-    return { sharedContracts, repoTasks, dependencies, waves };
+    // Validate and normalize all paths against actual fleet repos
+    const resolvedWaves = waves
+      .map((wave) => wave.map((entry) => this.resolveToFleetRepo(entry)).filter((p): p is string => p !== null))
+      .filter((wave) => wave.length > 0);
+
+    const resolvedTasks = repoTasks
+      .map((rt) => {
+        const resolved = this.resolveToFleetRepo(rt.repoPath);
+        return resolved ? { ...rt, repoPath: resolved } : null;
+      })
+      .filter((rt): rt is FleetRepoTasks => rt !== null);
+
+    return {
+      sharedContracts,
+      repoTasks: resolvedTasks,
+      dependencies,
+      waves: resolvedWaves.length > 0 ? resolvedWaves : [this.fleetConfig.repos.map((r) => r.path)],
+    };
+  }
+
+  /** Map a potentially LLM-generated path/name back to an actual fleet repo path. */
+  private resolveToFleetRepo(entry: string): string | null {
+    const repos = this.fleetConfig.repos;
+
+    // Direct match
+    if (repos.some((r) => r.path === entry)) return entry;
+
+    // Strip markdown formatting (backticks, parenthetical notes)
+    const cleaned = entry
+      .replace(/`/g, "")
+      .replace(/\s*\(.*\)\s*$/, "")
+      .trim();
+    if (repos.some((r) => r.path === cleaned)) return cleaned;
+
+    // Match by basename
+    const match = repos.find(
+      (r) => path.basename(r.path) === cleaned || path.basename(r.path) === path.basename(cleaned),
+    );
+    if (match) return match.path;
+
+    this.logger.warn(`  ⚠️  Strategy referenced unknown repo "${entry}" — skipping`);
+    return null;
   }
 
   private async executeWaves(strategy: FleetStrategy, checkpoint: FleetCheckpoint): Promise<void> {
@@ -676,7 +753,6 @@ export class FleetEngine {
   }
 
   private async runSwarmTask(swarmBin: string, repoPath: string, prompt: string): Promise<string> {
-    // Write prompt to temp file to avoid shell escaping issues
     const tmpFile = path.join(os.tmpdir(), `fleet-${Date.now()}-${path.basename(repoPath)}.md`);
     fs.writeFileSync(tmpFile, prompt, "utf-8");
 
@@ -686,48 +762,17 @@ export class FleetEngine {
     if (overrides?.verifyTest) verifyArgs.push(`--verify-test "${overrides.verifyTest}"`);
     if (overrides?.verifyLint) verifyArgs.push(`--verify-lint "${overrides.verifyLint}"`);
 
-    const cmd = `${swarmBin} task --no-tui -f "${tmpFile}" ${verifyArgs.join(" ")}`.trim();
+    const args = `task --no-tui -f "${tmpFile}" ${verifyArgs.join(" ")}`.trim();
 
-    return new Promise<string>((resolve, reject) => {
-      const child = spawn("sh", ["-c", cmd], {
-        cwd: repoPath,
-        stdio: ["ignore", "pipe", "pipe"],
-        timeout: 1_800_000,
-      });
-
-      let stdout = "";
-      let stderr = "";
-      child.stdout.on("data", (data) => {
-        stdout += data.toString();
-      });
-      child.stderr.on("data", (data) => {
-        stderr += data.toString();
-      });
-
-      child.on("close", (code) => {
-        // Clean up temp file
-        try {
-          fs.unlinkSync(tmpFile);
-        } catch {
-          // ignore
-        }
-
-        if (code === 0) {
-          resolve(stdout);
-        } else {
-          reject(new Error(`swarm task exited with code ${code}: ${stderr.slice(-500)}`));
-        }
-      });
-
-      child.on("error", (err) => {
-        try {
-          fs.unlinkSync(tmpFile);
-        } catch {
-          // ignore
-        }
-        reject(err);
-      });
-    });
+    try {
+      return await this.runChildProcess(swarmBin, repoPath, args, 1_800_000);
+    } finally {
+      try {
+        fs.unlinkSync(tmpFile);
+      } catch {
+        // ignore
+      }
+    }
   }
 
   private async crossReview(strategy: FleetStrategy, waveResults: Record<string, string>[]): Promise<string> {
