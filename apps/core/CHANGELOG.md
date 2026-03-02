@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.39
+
+### Patch Changes
+
+- 500b55a: Central docs for fleet command.
+
 ## 0.0.38
 
 ### Patch Changes
