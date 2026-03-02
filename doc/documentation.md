@@ -40,6 +40,7 @@ Commands:
   review           Review a previous run — provide feedback for agents to fix/improve
   digest           Show a concise highlights summary of a completed run
   fleet            Multi-repo orchestration — coordinate work across repositories
+                     Subcommands: analyze (analysis only), plan (analyze + strategize)
   session          Manage sessions: create, list, use (group related runs)
   finish           Finalize the active session — summarize, log to changelog, clean up
   list             List all sessions across all repositories
@@ -60,6 +61,7 @@ Options:
   --verify-lint <cmd>  Shell command to run linting (e.g. "npm run lint")
   --repos <paths...>   Repository paths for fleet mode (space-separated)
   --fleet-config <f>   Fleet config file path (default: fleet.config.yaml)
+  --create-branch <n>  Create a branch in all fleet repos before execution
   -V, --version        Show version number
   -h, --help           Show this help message
 ```
@@ -333,8 +335,17 @@ swarm fleet "Add OAuth login" --repos ~/auth-service ~/api-gateway ~/frontend
 # Config-driven
 swarm fleet "Add OAuth" --fleet-config fleet.config.yaml
 
+# Analyze all repos only (no execution)
+swarm fleet analyze --repos ~/auth-service ~/api-gateway ~/frontend
+
+# Cross-repo plan only (analyze + strategize, no execution)
+swarm fleet plan "Add OAuth" --repos ~/auth ~/api ~/frontend
+
 # With resume
 swarm fleet "Add OAuth" --repos ~/auth ~/api ~/frontend --resume
+
+# Create a feature branch in all repos before execution
+swarm fleet "Add OAuth" --repos ~/auth ~/api --create-branch feat/oauth
 ```
 
 **Fleet config (`fleet.config.yaml`):**
@@ -355,18 +366,46 @@ overrides:
 integrationTest: "npm run test:integration"
 ```
 
-**How it works:**
+**How it works (full pipeline — `swarm fleet "prompt"`):**
 1. **Analyze** — Runs `swarm analyze` on each repo in parallel to understand each codebase
 2. **Strategize** — A strategist agent receives all analyses and produces: shared contracts, per-repo tasks, dependency graph, and execution waves
 3. **Execute waves** — Repos with no cross-repo dependencies run in parallel (wave 1); repos depending on wave 1 outputs run next (wave 2), with prior wave results injected as context
 4. **Cross-repo review** — A reviewer agent checks consistency across all repo changes
 5. **Summary** — Unified output with per-repo results
 
+**How it works (interactive planning — `swarm fleet plan "prompt"`):**
+1. **Analyze** — Same as full pipeline
+2. **PM clarification** — A PM agent asks clarifying questions about the cross-repo feature (scope, contracts, data flow). Interactive Q&A via split-pane editor
+3. **Engineer clarification** — An engineer agent asks technical questions (API shapes, deployment order, testing). Interactive Q&A via split-pane editor
+4. **Strategize** — Strategist receives enriched context from PM and engineer rounds to produce a higher-quality cross-repo plan
+5. Stops here — review the strategy before running the full pipeline
+
 **Output:**
+- `.swarm/fleet/<runId>/fleet-analysis.md` — Combined analysis of all repos (analyze mode)
+- `.swarm/fleet/<runId>/fleet-plan.md` — Refined requirements and engineering decisions (plan mode)
 - `.swarm/fleet/<runId>/strategy.md` — Cross-repo strategy with shared contracts and wave plan
 - `.swarm/fleet/<runId>/fleet-review.md` — Cross-repo consistency review
 - `.swarm/fleet/<runId>/fleet-summary.md` — Final summary
 - `.swarm/fleet/<runId>/fleet-checkpoint.json` — Checkpoint for resume
+
+**Branch management (`--create-branch`):**
+
+Use `--create-branch <name>` to safely create a feature branch across all fleet repos before execution:
+
+```bash
+swarm fleet "Add OAuth" --repos ~/auth ~/api --create-branch feat/oauth
+```
+
+Before creating any branches, the tool validates every repo:
+1. Must be on its default branch (e.g., `main` or `master`) — fails otherwise
+2. Must have no uncommitted changes — fails otherwise
+3. The target branch must not already exist — fails otherwise
+
+If validation passes for all repos:
+1. Pulls the latest from the remote default branch (fast-forward only)
+2. Creates and checks out the new branch in each repo
+
+If any repo fails validation, **no repos are modified** (fail-fast).
 
 ### Checkpoint & Resume
 

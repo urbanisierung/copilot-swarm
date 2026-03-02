@@ -490,7 +490,8 @@ if (config.command === "plan" || config.command === "auto") {
       const elapsed = `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
       console.log("");
       console.log(msg.summaryDivider);
-      console.log(`✅ Fleet completed in ${elapsed}`);
+      const modeLabel = config.fleetMode ? `Fleet ${config.fleetMode}` : "Fleet";
+      console.log(`✅ ${modeLabel} completed in ${elapsed}`);
       console.log(`   Repos: ${fleetConfig.repos.length}`);
       if (logger.logFilePath) {
         console.log(msg.logFileHint(logger.logFilePath));
