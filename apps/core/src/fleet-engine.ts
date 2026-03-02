@@ -14,8 +14,10 @@ import type { SwarmConfig } from "./config.js";
 import type { FleetCheckpoint, FleetConfig, FleetDependency, FleetRepoTasks, FleetStrategy } from "./fleet-types.js";
 import type { Logger } from "./logger.js";
 import { loadPipelineConfig } from "./pipeline-config.js";
+import type { ProgressTracker } from "./progress-tracker.js";
 import { SessionManager } from "./session.js";
 import { openSplitEditor } from "./textarea.js";
+import type { TuiRenderer } from "./tui-renderer.js";
 import { responseContains } from "./utils.js";
 
 const FLEET_CHECKPOINT_FILE = "fleet-checkpoint.json";
@@ -93,6 +95,8 @@ export class FleetEngine {
     private readonly config: SwarmConfig,
     private readonly fleetConfig: FleetConfig,
     private readonly logger: Logger,
+    private readonly tracker?: ProgressTracker,
+    private readonly renderer?: TuiRenderer,
   ) {}
 
   async start(): Promise<void> {
@@ -268,22 +272,41 @@ export class FleetEngine {
     const checkpoint = this.loadCheckpoint();
     const repos = this.fleetConfig.repos;
 
+    // Build dynamic phase list for TUI
+    const phases: { phase: string }[] = [];
+    if (this.config.fleetBranch) phases.push({ phase: "fleet-branch" });
+    phases.push({ phase: "fleet-analyze" });
+    if (this.config.fleetMode !== "analyze") phases.push({ phase: "fleet-strategize" });
+    // Wave phases are added dynamically after strategy is known
+    this.tracker?.initPhases(phases);
+    this.renderer?.start();
+
     // Pre-phase: Create branches in all repos if requested
     if (this.config.fleetBranch && !checkpoint.completedPhases.includes("create-branch")) {
+      const branchKey = this.phaseKey("fleet-branch");
+      this.activatePhase(branchKey);
       this.prepareBranches(this.config.fleetBranch);
+      this.completePhase(branchKey);
       checkpoint.completedPhases.push("create-branch");
       this.saveCheckpoint(checkpoint);
+    } else if (this.config.fleetBranch) {
+      this.skipPhase(this.phaseKey("fleet-branch"));
     }
 
     // Phase 1: Analyze all repos
+    const analyzeKey = this.phaseKey("fleet-analyze");
     let analyses = checkpoint.analyses;
     if (!checkpoint.completedPhases.includes("analyze")) {
+      this.activatePhase(analyzeKey);
       this.logger.info(`🔍 Analyzing ${repos.length} repositories...`);
+      this.tracker?.initStreams(repos.map((r) => path.basename(r.path)));
       analyses = await this.analyzeAll();
+      this.completePhase(analyzeKey);
       checkpoint.analyses = analyses;
       checkpoint.completedPhases.push("analyze");
       this.saveCheckpoint(checkpoint);
     } else {
+      this.skipPhase(analyzeKey);
       this.logger.info("⏭️  Skipping analysis (completed in previous run)");
     }
 
@@ -293,23 +316,31 @@ export class FleetEngine {
       fs.writeFileSync(analysisPath, this.formatAnalyses(analyses), "utf-8");
       this.logger.info(`✅ Fleet analysis complete — saved to ${analysisPath}`);
       updateLatestPointer(this.config);
+      this.stopTui();
       return;
     }
 
     // Phase 2: Plan / Strategize
+    const stratKey = this.phaseKey("fleet-strategize");
     let strategy = checkpoint.strategy;
     if (this.config.fleetMode === "plan") {
-      // Interactive planning: PM clarification → engineer clarification → strategize
+      this.activatePhase(stratKey);
+      this.stopTui(); // TUI must stop for interactive planning (needs stdin)
       const planResult = await this.interactivePlan(analyses, checkpoint);
       strategy = planResult;
+      this.completePhase(stratKey);
     } else if (!checkpoint.completedPhases.includes("strategize")) {
-      // Autonomous strategize (full pipeline default)
+      this.activatePhase(stratKey);
+      this.tracker?.setActiveAgent("strategizing cross-repo plan…");
       this.logger.info("🧠 Strategist analyzing cross-repo dependencies...");
       strategy = await this.strategize(analyses);
+      this.tracker?.setActiveAgent(null);
+      this.completePhase(stratKey);
       checkpoint.strategy = strategy;
       checkpoint.completedPhases.push("strategize");
       this.saveCheckpoint(checkpoint);
     } else {
+      this.skipPhase(stratKey);
       this.logger.info("⏭️  Skipping strategy (completed in previous run)");
     }
 
@@ -327,6 +358,28 @@ export class FleetEngine {
       return;
     }
 
+    // Add wave + review + summary phases now that we know the wave count
+    if (this.tracker) {
+      const wavePhases = strategy.waves.map((_, i) => ({
+        key: `fleet-wave-${i + 1}-${this.tracker!.phases.length + i}`,
+        name: `Wave ${i + 1}`,
+        status: "pending" as const,
+      }));
+      this.tracker.phases.push(
+        ...wavePhases,
+        {
+          key: `fleet-review-${this.tracker.phases.length + wavePhases.length}`,
+          name: "Cross-Repo Review",
+          status: "pending" as const,
+        },
+        {
+          key: `fleet-summary-${this.tracker.phases.length + wavePhases.length + 1}`,
+          name: "Summary",
+          status: "pending" as const,
+        },
+      );
+    }
+
     // Phase 3: Execute waves
     if (!checkpoint.completedPhases.includes("execute")) {
       this.logger.info(`🚀 Executing ${strategy.waves.length} wave(s)...`);
@@ -334,26 +387,40 @@ export class FleetEngine {
       checkpoint.completedPhases.push("execute");
       this.saveCheckpoint(checkpoint);
     } else {
+      // Mark all wave phases as skipped
+      for (let i = 0; i < strategy.waves.length; i++) {
+        this.skipPhaseByName(`Wave ${i + 1}`);
+      }
       this.logger.info("⏭️  Skipping execution (completed in previous run)");
     }
 
     // Phase 4: Cross-repo review
+    const reviewKey = this.findPhaseKey("Cross-Repo Review");
     if (!checkpoint.completedPhases.includes("review")) {
+      this.activatePhase(reviewKey);
+      this.tracker?.setActiveAgent("cross-repo consistency check…");
       this.logger.info("🔎 Cross-repo reviewer checking consistency...");
       const reviewResult = await this.crossReview(strategy, checkpoint.waveResults);
       const reviewPath = path.join(outDir, "fleet-review.md");
       fs.writeFileSync(reviewPath, reviewResult, "utf-8");
+      this.tracker?.setActiveAgent(null);
+      this.completePhase(reviewKey);
       checkpoint.completedPhases.push("review");
       this.saveCheckpoint(checkpoint);
     } else {
+      this.skipPhase(reviewKey);
       this.logger.info("⏭️  Skipping cross-repo review (completed in previous run)");
     }
 
     // Phase 5: Summary
+    const summaryKey = this.findPhaseKey("Summary");
+    this.activatePhase(summaryKey);
     const summaryPath = path.join(outDir, "fleet-summary.md");
     fs.writeFileSync(summaryPath, this.buildSummary(strategy, checkpoint), "utf-8");
+    this.completePhase(summaryKey);
     this.logger.info(`✅ Fleet completed — summary at ${summaryPath}`);
     updateLatestPointer(this.config);
+    this.stopTui();
   }
 
   // --- Phase implementations ---
@@ -363,15 +430,21 @@ export class FleetEngine {
     const swarmBin = resolveSwarmBin();
 
     // Run all repo analyses truly in parallel using async spawn
-    const promises = this.fleetConfig.repos.map(async (repo) => {
+    const promises = this.fleetConfig.repos.map(async (repo, idx) => {
       const label = path.basename(repo.path);
       this.logger.info(`  📂 Analyzing ${label}...`);
+      this.tracker?.updateStream(idx, "engineering");
+      this.tracker?.updateStreamDetail(idx, "Analyzing…");
 
       try {
         await this.runChildProcess(swarmBin, repo.path, "analyze --no-tui", 1_800_000);
         this.logger.info(`  ✅ ${label} analysis complete`);
+        this.tracker?.updateStream(idx, "done");
+        this.tracker?.updateStreamDetail(idx, "Complete");
       } catch (err) {
         this.logger.warn(`  ⚠️  Analysis failed for ${repo.path}: ${err instanceof Error ? err.message : String(err)}`);
+        this.tracker?.updateStream(idx, "failed");
+        this.tracker?.updateStreamDetail(idx, "Failed");
       }
 
       // Read the generated analysis
@@ -753,16 +826,23 @@ export class FleetEngine {
 
     for (let waveIdx = checkpoint.currentWave; waveIdx < strategy.waves.length; waveIdx++) {
       const wave = strategy.waves[waveIdx];
+      const waveKey = this.findPhaseKey(`Wave ${waveIdx + 1}`);
+      this.activatePhase(waveKey);
       this.logger.info(`\n  🌊 Wave ${waveIdx + 1}/${strategy.waves.length}: ${wave.length} repo(s)`);
+
+      // Set up streams for repos in this wave
+      this.tracker?.initStreams(wave.map((r) => path.basename(r)));
 
       if (!checkpoint.waveResults[waveIdx]) {
         checkpoint.waveResults[waveIdx] = {};
       }
 
       // Run repos in this wave in parallel
-      const promises = wave.map(async (repoPath) => {
+      const promises = wave.map(async (repoPath, streamIdx) => {
         if (checkpoint.waveResults[waveIdx][repoPath]) {
           this.logger.info(`  ⏭️  ${path.basename(repoPath)} already completed`);
+          this.tracker?.updateStream(streamIdx, "done");
+          this.tracker?.updateStreamDetail(streamIdx, "Completed (prior run)");
           return;
         }
 
@@ -770,15 +850,21 @@ export class FleetEngine {
         const taskPrompt = this.buildRepoPrompt(repoPath, repoTask, strategy.sharedContracts, priorWaveContext);
 
         this.logger.info(`  🔧 ${path.basename(repoPath)} starting...`);
+        this.tracker?.updateStream(streamIdx, "engineering");
+        this.tracker?.updateStreamDetail(streamIdx, "Running swarm task…");
 
         try {
           const result = await this.runSwarmTask(swarmBin, repoPath, taskPrompt);
           checkpoint.waveResults[waveIdx][repoPath] = result || "Completed (no summary)";
           this.logger.info(`  ✅ ${path.basename(repoPath)} completed`);
+          this.tracker?.updateStream(streamIdx, "done");
+          this.tracker?.updateStreamDetail(streamIdx, "Complete");
         } catch (err) {
           const errMsg = err instanceof Error ? err.message : String(err);
           checkpoint.waveResults[waveIdx][repoPath] = `FAILED: ${errMsg}`;
           this.logger.error(`  ❌ ${path.basename(repoPath)} failed: ${errMsg}`);
+          this.tracker?.updateStream(streamIdx, "failed");
+          this.tracker?.updateStreamDetail(streamIdx, errMsg.slice(0, 80));
           throw new Error(`Wave ${waveIdx + 1} failed: ${path.basename(repoPath)} — ${errMsg}`);
         }
 
@@ -786,6 +872,7 @@ export class FleetEngine {
       });
 
       await Promise.all(promises);
+      this.completePhase(waveKey);
 
       // Collect context for next wave
       priorWaveContext = Object.entries(checkpoint.waveResults[waveIdx])
@@ -936,5 +1023,39 @@ export class FleetEngine {
     }
 
     return parts.join("\n");
+  }
+
+  // --- TUI helper methods ---
+
+  private phaseKey(phase: string): string {
+    if (!this.tracker) return "";
+    const p = this.tracker.phases.find((ph) => ph.key.startsWith(phase));
+    return p?.key ?? "";
+  }
+
+  private findPhaseKey(name: string): string {
+    if (!this.tracker) return "";
+    const p = this.tracker.phases.find((ph) => ph.name === name);
+    return p?.key ?? "";
+  }
+
+  private activatePhase(key: string): void {
+    if (key) this.tracker?.activatePhase(key);
+  }
+
+  private completePhase(key: string): void {
+    if (key) this.tracker?.completePhase(key);
+  }
+
+  private skipPhase(key: string): void {
+    if (key) this.tracker?.skipPhase(key);
+  }
+
+  private skipPhaseByName(name: string): void {
+    this.skipPhase(this.findPhaseKey(name));
+  }
+
+  private stopTui(): void {
+    this.renderer?.stop();
   }
 }

@@ -485,7 +485,21 @@ if (config.command === "plan" || config.command === "auto") {
   }
 
   const startMs = Date.now();
-  const fleet = new FleetEngine(config, fleetConfig, logger);
+
+  let fleetTracker: ProgressTracker | undefined;
+  let fleetRenderer: TuiRenderer | undefined;
+  if (config.tui && config.fleetMode !== "cleanup") {
+    fleetTracker = new ProgressTracker();
+    fleetTracker.runId = config.runId;
+    fleetTracker.version = readVersion();
+    fleetTracker.cwd = config.repoRoot;
+    fleetTracker.primaryModel = "";
+    fleetTracker.reviewModel = "";
+    fleetRenderer = new TuiRenderer(fleetTracker);
+    logger.setTracker(fleetTracker);
+  }
+
+  const fleet = new FleetEngine(config, fleetConfig, logger, fleetTracker, fleetRenderer);
 
   activeShutdown = async () => {
     await fleet.stop();
@@ -497,6 +511,8 @@ if (config.command === "plan" || config.command === "auto") {
     .catch(showLogOnError)
     .finally(() => {
       fleet.stop();
+      fleetRenderer?.stop();
+      if (fleetTracker) logger.setTracker(null);
       const sec = Math.floor((Date.now() - startMs) / 1000);
       const m = Math.floor(sec / 60);
       const s = sec % 60;
