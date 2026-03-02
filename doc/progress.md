@@ -6,11 +6,13 @@ All notable changes to this project are documented here, in reverse chronologica
 
 ### Fixed
 - **Non-git directory crash** — Running any `swarm` command (including `-V` and `--help`) outside a git repository caused an unhandled `execSync` error at module load time. Fixed by deferring git detection to after CLI arg parsing. `--version` and `--help` now work anywhere. Commands that don't require a git repo (`fleet`, `list`) fall back to `process.cwd()`. All other commands print a clear error message instead of a stack trace.
+- **CLI error handling hardening** — Added global error handlers (`uncaughtException` + `unhandledRejection`) so the CLI never shows stack traces. All errors produce clean user-friendly messages. Fleet config loading is wrapped in try/catch with specific guidance when `fleet.config.yaml` is missing (shows how to use `--repos`, positional paths, or create a config file). Fleet mode now accepts positional repo paths (e.g., `swarm fleet analyze ./repo1 ./repo2`) in addition to `--repos`.
 
 ### Added
 - **Fleet subcommands** — `swarm fleet analyze` runs analysis across all repos without executing (outputs `fleet-analysis.md`). `swarm fleet plan "prompt"` runs analysis + interactive planning (PM and engineer clarification rounds with the user, adapted for multi-repo context) + strategize, producing a cross-repo strategy without executing waves. The default `swarm fleet "prompt"` still runs the full autonomous pipeline.
 - **Fleet interactive planning** — `swarm fleet plan` includes interactive Q&A rounds: a PM agent asks clarifying questions about the cross-repo feature (scope, contracts, data flow), then an engineer agent asks technical questions (API shapes, deployment order, testing strategy). User answers via the split-pane editor. The enriched context feeds into the strategist for a better cross-repo plan. Non-interactive environments auto-skip questions. Checkpoint/resume preserves Q&A history.
 - **Fleet branch management** — New `--create-branch <name>` flag for fleet mode creates a consistent feature branch across all affected repos before execution. Validates that every repo is on its default branch with no uncommitted changes, syncs with remote, then creates the branch. Fails early if any repo is not on its default branch or has dirty state — no repos are modified unless all pass validation.
+- **Fleet central output store** — Fleet output now goes to `~/.config/copilot-swarm/fleet/<runId>/` instead of inside a single repo's `.swarm/` directory. Since fleet operations span multiple repositories, the output is stored centrally. A `latest` pointer file tracks the most recent fleet run.
 
 ## 2026-03-01
 

@@ -59,12 +59,24 @@ Multiple repositories are involved. Your goal is to identify and resolve technic
 3. Ask at most 3–5 focused questions at a time. Number them clearly.
 4. When you have sufficient clarity, respond with **ENGINEERING_CLEAR** on its own line, followed by a summary of technical decisions and assumptions.`;
 
+function fleetBaseDir(): string {
+  const xdg = process.env.XDG_CONFIG_HOME;
+  const base = xdg && xdg !== "" ? xdg : path.join(os.homedir(), ".config");
+  return path.join(base, "copilot-swarm", "fleet");
+}
+
 function fleetOutputDir(config: SwarmConfig): string {
-  return path.join(config.repoRoot, config.swarmDir, "fleet", config.runId);
+  return path.join(fleetBaseDir(), config.runId);
 }
 
 function checkpointPath(config: SwarmConfig): string {
   return path.join(fleetOutputDir(config), FLEET_CHECKPOINT_FILE);
+}
+
+function updateLatestPointer(config: SwarmConfig): void {
+  const pointerPath = path.join(fleetBaseDir(), "latest");
+  fs.mkdirSync(fleetBaseDir(), { recursive: true });
+  fs.writeFileSync(pointerPath, config.runId, "utf-8");
 }
 
 function resolveSwarmBin(): string {
@@ -211,6 +223,7 @@ export class FleetEngine {
       const analysisPath = path.join(outDir, "fleet-analysis.md");
       fs.writeFileSync(analysisPath, this.formatAnalyses(analyses), "utf-8");
       this.logger.info(`✅ Fleet analysis complete — saved to ${analysisPath}`);
+      updateLatestPointer(this.config);
       return;
     }
 
@@ -241,6 +254,7 @@ export class FleetEngine {
     // Fleet plan mode: stop after strategy
     if (this.config.fleetMode === "plan") {
       this.logger.info("✅ Fleet planning complete — review the strategy before running the full pipeline.");
+      updateLatestPointer(this.config);
       return;
     }
 
@@ -270,6 +284,7 @@ export class FleetEngine {
     const summaryPath = path.join(outDir, "fleet-summary.md");
     fs.writeFileSync(summaryPath, this.buildSummary(strategy, checkpoint), "utf-8");
     this.logger.info(`✅ Fleet completed — summary at ${summaryPath}`);
+    updateLatestPointer(this.config);
   }
 
   // --- Phase implementations ---

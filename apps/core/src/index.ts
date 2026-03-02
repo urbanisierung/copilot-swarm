@@ -10,6 +10,15 @@ import { ProgressTracker } from "./progress-tracker.js";
 import { resolveSessionId } from "./session-store.js";
 import { TuiRenderer } from "./tui-renderer.js";
 
+// Global error handler — prevent unhandled exceptions from showing stack traces
+function handleFatalError(err: unknown): void {
+  const message = err instanceof Error ? err.message : String(err);
+  console.error(`\nError: ${message}\n`);
+  process.exit(1);
+}
+process.on("uncaughtException", handleFatalError);
+process.on("unhandledRejection", handleFatalError);
+
 const config = await loadConfig();
 
 // Handle session subcommand before resolving session
@@ -467,9 +476,13 @@ if (config.command === "plan" || config.command === "auto") {
   const { FleetEngine } = await import("./fleet-engine.js");
   const { fleetConfigFromArgs, loadFleetConfig } = await import("./fleet-config.js");
 
-  const fleetConfig = config.fleetRepos
-    ? fleetConfigFromArgs(config.fleetRepos)
-    : loadFleetConfig(config.fleetConfigPath);
+  let fleetConfig: import("./fleet-types.js").FleetConfig;
+  try {
+    fleetConfig = config.fleetRepos ? fleetConfigFromArgs(config.fleetRepos) : loadFleetConfig(config.fleetConfigPath);
+  } catch (err) {
+    console.error(`\n${err instanceof Error ? err.message : String(err)}\n`);
+    process.exit(1);
+  }
 
   const startMs = Date.now();
   const fleet = new FleetEngine(config, fleetConfig, logger);
