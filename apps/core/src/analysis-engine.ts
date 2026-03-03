@@ -1,5 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { getCachedAnalysis, saveToCentralCache } from "./analysis-cache.js";
 import { clearCheckpoint, type IterationSnapshot, loadCheckpoint, saveCheckpoint } from "./checkpoint.js";
 import type { SwarmConfig } from "./config.js";
 import type { Logger } from "./logger.js";
@@ -236,6 +237,14 @@ export class AnalysisEngine {
 
   async execute(): Promise<void> {
     this.logger.info(msg.analyzeStart);
+
+    // Check central analysis cache first
+    const cached = getCachedAnalysis(this.config.repoRoot);
+    if (cached) {
+      this.logger.info("📦 Fresh analysis found in central cache — reusing");
+      await this.saveAnalysis(cached);
+      return;
+    }
 
     // Scout the repo to decide whether to use chunked analysis
     const scout = await scoutRepo(this.config.repoRoot);
@@ -538,6 +547,7 @@ export class AnalysisEngine {
     await fs.mkdir(dir, { recursive: true });
     const outputPath = path.join(dir, "repo-analysis.md");
     await fs.writeFile(outputPath, analysis);
+    saveToCentralCache(this.config.repoRoot, analysis);
     await clearCheckpoint(this.config);
     this.logger.info(msg.analyzeComplete);
     this.logger.info(msg.analyzeSaved(path.relative(this.config.repoRoot, outputPath)));

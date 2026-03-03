@@ -6,7 +6,7 @@ import { clearCheckpoint, loadCheckpoint, saveCheckpoint } from "./checkpoint.js
 import type { SwarmConfig } from "./config.js";
 import type { Logger } from "./logger.js";
 import { msg } from "./messages.js";
-import { analysisFilePath, latestPointerPath, runDir, sessionScopedRoot } from "./paths.js";
+import { latestPointerPath, loadRepoAnalysis, runDir, sessionScopedRoot } from "./paths.js";
 import type {
   CrossModelReviewPhaseConfig,
   DecomposedTask,
@@ -93,11 +93,9 @@ export class PipelineEngine {
     let resumedPhaseKey: string | null = null;
 
     // Load repo analysis if available — provides context for all phases
-    try {
-      ctx.repoAnalysis = await fs.readFile(analysisFilePath(this.config), "utf-8");
+    ctx.repoAnalysis = loadRepoAnalysis(this.config) ?? "";
+    if (ctx.repoAnalysis) {
       this.logger.info(msg.repoAnalysisLoaded);
-    } catch {
-      // No analysis file — agents will explore the repo themselves
     }
 
     // Resume from checkpoint if requested

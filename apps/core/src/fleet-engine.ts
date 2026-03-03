@@ -10,6 +10,7 @@ import { execSync, spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { getCachedAnalysis } from "./analysis-cache.js";
 import type { SwarmConfig } from "./config.js";
 import type { FleetCheckpoint, FleetConfig, FleetDependency, FleetRepoTasks, FleetStrategy } from "./fleet-types.js";
 import type { Logger } from "./logger.js";
@@ -444,6 +445,17 @@ export class FleetEngine {
     // Run all repo analyses truly in parallel using async spawn
     const promises = this.fleetConfig.repos.map(async (repo, idx) => {
       const label = path.basename(repo.path);
+
+      // Check central analysis cache first
+      const cached = getCachedAnalysis(repo.path);
+      if (cached) {
+        this.logger.info(`  📦 ${label} — using cached analysis`);
+        this.tracker?.updateStream(idx, "done");
+        this.tracker?.updateStreamDetail(idx, "Cached");
+        analyses[repo.path] = cached;
+        return;
+      }
+
       this.logger.info(`  📂 Analyzing ${label}...`);
       this.tracker?.updateStream(idx, "engineering");
       this.tracker?.updateStreamDetail(idx, "Analyzing…");
@@ -459,10 +471,15 @@ export class FleetEngine {
         this.tracker?.updateStreamDetail(idx, "Failed");
       }
 
-      // Read the generated analysis
-      const analysisFile = path.join(repo.path, ".swarm", "analysis", "repo-analysis.md");
+      // Read the generated analysis (child process also saves to central cache)
+      const cached2 = getCachedAnalysis(repo.path);
+      if (cached2) {
+        analyses[repo.path] = cached2;
+        return;
+      }
+
       const swarmDir = path.join(repo.path, ".swarm");
-      const analysis = this.findAnalysisFile(swarmDir) ?? (fs.existsSync(analysisFile) ? analysisFile : null);
+      const analysis = this.findAnalysisFile(swarmDir);
 
       if (analysis) {
         analyses[repo.path] = fs.readFileSync(analysis, "utf-8");
@@ -835,6 +852,7 @@ export class FleetEngine {
   private async executeWaves(strategy: FleetStrategy, checkpoint: FleetCheckpoint): Promise<void> {
     const swarmBin = resolveSwarmBin();
     let priorWaveContext = "";
+    const maxRetries = this.config.maxRetries;
 
     for (let waveIdx = checkpoint.currentWave; waveIdx < strategy.waves.length; waveIdx++) {
       const wave = strategy.waves[waveIdx];
@@ -849,41 +867,78 @@ export class FleetEngine {
         checkpoint.waveResults[waveIdx] = {};
       }
 
-      // Run repos in this wave in parallel
-      const promises = wave.map(async (repoPath, streamIdx) => {
-        if (checkpoint.waveResults[waveIdx][repoPath]) {
-          this.logger.info(`  ⏭️  ${path.basename(repoPath)} already completed`);
-          this.tracker?.updateStream(streamIdx, "done");
-          this.tracker?.updateStreamDetail(streamIdx, "Completed (prior run)");
-          return;
+      // Track per-repo retry counts
+      if (!checkpoint.waveRetries) checkpoint.waveRetries = {};
+      if (!checkpoint.waveRetries[waveIdx]) checkpoint.waveRetries[waveIdx] = {};
+
+      // Run repos in this wave in parallel — failures don't abort other repos
+      const runRepos = async (repos: string[]) => {
+        const promises = repos.map(async (repoPath) => {
+          const streamIdx = wave.indexOf(repoPath);
+          if (
+            checkpoint.waveResults[waveIdx][repoPath] &&
+            !checkpoint.waveResults[waveIdx][repoPath].startsWith("FAILED:")
+          ) {
+            this.logger.info(`  ⏭️  ${path.basename(repoPath)} already completed`);
+            this.tracker?.updateStream(streamIdx, "done");
+            this.tracker?.updateStreamDetail(streamIdx, "Completed (prior run)");
+            return;
+          }
+
+          const repoTask = strategy.repoTasks.find((rt) => rt.repoPath === repoPath);
+          const taskPrompt = this.buildRepoPrompt(repoPath, repoTask, strategy.sharedContracts, priorWaveContext);
+
+          this.logger.info(`  🔧 ${path.basename(repoPath)} starting...`);
+          this.tracker?.updateStream(streamIdx, "engineering");
+          this.tracker?.updateStreamDetail(streamIdx, "Running swarm task…");
+
+          try {
+            const result = await this.runSwarmTask(swarmBin, repoPath, taskPrompt);
+            checkpoint.waveResults[waveIdx][repoPath] = result || "Completed (no summary)";
+            this.logger.info(`  ✅ ${path.basename(repoPath)} completed`);
+            this.tracker?.updateStream(streamIdx, "done");
+            this.tracker?.updateStreamDetail(streamIdx, "Complete");
+          } catch (err) {
+            const errMsg = err instanceof Error ? err.message : String(err);
+            checkpoint.waveResults[waveIdx][repoPath] = `FAILED: ${errMsg}`;
+            this.logger.error(`  ❌ ${path.basename(repoPath)} failed: ${errMsg}`);
+            this.tracker?.updateStream(streamIdx, "failed");
+            this.tracker?.updateStreamDetail(streamIdx, errMsg.slice(0, 80));
+          }
+
+          this.saveCheckpoint(checkpoint);
+        });
+
+        await Promise.all(promises);
+      };
+
+      // Initial run
+      await runRepos(wave);
+
+      // Retry failed repos
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        const failedRepos = wave.filter((r) => checkpoint.waveResults[waveIdx][r]?.startsWith("FAILED:"));
+        if (failedRepos.length === 0) break;
+
+        this.logger.info(
+          `\n  🔄 Wave ${waveIdx + 1} retry ${attempt}/${maxRetries}: ${failedRepos.length} repo(s) failed, retrying...`,
+        );
+
+        for (const r of failedRepos) {
+          checkpoint.waveRetries[waveIdx][r] = (checkpoint.waveRetries[waveIdx][r] ?? 0) + 1;
         }
-
-        const repoTask = strategy.repoTasks.find((rt) => rt.repoPath === repoPath);
-        const taskPrompt = this.buildRepoPrompt(repoPath, repoTask, strategy.sharedContracts, priorWaveContext);
-
-        this.logger.info(`  🔧 ${path.basename(repoPath)} starting...`);
-        this.tracker?.updateStream(streamIdx, "engineering");
-        this.tracker?.updateStreamDetail(streamIdx, "Running swarm task…");
-
-        try {
-          const result = await this.runSwarmTask(swarmBin, repoPath, taskPrompt);
-          checkpoint.waveResults[waveIdx][repoPath] = result || "Completed (no summary)";
-          this.logger.info(`  ✅ ${path.basename(repoPath)} completed`);
-          this.tracker?.updateStream(streamIdx, "done");
-          this.tracker?.updateStreamDetail(streamIdx, "Complete");
-        } catch (err) {
-          const errMsg = err instanceof Error ? err.message : String(err);
-          checkpoint.waveResults[waveIdx][repoPath] = `FAILED: ${errMsg}`;
-          this.logger.error(`  ❌ ${path.basename(repoPath)} failed: ${errMsg}`);
-          this.tracker?.updateStream(streamIdx, "failed");
-          this.tracker?.updateStreamDetail(streamIdx, errMsg.slice(0, 80));
-          throw new Error(`Wave ${waveIdx + 1} failed: ${path.basename(repoPath)} — ${errMsg}`);
-        }
-
         this.saveCheckpoint(checkpoint);
-      });
 
-      await Promise.all(promises);
+        await runRepos(failedRepos);
+      }
+
+      // Check if any repos still failed after all retries
+      const stillFailed = wave.filter((r) => checkpoint.waveResults[waveIdx][r]?.startsWith("FAILED:"));
+      if (stillFailed.length > 0) {
+        const names = stillFailed.map((r) => path.basename(r)).join(", ");
+        throw new Error(`Wave ${waveIdx + 1} failed after ${maxRetries} retries: ${names}`);
+      }
+
       this.completePhase(waveKey);
 
       // Collect context for next wave

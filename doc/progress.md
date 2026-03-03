@@ -5,10 +5,12 @@ All notable changes to this project are documented here, in reverse chronologica
 ## 2026-03-03
 
 ### Added
+- **Central analysis cache** — Repo analysis results are now stored centrally at `~/.config/copilot-swarm/analysis/<repo-key>/`, keyed by git remote origin. Analysis is automatically reused across sessions and fleet runs if the repo content hasn't changed. Staleness is detected via `git rev-parse HEAD^{tree}` (tree hash) — same content = cache hit regardless of commit history. All engines (pipeline, planning, task, brainstorm) fall back to the central cache when no session-local analysis exists.
 - **Fleet auto-discover repos** — When no repos are specified via `--repos`, positional args, or `fleet.config.yaml`, fleet now scans the current directory for git repositories and presents an interactive multi-select. Use arrow keys to navigate, space to toggle, `a` to select/unselect all, and Enter to confirm. All repos are pre-selected by default.
 - **Fleet cleanup command in summary** — The `swarm fleet cleanup` command is now shown in the fleet completion summary (both terminal output and `fleet-summary.md`), after SIGTERM interruption, and in the markdown summary file. Includes the correct branch name and repo paths for easy copy-paste.
 
 ### Improved
+- **Fleet wave retry mechanism** — When a repo fails during a fleet wave, other repos in the same wave continue running instead of aborting immediately. Failed repos are retried up to `MAX_RETRIES` times (default 2) with checkpoint saves between attempts. The wave only fails after all retries are exhausted. On resume, previously succeeded repos are skipped while failed repos are retried.
 - **Fleet summary stats** — The fleet completion summary now shows how many repos were checked and how many were touched (had file changes). Displayed in both the terminal log line and the `fleet-summary.md` file. Uses `git status --porcelain` per repo to detect actual modifications.
 
 ## 2026-03-02
