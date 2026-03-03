@@ -1,4 +1,6 @@
+import * as fs from "node:fs";
 import * as path from "node:path";
+import { getCachedAnalysis } from "./analysis-cache.js";
 import type { SwarmConfig } from "./config.js";
 
 /** Root .swarm directory. */
@@ -65,4 +67,19 @@ export function modeLatestPointerPath(config: SwarmConfig, mode: string): string
 /** Aggregated stats file: .swarm/stats.json */
 export function statsFilePath(config: SwarmConfig): string {
   return path.join(swarmRoot(config), "stats.json");
+}
+
+/**
+ * Load repo analysis: tries session-local file first, then central cache.
+ * Returns null if no analysis is available.
+ */
+export function loadRepoAnalysis(config: SwarmConfig): string | null {
+  // 1. Session-local analysis
+  const localPath = analysisFilePath(config);
+  if (fs.existsSync(localPath)) {
+    return fs.readFileSync(localPath, "utf-8");
+  }
+
+  // 2. Central cache (keyed by remote origin, validated by tree hash)
+  return getCachedAnalysis(config.repoRoot);
 }

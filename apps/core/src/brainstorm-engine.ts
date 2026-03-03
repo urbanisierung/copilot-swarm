@@ -4,7 +4,7 @@ import type { SwarmConfig } from "./config.js";
 import { ResponseKeyword } from "./constants.js";
 import type { Logger } from "./logger.js";
 import { msg } from "./messages.js";
-import { analysisFilePath, brainstormsDir } from "./paths.js";
+import { brainstormsDir, loadRepoAnalysis } from "./paths.js";
 import type { PipelineConfig } from "./pipeline-types.js";
 import type { ProgressTracker } from "./progress-tracker.js";
 import { SessionManager } from "./session.js";
@@ -80,12 +80,9 @@ export class BrainstormEngine {
     this.tracker?.initPhases(phases);
 
     // Load repo analysis if available
-    let repoAnalysis = "";
-    try {
-      repoAnalysis = await fs.readFile(analysisFilePath(this.config), "utf-8");
+    const repoAnalysis = loadRepoAnalysis(this.config) ?? "";
+    if (repoAnalysis) {
       this.logger.info(msg.repoAnalysisLoaded);
-    } catch {
-      // No analysis available — that's fine
     }
 
     this.logger.info(msg.brainstormPhase);

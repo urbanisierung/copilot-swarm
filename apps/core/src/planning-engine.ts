@@ -5,7 +5,7 @@ import type { SwarmConfig } from "./config.js";
 import { ResponseKeyword } from "./constants.js";
 import type { Logger } from "./logger.js";
 import { msg } from "./messages.js";
-import { analysisFilePath, brainstormsDir, plansDir } from "./paths.js";
+import { brainstormsDir, loadRepoAnalysis, plansDir } from "./paths.js";
 import type { PipelineConfig } from "./pipeline-types.js";
 import type { ProgressTracker } from "./progress-tracker.js";
 import { SessionManager } from "./session.js";
@@ -194,12 +194,9 @@ export class PlanningEngine {
     let effectiveIssueBody = this.config.issueBody;
 
     // Load repo analysis if available — provides context for PM and analyst
-    let repoAnalysis = "";
-    try {
-      repoAnalysis = await fs.readFile(analysisFilePath(this.config), "utf-8");
+    const repoAnalysis = loadRepoAnalysis(this.config) ?? "";
+    if (repoAnalysis) {
       this.logger.info(msg.repoAnalysisLoaded);
-    } catch {
-      // No analysis file — agents will work without it
     }
 
     // Load latest brainstorm if available — provides discussion context

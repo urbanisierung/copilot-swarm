@@ -1,9 +1,8 @@
-import * as fs from "node:fs/promises";
 import type { SwarmConfig } from "./config.js";
 import { ResponseKeyword } from "./constants.js";
 import type { Logger } from "./logger.js";
 import { msg } from "./messages.js";
-import { analysisFilePath } from "./paths.js";
+import { loadRepoAnalysis } from "./paths.js";
 import type { PipelineConfig } from "./pipeline-types.js";
 import type { ProgressTracker } from "./progress-tracker.js";
 import { SessionManager } from "./session.js";
@@ -78,12 +77,9 @@ export class TaskEngine {
     let effectivePrompt = this.config.issueBody;
 
     // Load repo analysis if available
-    let repoAnalysis = "";
-    try {
-      repoAnalysis = await fs.readFile(analysisFilePath(this.config), "utf-8");
+    const repoAnalysis = loadRepoAnalysis(this.config) ?? "";
+    if (repoAnalysis) {
       this.logger.info(msg.repoAnalysisLoaded);
-    } catch {
-      // No analysis — agents work without it
     }
 
     // Phase 1: Pre-analysis for parallel research tasks

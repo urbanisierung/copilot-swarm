@@ -56,6 +56,8 @@ export interface FleetCheckpoint {
   strategy?: FleetStrategy;
   waveResults: Record<string, string>[];
   currentWave: number;
+  /** Per-wave per-repo retry counts. */
+  waveRetries?: Record<number, Record<string, number>>;
   /** Refined requirements from interactive PM clarification. */
   pmRequirements?: string;
   /** Engineering decisions from interactive engineer clarification. */
