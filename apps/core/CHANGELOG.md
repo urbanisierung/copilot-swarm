@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.44
+
+### Patch Changes
+
+- 033ae07: Central repo analysis
+
 ## 0.0.43
 
 ### Patch Changes
