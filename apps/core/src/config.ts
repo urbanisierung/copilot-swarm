@@ -65,9 +65,10 @@ export type SwarmCommand =
   | "stats"
   | "demo"
   | "backup"
-  | "restore";
+  | "restore"
+  | "prepare";
 
-export type FleetMode = "analyze" | "plan" | "cleanup";
+export type FleetMode = "analyze" | "plan" | "cleanup" | "architecture";
 
 interface CliArgs {
   command: SwarmCommand;
@@ -234,7 +235,8 @@ function parseCliArgs(): CliArgs {
       positionals[0] === "stats" ||
       positionals[0] === "demo" ||
       positionals[0] === "backup" ||
-      positionals[0] === "restore")
+      positionals[0] === "restore" ||
+      positionals[0] === "prepare")
   ) {
     command = positionals[0] as SwarmCommand;
     promptParts = positionals.slice(1);
@@ -245,7 +247,10 @@ function parseCliArgs(): CliArgs {
   if (
     command === "fleet" &&
     promptParts.length > 0 &&
-    (promptParts[0] === "analyze" || promptParts[0] === "plan" || promptParts[0] === "cleanup")
+    (promptParts[0] === "analyze" ||
+      promptParts[0] === "plan" ||
+      promptParts[0] === "cleanup" ||
+      promptParts[0] === "architecture")
   ) {
     fleetMode = promptParts[0] as FleetMode;
     promptParts = promptParts.slice(1);
@@ -412,6 +417,7 @@ export async function loadConfig(): Promise<SwarmConfig> {
       process.stdin.isTTY &&
       !cli.resume &&
       cli.command !== "analyze" &&
+      cli.command !== "prepare" &&
       cli.command !== "digest" &&
       cli.command !== "session" &&
       cli.command !== "finish" &&
@@ -420,7 +426,10 @@ export async function loadConfig(): Promise<SwarmConfig> {
       cli.command !== "demo" &&
       cli.command !== "backup" &&
       cli.command !== "restore" &&
-      !(cli.command === "fleet" && (cli.fleetMode === "analyze" || cli.fleetMode === "cleanup"))
+      !(
+        cli.command === "fleet" &&
+        (cli.fleetMode === "analyze" || cli.fleetMode === "cleanup" || cli.fleetMode === "architecture")
+      )
     ) {
       issueBody = await openTextarea();
       if (!issueBody) {
@@ -432,6 +441,7 @@ export async function loadConfig(): Promise<SwarmConfig> {
 
   if (
     cli.command !== "analyze" &&
+    cli.command !== "prepare" &&
     cli.command !== "digest" &&
     cli.command !== "session" &&
     cli.command !== "finish" &&
@@ -440,7 +450,10 @@ export async function loadConfig(): Promise<SwarmConfig> {
     cli.command !== "demo" &&
     cli.command !== "backup" &&
     cli.command !== "restore" &&
-    !(cli.command === "fleet" && (cli.fleetMode === "analyze" || cli.fleetMode === "cleanup")) &&
+    !(
+      cli.command === "fleet" &&
+      (cli.fleetMode === "analyze" || cli.fleetMode === "cleanup" || cli.fleetMode === "architecture")
+    ) &&
     !cli.resume &&
     (!issueBody || issueBody === "")
   ) {

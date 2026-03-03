@@ -439,6 +439,39 @@ if (config.command === "plan" || config.command === "auto") {
       const outDir = path.relative(config.repoRoot, analysisDir(config));
       printSummary(msg.summaryAnalyzeComplete(elapsed), outDir, tracker);
     });
+} else if (config.command === "prepare") {
+  const pipeline = (await import("./pipeline-config.js")).loadPipelineConfig(config.repoRoot);
+  const { PrepareEngine } = await import("./prepare-engine.js");
+  let tracker: ProgressTracker | undefined;
+  let renderer: TuiRenderer | undefined;
+  if (config.tui) {
+    tracker = new ProgressTracker();
+    tracker.runId = config.runId;
+    tracker.primaryModel = pipeline.primaryModel;
+    tracker.reviewModel = pipeline.reviewModel;
+    tracker.version = readVersion();
+    tracker.cwd = config.repoRoot;
+    renderer = new TuiRenderer(tracker);
+    logger.setTracker(tracker);
+  }
+  const startMs = Date.now();
+  const preparer = new PrepareEngine(config, pipeline, logger, tracker);
+  activeShutdown = async () => {
+    renderer?.stop();
+    await preparer.stop();
+  };
+  renderer?.start();
+  preparer
+    .start()
+    .then(() => preparer.execute())
+    .catch(showLogOnError)
+    .finally(() => {
+      renderer?.stop();
+      if (tracker) logger.setTracker(null);
+      preparer.stop();
+      const elapsed = fmtElapsed(tracker?.elapsedMs ?? Date.now() - startMs);
+      printSummary(`✅ Copilot instructions generated in ${elapsed}`, ".github/instructions", tracker);
+    });
 } else if (config.command === "brainstorm") {
   const pipeline = (await import("./pipeline-config.js")).loadPipelineConfig(config.repoRoot);
   const { BrainstormEngine } = await import("./brainstorm-engine.js");
