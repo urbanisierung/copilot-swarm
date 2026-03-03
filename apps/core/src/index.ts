@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import * as fs from "node:fs";
 import * as path from "node:path";
 import { loadConfig, readVersion, type SwarmConfig } from "./config.js";
 import { Logger } from "./logger.js";
@@ -474,11 +475,32 @@ if (config.command === "plan" || config.command === "auto") {
     });
 } else if (config.command === "fleet") {
   const { FleetEngine } = await import("./fleet-engine.js");
-  const { fleetConfigFromArgs, loadFleetConfig } = await import("./fleet-config.js");
+  const { fleetConfigFromArgs, loadFleetConfig, discoverGitRepos, selectReposInteractively } = await import(
+    "./fleet-config.js"
+  );
 
   let fleetConfig: import("./fleet-types.js").FleetConfig;
   try {
-    fleetConfig = config.fleetRepos ? fleetConfigFromArgs(config.fleetRepos) : loadFleetConfig(config.fleetConfigPath);
+    if (config.fleetRepos) {
+      fleetConfig = fleetConfigFromArgs(config.fleetRepos);
+    } else if (config.fleetConfigPath || fs.existsSync(path.resolve("fleet.config.yaml"))) {
+      fleetConfig = loadFleetConfig(config.fleetConfigPath);
+    } else {
+      // Auto-discover git repos in current directory
+      const discovered = discoverGitRepos(process.cwd());
+      if (discovered.length === 0) {
+        console.error(
+          "\nNo git repositories found in the current directory.\n\n" +
+            "Provide repositories using one of:\n" +
+            '  swarm fleet "prompt" ./repo1 ./repo2\n' +
+            '  swarm fleet "prompt" --repos ./repo1 --repos ./repo2\n' +
+            "  swarm fleet --fleet-config config.yaml\n",
+        );
+        process.exit(1);
+      }
+      const selected = await selectReposInteractively(discovered);
+      fleetConfig = fleetConfigFromArgs(selected);
+    }
   } catch (err) {
     console.error(`\n${err instanceof Error ? err.message : String(err)}\n`);
     process.exit(1);
@@ -503,6 +525,13 @@ if (config.command === "plan" || config.command === "auto") {
 
   activeShutdown = async () => {
     await fleet.stop();
+    if (config.fleetMode !== "cleanup" && config.fleetMode !== "analyze") {
+      console.log("");
+      console.log(msg.summaryDivider);
+      console.log("⚠️  Fleet interrupted");
+      console.log(`   Cleanup: ${fleet.buildCleanupCommand()}`);
+      console.log(msg.summaryDivider);
+    }
   };
 
   fleet
@@ -524,6 +553,9 @@ if (config.command === "plan" || config.command === "auto") {
       console.log(`   Repos: ${fleetConfig.repos.length}`);
       if (logger.logFilePath) {
         console.log(msg.logFileHint(logger.logFilePath));
+      }
+      if (config.fleetMode !== "cleanup" && config.fleetMode !== "analyze") {
+        console.log(`   Cleanup: ${fleet.buildCleanupCommand()}`);
       }
       console.log(msg.summaryDivider);
     });
