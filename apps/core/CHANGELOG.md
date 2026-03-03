@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.43
+
+### Patch Changes
+
+- 585a8ed: Improve repo handling
+
 ## 0.0.42
 
 ### Patch Changes
