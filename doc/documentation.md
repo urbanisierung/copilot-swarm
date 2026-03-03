@@ -269,6 +269,26 @@ swarm review --run 2026-02-17T08-00-00-000Z "Fix the login form"
 
 The review mode supports checkpoint/resume (`--resume`) and auto-retry, same as regular run mode.
 
+### Prepare Mode
+
+Use `swarm prepare` to generate Copilot instruction files for a repository:
+
+```bash
+swarm prepare
+```
+
+The prepare mode analyzes the codebase and generates structured instruction files that help GitHub Copilot understand the repository's patterns, conventions, and practices.
+
+**How it works:**
+1. **Analysis** — Loads an existing repo analysis (from session or central cache), or runs a fresh analysis if none exists.
+2. **Instruction generation** — A specialized agent explores the repository and produces 3 instruction files based on actual code patterns:
+   - `codebase.instructions.md` — Project overview, directory structure, build commands, module system, file naming, error handling, config patterns
+   - `patterns.instructions.md` — Naming conventions, import ordering, export patterns, type patterns, anti-patterns, exemplary files
+   - `testing.instructions.md` — Test framework, file naming, structure patterns, mocking, fixtures, coverage expectations
+
+Output:
+- `.github/instructions/*.instructions.md` — Instruction files with YAML frontmatter (`applyTo` globs) for GitHub Copilot
+
 ### Brainstorm Mode
 
 Use `swarm brainstorm` to explore ideas interactively with a product strategist agent. No code is produced — just a structured discussion and summary:
@@ -341,6 +361,9 @@ swarm fleet "Add OAuth" --fleet-config fleet.config.yaml
 # Analyze all repos only (no execution)
 swarm fleet analyze ./auth-service ./api-gateway ./frontend
 
+# Map cross-repo architecture
+swarm fleet architecture ./auth-service ./api-gateway ./frontend
+
 # Cross-repo plan only (analyze + strategize, no execution)
 swarm fleet plan "Add OAuth" ./auth ~/api ~/frontend
 
@@ -383,6 +406,11 @@ integrationTest: "npm run test:integration"
 4. **Strategize** — Strategist receives enriched context from PM and engineer rounds to produce a higher-quality cross-repo plan
 5. Stops here — review the strategy before running the full pipeline
 
+**How it works (architecture mapping — `swarm fleet architecture`):**
+1. **Analyze** — Same as full pipeline (reuses central analysis cache)
+2. **Architecture synthesis** — A specialized architect agent maps cross-repo relationships: dependency graph, API contracts, data flow, shared patterns, deployment topology, and change impact matrix
+3. Output saved to fleet run directory and centrally at `~/.config/copilot-swarm/fleet/architecture.md`
+
 **Output (central store — `~/.config/copilot-swarm/fleet/`):**
 
 Fleet output is stored centrally (not inside any single repo) since it spans multiple repositories:
@@ -392,7 +420,9 @@ Fleet output is stored centrally (not inside any single repo) since it spans mul
 - `~/.config/copilot-swarm/fleet/<runId>/strategy.md` — Cross-repo strategy with shared contracts and wave plan
 - `~/.config/copilot-swarm/fleet/<runId>/fleet-review.md` — Cross-repo consistency review
 - `~/.config/copilot-swarm/fleet/<runId>/fleet-summary.md` — Final summary
+- `~/.config/copilot-swarm/fleet/<runId>/architecture.md` — Cross-repo architecture document (architecture mode)
 - `~/.config/copilot-swarm/fleet/<runId>/fleet-checkpoint.json` — Checkpoint for resume
+- `~/.config/copilot-swarm/fleet/architecture.md` — Latest cross-repo architecture (always overwritten)
 - `~/.config/copilot-swarm/fleet/latest` — Points to the most recent fleet run
 
 **Branch management (`--create-branch`):**

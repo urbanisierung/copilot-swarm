@@ -62,6 +62,38 @@ Multiple repositories are involved. Your goal is to identify and resolve technic
 3. Ask at most 3–5 focused questions at a time. Number them clearly.
 4. When you have sufficient clarity, respond with **ENGINEERING_CLEAR** on its own line, followed by a summary of technical decisions and assumptions.`;
 
+const FLEET_ARCHITECTURE_INSTRUCTIONS = `You are a Senior Software Architect mapping the cross-repository architecture of a multi-repo system.
+You will receive individual analyses of several repositories. Your task is to produce a single architecture document that maps how these repos relate to each other.
+
+**Your output must include:**
+1. **System Overview** — What the overall system does. 2-3 sentences.
+2. **Repository Map** — For each repo: purpose, tech stack, and role in the system.
+3. **Dependency Graph** — Which repos depend on which. Include:
+   - Direct code dependencies (npm/pip packages, shared libraries)
+   - Runtime dependencies (API calls, message queues, shared databases)
+   - Build-time dependencies (shared config, generated code)
+4. **API Contracts & Data Flow** — How data moves between repos:
+   - HTTP/gRPC endpoints that connect repos
+   - Shared types or schemas
+   - Event/message contracts
+   - Database schemas accessed by multiple repos
+5. **Shared Patterns** — Common patterns across repos:
+   - Shared libraries or utilities
+   - Common configuration approaches
+   - Consistent naming conventions or divergences
+6. **Deployment Topology** — How repos are deployed relative to each other:
+   - Deployment order constraints
+   - Shared infrastructure
+   - Environment boundaries
+7. **Cross-Cutting Concerns** — Auth, logging, monitoring, error handling patterns that span repos.
+8. **Change Impact Matrix** — When repo X changes, which other repos are likely affected and why.
+
+**Rules:**
+- Be specific. Reference actual file paths, package names, and API endpoints.
+- Use mermaid diagrams for the dependency graph and data flow.
+- Keep the document under 300 lines. Dense and precise.
+- Focus on relationships between repos, not internal details of each repo.`;
+
 function fleetBaseDir(): string {
   const xdg = process.env.XDG_CONFIG_HOME;
   const base = xdg && xdg !== "" ? xdg : path.join(os.homedir(), ".config");
@@ -273,7 +305,12 @@ export class FleetEngine {
     const phases: { phase: string }[] = [];
     if (this.config.fleetBranch) phases.push({ phase: "fleet-branch" });
     phases.push({ phase: "fleet-analyze" });
-    if (this.config.fleetMode !== "analyze") phases.push({ phase: "fleet-strategize" });
+    if (this.config.fleetMode !== "analyze" && this.config.fleetMode !== "architecture") {
+      phases.push({ phase: "fleet-strategize" });
+    }
+    if (this.config.fleetMode === "architecture") {
+      phases.push({ phase: "fleet-architecture" });
+    }
     // Wave phases are added dynamically after strategy is known
     this.tracker?.initPhases(phases);
     this.renderer?.start();
@@ -312,6 +349,14 @@ export class FleetEngine {
       const analysisPath = path.join(outDir, "fleet-analysis.md");
       fs.writeFileSync(analysisPath, this.formatAnalyses(analyses), "utf-8");
       this.logger.info(`✅ Fleet analysis complete — saved to ${analysisPath}`);
+      updateLatestPointer(this.config);
+      this.stopTui();
+      return;
+    }
+
+    // Fleet architecture mode: synthesize cross-repo architecture doc
+    if (this.config.fleetMode === "architecture") {
+      await this.executeArchitecture(analyses, outDir);
       updateLatestPointer(this.config);
       this.stopTui();
       return;
@@ -1033,6 +1078,42 @@ export class FleetEngine {
   }
 
   // --- Formatting ---
+
+  private async executeArchitecture(analyses: Record<string, string>, outDir: string): Promise<void> {
+    if (!this.sessions) throw new Error("Sessions not started");
+
+    const archKey = this.phaseKey("fleet-architecture");
+    this.tracker?.activatePhase(archKey);
+    this.tracker?.setActiveAgent("mapping cross-repo architecture…");
+    this.logger.info("🏗️  Mapping cross-repo architecture...");
+
+    const analysisContext = this.formatAnalyses(analyses);
+    const prompt =
+      `${analysisContext}\n\n---\n\n` +
+      "Produce a comprehensive cross-repo architecture document based on the analyses above.";
+
+    const architecture = await this.sessions.callIsolatedWithInstructions(
+      FLEET_ARCHITECTURE_INSTRUCTIONS,
+      prompt,
+      "Mapping cross-repo architecture…",
+      undefined,
+      "fleet-architecture/synthesis",
+      "architect",
+    );
+
+    this.tracker?.setActiveAgent(null);
+    this.completePhase(archKey);
+
+    // Save to fleet output dir (run-specific)
+    const runPath = path.join(outDir, "architecture.md");
+    fs.writeFileSync(runPath, architecture, "utf-8");
+    this.logger.info(`📋 Architecture saved to ${runPath}`);
+
+    // Also save to central fleet persistence
+    const centralPath = path.join(fleetBaseDir(), "architecture.md");
+    fs.writeFileSync(centralPath, architecture, "utf-8");
+    this.logger.info(`📋 Architecture saved centrally to ${centralPath}`);
+  }
 
   private formatAnalyses(analyses: Record<string, string>): string {
     const parts: string[] = ["# Fleet Analysis\n"];
