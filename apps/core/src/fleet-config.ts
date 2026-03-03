@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import * as readline from "node:readline";
 import { parse as parseYaml } from "yaml";
 import type { FleetConfig, FleetRepo, FleetRepoOverrides } from "./fleet-types.js";
 
@@ -117,4 +118,109 @@ export function fleetConfigFromArgs(repoPaths: string[]): FleetConfig {
       return { path: resolved, role: name };
     }),
   };
+}
+
+/** Scan a directory for immediate subdirectories that are git repositories. */
+export function discoverGitRepos(baseDir: string): string[] {
+  const resolved = path.resolve(baseDir);
+  if (!fs.existsSync(resolved)) return [];
+
+  const entries = fs.readdirSync(resolved, { withFileTypes: true });
+  const repos: string[] = [];
+
+  for (const entry of entries) {
+    if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+    const full = path.join(resolved, entry.name);
+    if (fs.existsSync(path.join(full, ".git"))) {
+      repos.push(full);
+    }
+  }
+
+  return repos.sort((a, b) => path.basename(a).localeCompare(path.basename(b)));
+}
+
+/**
+ * Interactive multi-select for git repositories.
+ * Space to toggle, 'a' to select/unselect all, Enter to confirm.
+ */
+export async function selectReposInteractively(repos: string[]): Promise<string[]> {
+  if (!process.stdin.isTTY) {
+    fail("Interactive repo selection requires a TTY. Use --repos or fleet.config.yaml instead.");
+  }
+
+  const selected = new Set<number>(repos.map((_, i) => i));
+  let cursor = 0;
+
+  const render = () => {
+    // Move cursor to start and clear
+    process.stdout.write(`\x1b[${repos.length + 3}A\x1b[J`);
+    process.stdout.write(
+      "\x1b[1mSelect repositories\x1b[0m  (space: toggle, a: select/unselect all, enter: confirm)\n\n",
+    );
+    for (let i = 0; i < repos.length; i++) {
+      const check = selected.has(i) ? "\x1b[32m✔\x1b[0m" : " ";
+      const prefix = i === cursor ? "\x1b[36m❯\x1b[0m" : " ";
+      process.stdout.write(`${prefix} [${check}] ${path.basename(repos[i])}\n`);
+    }
+    process.stdout.write(`\n  ${selected.size}/${repos.length} selected`);
+  };
+
+  // Initial draw — write placeholder lines so render() can clear them
+  process.stdout.write("\n".repeat(repos.length + 3));
+  render();
+
+  return new Promise((resolve, reject) => {
+    if (!process.stdin.setRawMode) {
+      reject(new Error("Cannot enable raw mode on stdin"));
+      return;
+    }
+    process.stdin.setRawMode(true);
+    process.stdin.resume();
+
+    const cleanup = () => {
+      process.stdin.setRawMode?.(false);
+      process.stdin.pause();
+      process.stdout.write("\n");
+    };
+
+    readline.emitKeypressEvents(process.stdin);
+
+    const onKeypress = (_str: string | undefined, key: readline.Key) => {
+      if (!key) return;
+
+      if (key.name === "c" && key.ctrl) {
+        process.stdin.removeListener("keypress", onKeypress);
+        cleanup();
+        process.exit(130);
+      }
+
+      if (key.name === "up" || (key.name === "k" && !key.ctrl)) {
+        cursor = (cursor - 1 + repos.length) % repos.length;
+      } else if (key.name === "down" || (key.name === "j" && !key.ctrl)) {
+        cursor = (cursor + 1) % repos.length;
+      } else if (key.name === "space") {
+        if (selected.has(cursor)) selected.delete(cursor);
+        else selected.add(cursor);
+      } else if (key.name === "a") {
+        if (selected.size === repos.length) {
+          selected.clear();
+        } else {
+          for (let i = 0; i < repos.length; i++) selected.add(i);
+        }
+      } else if (key.name === "return") {
+        process.stdin.removeListener("keypress", onKeypress);
+        cleanup();
+        if (selected.size === 0) {
+          reject(new Error("No repositories selected."));
+          return;
+        }
+        resolve(repos.filter((_, i) => selected.has(i)));
+        return;
+      }
+
+      render();
+    };
+
+    process.stdin.on("keypress", onKeypress);
+  });
 }

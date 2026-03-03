@@ -424,10 +424,13 @@ export class FleetEngine {
     // Phase 5: Summary
     const summaryKey = this.findPhaseKey("Summary");
     this.activatePhase(summaryKey);
+    const repoStats = this.computeRepoStats(checkpoint);
     const summaryPath = path.join(outDir, "fleet-summary.md");
-    fs.writeFileSync(summaryPath, this.buildSummary(strategy, checkpoint), "utf-8");
+    fs.writeFileSync(summaryPath, this.buildSummary(strategy, checkpoint, repoStats), "utf-8");
     this.completePhase(summaryKey);
-    this.logger.info(`✅ Fleet completed — summary at ${summaryPath}`);
+    this.logger.info(
+      `✅ Fleet completed — ${repoStats.checked} repo(s) checked, ${repoStats.touched} touched — summary at ${summaryPath}`,
+    );
     updateLatestPointer(this.config);
     this.stopTui();
   }
@@ -1017,11 +1020,38 @@ export class FleetEngine {
     return parts.join("\n");
   }
 
-  private buildSummary(strategy: FleetStrategy, checkpoint: FleetCheckpoint): string {
+  private computeRepoStats(checkpoint: FleetCheckpoint): { checked: number; touched: number } {
+    const allRepos = new Set<string>();
+    const touchedRepos = new Set<string>();
+
+    for (const waveResult of checkpoint.waveResults) {
+      for (const [repoPath, result] of Object.entries(waveResult)) {
+        allRepos.add(repoPath);
+        if (result.startsWith("FAILED:")) continue;
+        try {
+          const status = execSync("git status --porcelain", { cwd: repoPath, encoding: "utf-8" }).trim();
+          if (status.length > 0) {
+            touchedRepos.add(repoPath);
+          }
+        } catch {
+          // If git status fails, conservatively skip
+        }
+      }
+    }
+
+    return { checked: allRepos.size, touched: touchedRepos.size };
+  }
+
+  private buildSummary(
+    strategy: FleetStrategy,
+    checkpoint: FleetCheckpoint,
+    repoStats: { checked: number; touched: number },
+  ): string {
     const parts: string[] = ["# Fleet Summary\n"];
     parts.push(`**Feature:** ${this.config.issueBody.slice(0, 200)}\n`);
     parts.push(`**Repos:** ${this.fleetConfig.repos.map((r) => path.basename(r.path)).join(", ")}\n`);
     parts.push(`**Waves:** ${strategy.waves.length}\n`);
+    parts.push(`**Checked:** ${repoStats.checked} repo(s) | **Touched:** ${repoStats.touched} repo(s)\n`);
 
     for (let i = 0; i < checkpoint.waveResults.length; i++) {
       parts.push(`\n## Wave ${i + 1}\n`);
@@ -1031,7 +1061,22 @@ export class FleetEngine {
       }
     }
 
+    parts.push("\n## Cleanup\n");
+    parts.push(`To undo all changes and return repos to their default branch:\n`);
+    parts.push(`\`\`\`\n${this.buildCleanupCommand()}\n\`\`\`\n`);
+
     return parts.join("\n");
+  }
+
+  /** Build the `swarm fleet cleanup` CLI command for the current fleet config. */
+  buildCleanupCommand(): string {
+    const repoPaths = this.fleetConfig.repos.map((r) => r.path).join(" ");
+    const branch = this.config.fleetBranch;
+    if (branch) {
+      return `swarm fleet cleanup ${branch} ${repoPaths}`;
+    }
+    // Without a branch, user needs to provide one
+    return `swarm fleet cleanup <branch-name> ${repoPaths}`;
   }
 
   // --- TUI helper methods ---

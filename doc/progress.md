@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here, in reverse chronological order.
 
+## 2026-03-03
+
+### Added
+- **Fleet auto-discover repos** — When no repos are specified via `--repos`, positional args, or `fleet.config.yaml`, fleet now scans the current directory for git repositories and presents an interactive multi-select. Use arrow keys to navigate, space to toggle, `a` to select/unselect all, and Enter to confirm. All repos are pre-selected by default.
+- **Fleet cleanup command in summary** — The `swarm fleet cleanup` command is now shown in the fleet completion summary (both terminal output and `fleet-summary.md`), after SIGTERM interruption, and in the markdown summary file. Includes the correct branch name and repo paths for easy copy-paste.
+
+### Improved
+- **Fleet summary stats** — The fleet completion summary now shows how many repos were checked and how many were touched (had file changes). Displayed in both the terminal log line and the `fleet-summary.md` file. Uses `git status --porcelain` per repo to detect actual modifications.
+
 ## 2026-03-02
 
 ### Fixed
