@@ -189,17 +189,19 @@ Example output (output ONLY the JSON, no markdown fences):
 2. Output ONLY the JSON array — no explanations, no markdown, no code fences.
 3. Every file from the provided list MUST appear in exactly one group.`;
 
-const PREPARE_GROUP_INSTRUCTIONS = `You are a Senior Software Architect producing a Copilot instruction file for a specific group of related files within a module.
+const PREPARE_SECTION_INSTRUCTIONS = `You are a Senior Software Architect producing a documentation section for a specific group of related files within a module.
 Your output will be consumed by GitHub Copilot (an AI coding assistant), NOT by humans. Optimize for machine readability and actionable precision.
 
-You will receive a group name, description, file list, and the directory context. Your job is to deeply analyze these specific files and produce a focused instruction file.
+You will receive a group name, description, file list, and the directory context. Your job is to deeply analyze these specific files and produce a focused section of an instruction file.
 
-**Your task:** Generate EXACTLY 1 instruction file for this file group. The file must start with a YAML frontmatter block and contain dense, actionable instructions.
+**Your task:** Output a single markdown section (NO frontmatter, NO file delimiters). Start with a level-2 heading (## Group Name) and write dense, actionable content.
 
-Output your response as a single file block starting with the exact delimiter \`--- FILE: <filename> ---\`. Example:
+Example output:
+## Engines
 
---- FILE: src-engines.instructions.md ---
-(frontmatter + content)
+Core execution engines that orchestrate multi-agent workflows through structured phases...
+
+(dense content about architecture, patterns, invariants, etc.)
 
 **Content requirements — deep architectural analysis of this group:**
 - Group purpose: What capability these files deliver together (2-3 sentences)
@@ -220,9 +222,9 @@ Output your response as a single file block starting with the exact delimiter \`
 2. Every claim must be based on actual code you read. Reference file paths and line numbers.
 3. Be extremely specific — use actual names, paths, and patterns from the code.
 4. Do NOT include generic advice. Every instruction must be specific to THESE files.
-5. Keep the file under 150 lines. Dense and precise, not verbose.
+5. Keep the section under 80 lines. Dense and precise, not verbose.
 6. Use imperative mood ("Use X", "Follow Y", "Never Z") — these are instructions, not documentation.
-7. Output ALL file content directly in your text response using the \`--- FILE: <filename> ---\` delimiter. Do NOT use the \`create\` or \`edit\` tools to write files — the caller handles file creation from your text output.`;
+7. Output ONLY the markdown section (starting with ##). No YAML frontmatter, no file delimiters, no preamble. The caller will assemble sections into a complete file.`;
 
 export class PrepareEngine {
   private readonly sessions: SessionManager;
@@ -419,7 +421,130 @@ export class PrepareEngine {
     outDir: string,
     repoAnalysis: string,
   ): Promise<void> {
-    // List source files using git ls-files scoped to the directory
+    // Check if directory has subdirectories
+    const entries = await fs.readdir(dirAbsPath, { withFileTypes: true });
+    const subdirs = entries
+      .filter((e) => e.isDirectory() && !e.name.startsWith(".") && e.name !== "node_modules")
+      .map((e) => e.name)
+      .sort();
+
+    if (subdirs.length > 0) {
+      await this.executeDeepWithSubdirs(dirRelPath, dirAbsPath, subdirs, outDir, repoAnalysis);
+    } else {
+      await this.executeDeepFlat(dirRelPath, dirAbsPath, outDir, repoAnalysis);
+    }
+  }
+
+  /**
+   * Strategy 1: Directory has subdirectories — generate per-subdirectory files with precise globs.
+   * Root-level files get an overview file with a non-recursive glob.
+   */
+  private async executeDeepWithSubdirs(
+    dirRelPath: string,
+    dirAbsPath: string,
+    subdirs: string[],
+    outDir: string,
+    repoAnalysis: string,
+  ): Promise<void> {
+    this.logger.info(`  📂 Splitting by ${subdirs.length} subdirectories in ${dirRelPath}/`);
+
+    // Check for root-level files (not in any subdirectory)
+    const allFiles = this.listSourceFiles(dirAbsPath);
+    const rootFiles = allFiles.filter((f) => !f.includes("/"));
+
+    const tasks: Promise<void>[] = [];
+
+    // Generate one instruction file per subdirectory
+    for (const subdir of subdirs) {
+      const subdirRelPath = `${dirRelPath}/${subdir}`;
+      const applyTo = `${subdirRelPath}/**`;
+      const fileName = `${subdirRelPath.replace(/\//g, "-")}.instructions.md`;
+
+      const subdirFiles = this.listSourceFiles(path.join(dirAbsPath, subdir));
+      if (subdirFiles.length === 0) continue;
+
+      const prompt =
+        `## Target Directory\n\nPath: \`${subdirRelPath}/\`\nApplyTo glob: \`${applyTo}\`\n` +
+        `Source files (${subdirFiles.length}): ${subdirFiles.slice(0, 20).join(", ")}${subdirFiles.length > 20 ? "…" : ""}\n\n` +
+        (repoAnalysis ? `## Repository Analysis (for context)\n\n${repoAnalysis}\n\n` : "") +
+        `Generate the instruction file for this directory. The filename should be \`${fileName}\`.\n` +
+        `The YAML frontmatter must use \`applyTo: "${applyTo}"\`.\n` +
+        "Explore the directory thoroughly to understand its architecture, concepts, and design patterns. " +
+        "Focus on what a developer needs to know to work effectively in this module.";
+
+      tasks.push(
+        this.sessions
+          .callIsolatedWithInstructions(
+            PREPARE_DIRS_INSTRUCTIONS,
+            prompt,
+            `Analyzing ${subdirRelPath}/…`,
+            this.pipeline.primaryModel,
+            `prepare/subdir/${subdirRelPath}`,
+            `prepare-${subdirRelPath.replace(/\//g, "-")}`,
+            true,
+          )
+          .then(async (response) => {
+            const parsed = this.parseInstructionFiles(response);
+            const file = parsed[0];
+            if (file) {
+              const filePath = path.join(outDir, fileName);
+              await fs.writeFile(filePath, file.content, "utf-8");
+              this.logger.info(`  ✅ ${path.relative(this.config.repoRoot, filePath)}`);
+            }
+          }),
+      );
+    }
+
+    // Generate overview file for root-level files (non-recursive glob)
+    if (rootFiles.length > 0) {
+      const applyTo = `${dirRelPath}/*`;
+      const fileName = `${dirRelPath.replace(/\//g, "-")}.instructions.md`;
+
+      const prompt =
+        `## Target Directory (root-level files only)\n\nPath: \`${dirRelPath}/\`\nApplyTo glob: \`${applyTo}\` (non-recursive — root files only)\n` +
+        `Root-level source files (${rootFiles.length}): ${rootFiles.join(", ")}\n\n` +
+        (repoAnalysis ? `## Repository Analysis (for context)\n\n${repoAnalysis}\n\n` : "") +
+        `Generate the instruction file for the root-level files in this directory (NOT files in subdirectories). The filename should be \`${fileName}\`.\n` +
+        `The YAML frontmatter must use \`applyTo: "${applyTo}"\`.\n` +
+        "Focus on the files directly in this directory. These are typically entry points, shared utilities, or configuration. " +
+        "Explain their roles and how they relate to the subdirectories.";
+
+      tasks.push(
+        this.sessions
+          .callIsolatedWithInstructions(
+            PREPARE_DIRS_INSTRUCTIONS,
+            prompt,
+            `Analyzing ${dirRelPath}/ root files…`,
+            this.pipeline.primaryModel,
+            `prepare/subdir/${dirRelPath}-root`,
+            `prepare-${dirRelPath.replace(/\//g, "-")}-root`,
+            true,
+          )
+          .then(async (response) => {
+            const parsed = this.parseInstructionFiles(response);
+            const file = parsed[0];
+            if (file) {
+              const filePath = path.join(outDir, fileName);
+              await fs.writeFile(filePath, file.content, "utf-8");
+              this.logger.info(`  ✅ ${path.relative(this.config.repoRoot, filePath)}`);
+            }
+          }),
+      );
+    }
+
+    await Promise.allSettled(tasks);
+  }
+
+  /**
+   * Strategy 2: Flat directory (no subdirectories) — scout identifies topic groups,
+   * parallel agents analyze deeply, but all outputs merge into ONE consolidated file.
+   */
+  private async executeDeepFlat(
+    dirRelPath: string,
+    dirAbsPath: string,
+    outDir: string,
+    repoAnalysis: string,
+  ): Promise<void> {
     const sourceFiles = this.listSourceFiles(dirAbsPath);
 
     // Phase 1: Scout — identify logical groups
@@ -451,44 +576,53 @@ export class PrepareEngine {
       `  📋 Identified ${groups.length} groups in ${dirRelPath}/: ${groups.map((g) => g.group).join(", ")}`,
     );
 
-    // Phase 2: Parallel group agents
+    // Phase 2: Parallel group agents — each produces a markdown SECTION (not a file)
+    const sectionResults = await Promise.allSettled(
+      groups.map((group) => {
+        const prompt =
+          `## Group: ${group.group}\n\n` +
+          `**Description:** ${group.description}\n\n` +
+          `**Directory:** \`${dirRelPath}/\`\n\n` +
+          `**Files in this group:**\n${group.files.map((f) => `- \`${dirRelPath}/${f}\``).join("\n")}\n\n` +
+          (repoAnalysis ? `## Repository Analysis (for context)\n\n${repoAnalysis}\n\n` : "") +
+          "Produce a detailed markdown section for this group. " +
+          "Read ALL files in your assigned group deeply. Focus on how these files work together " +
+          "and what a developer must understand to modify them correctly.";
+
+        return this.sessions
+          .callIsolatedWithInstructions(
+            PREPARE_SECTION_INSTRUCTIONS,
+            prompt,
+            `Analyzing ${dirRelPath}/${group.group}…`,
+            this.pipeline.primaryModel,
+            `prepare/group/${dirRelPath}/${group.group}`,
+            `group-${group.group}`,
+            true,
+          )
+          .then((response) => ({ group: group.group, content: response.trim() }));
+      }),
+    );
+
+    // Merge sections into one consolidated file
+    const sections = sectionResults
+      .filter((r): r is PromiseFulfilledResult<{ group: string; content: string }> => r.status === "fulfilled")
+      .map((r) => r.value)
+      .filter((s) => s.content.length > 0);
+
+    if (sections.length === 0) {
+      this.logger.warn(`  ⚠️ No group sections produced for ${dirRelPath}/ — falling back to simple analysis`);
+      await this.executeSimpleDir(dirRelPath, outDir, repoAnalysis);
+      return;
+    }
+
     const applyTo = `${dirRelPath}/**`;
-    const groupPromises = groups.map((group) => {
-      const groupFileName = `${dirRelPath.replace(/\//g, "-")}-${group.group}.instructions.md`;
-      const prompt =
-        `## Group: ${group.group}\n\n` +
-        `**Description:** ${group.description}\n\n` +
-        `**Directory:** \`${dirRelPath}/\`\n` +
-        `**ApplyTo glob:** \`${applyTo}\`\n\n` +
-        `**Files in this group:**\n${group.files.map((f) => `- \`${dirRelPath}/${f}\``).join("\n")}\n\n` +
-        (repoAnalysis ? `## Repository Analysis (for context)\n\n${repoAnalysis}\n\n` : "") +
-        `Generate the instruction file for this group. The filename should be \`${groupFileName}\`.\n` +
-        `The YAML frontmatter must use \`applyTo: "${applyTo}"\`.\n` +
-        "Read ALL files in your assigned group deeply. Focus on how these files work together " +
-        "and what a developer must understand to modify them correctly.";
+    const fileName = `${dirRelPath.replace(/\//g, "-")}.instructions.md`;
+    const frontmatter = `---\napplyTo: "${applyTo}"\n---\n\n`;
+    const content = frontmatter + sections.map((s) => s.content).join("\n\n---\n\n");
 
-      return this.sessions
-        .callIsolatedWithInstructions(
-          PREPARE_GROUP_INSTRUCTIONS,
-          prompt,
-          `Analyzing ${dirRelPath}/${group.group}…`,
-          this.pipeline.primaryModel,
-          `prepare/group/${dirRelPath}/${group.group}`,
-          `group-${group.group}`,
-          true,
-        )
-        .then(async (response) => {
-          const parsed = this.parseInstructionFiles(response);
-          const file = parsed[0];
-          if (file) {
-            const filePath = path.join(outDir, groupFileName);
-            await fs.writeFile(filePath, file.content, "utf-8");
-            this.logger.info(`  ✅ ${path.relative(this.config.repoRoot, filePath)}`);
-          }
-        });
-    });
-
-    await Promise.allSettled(groupPromises);
+    const filePath = path.join(outDir, fileName);
+    await fs.writeFile(filePath, content, "utf-8");
+    this.logger.info(`  ✅ ${path.relative(this.config.repoRoot, filePath)} (${sections.length} sections)`);
   }
 
   private countSourceFiles(dirAbsPath: string): number {
