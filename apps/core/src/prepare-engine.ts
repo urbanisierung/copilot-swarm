@@ -88,12 +88,13 @@ Testing conventions:
 - Reference 2-3 exemplary test files
 
 **Rules:**
-1. Use \`list_dir\`, \`read_file\`, and \`run_terminal\` to explore the repository. Read at least 10 source files and all config files.
+1. Use \`view\`, \`glob\`, \`grep\`, and \`bash\` to explore the repository. Read at least 10 source files and all config files.
 2. Every claim must be based on actual files you read. Reference file paths.
 3. Be extremely specific — use actual names, paths, and patterns from the codebase.
 4. Do NOT include generic advice. Every instruction must be specific to THIS repository.
 5. Keep each file under 150 lines. Dense and precise, not verbose.
-6. Use imperative mood ("Use X", "Follow Y", "Never Z") — these are instructions, not documentation.`;
+6. Use imperative mood ("Use X", "Follow Y", "Never Z") — these are instructions, not documentation.
+7. Output ALL file content directly in your text response using the \`--- FILE: <filename> ---\` delimiters. Do NOT use the \`create\` or \`edit\` tools to write files — the caller handles file creation from your text output.`;
 
 export class PrepareEngine {
   private readonly sessions: SessionManager;
@@ -166,6 +167,7 @@ export class PrepareEngine {
       this.pipeline.primaryModel,
       "prepare/generate",
       "prepare",
+      true,
     );
 
     // Parse and write instruction files
