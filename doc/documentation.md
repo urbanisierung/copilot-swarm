@@ -302,17 +302,28 @@ This scans the immediate subdirectories of the given path and generates one inst
 
 **How it works:**
 1. Scans immediate subdirectories (skips hidden dirs and `node_modules`)
-2. For each subdirectory, a specialized agent explores the code and produces an instruction file
-3. Files are named by directory path: e.g., `src-auth.instructions.md`, `apps-core-src-engines.instructions.md`
-4. Each file uses `applyTo: "<dir>/**"` frontmatter to scope it to that directory
+2. Counts source files in each subdirectory to determine complexity
+3. **Simple directories** (≤ 10 source files): A single agent explores the code and produces one instruction file
+4. **Complex directories** (> 10 source files): Two-phase deep analysis:
+   - **Scout phase** (fast model): Identifies logical groups/topics within the directory (e.g., "engines", "configuration", "utilities")
+   - **Group phase** (primary model, parallel): One agent per group produces a focused instruction file covering that group's architecture, data flow, patterns, and invariants
+5. Up to 10 directories are analyzed in parallel
+6. Files are named by directory path: e.g., `src-auth.instructions.md`, `apps-core-src-engines.instructions.md`
+7. Each file uses `applyTo: "<dir>/**"` frontmatter to scope it to that directory
 
 **Output:**
-- `.github/instructions/<dir-path>.instructions.md` — One file per subdirectory, scoped via `applyTo`
+- `.github/instructions/<dir-path>.instructions.md` — One file per simple subdirectory
+- `.github/instructions/<dir-path>-<group>.instructions.md` — One file per group in complex subdirectories
 
-**Example:** Running `swarm prepare dirs apps/core/src` on a project with `engines/`, `utils/`, `config/` subdirectories produces:
-- `apps-core-src-engines.instructions.md` (applyTo: `apps/core/src/engines/**`)
-- `apps-core-src-utils.instructions.md` (applyTo: `apps/core/src/utils/**`)
-- `apps-core-src-config.instructions.md` (applyTo: `apps/core/src/config/**`)
+**Example:** Running `swarm prepare dirs apps/core/src` on a project with `engines/` (3 files), `utils/` (5 files), and `core/` (15 files) subdirectories produces:
+- `apps-core-src-engines.instructions.md` — Simple: single file (≤ 10 source files)
+- `apps-core-src-utils.instructions.md` — Simple: single file (≤ 10 source files)
+- `apps-core-src-core-routing.instructions.md` — Deep: group "routing" from core/ (> 10 source files)
+- `apps-core-src-core-middleware.instructions.md` — Deep: group "middleware" from core/
+- `apps-core-src-core-models.instructions.md` — Deep: group "models" from core/
+
+**Configuration:**
+- `PREPARE_DEEP_THRESHOLD` env var (default: `10`) — Source file count threshold for triggering deep analysis
 
 ### Brainstorm Mode
 
