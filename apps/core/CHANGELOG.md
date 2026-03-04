@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.46
+
+### Patch Changes
+
+- e39e762: Fix prepare mode.
+
 ## 0.0.45
 
 ### Patch Changes
