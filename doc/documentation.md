@@ -289,6 +289,31 @@ The prepare mode analyzes the codebase and generates structured instruction file
 Output:
 - `.github/instructions/*.instructions.md` — Instruction files with YAML frontmatter (`applyTo` globs) for GitHub Copilot
 
+#### Per-Directory Instruction Files
+
+Use `swarm prepare dirs <path>` to generate concept-focused instruction files for each subdirectory:
+
+```bash
+swarm prepare dirs src/
+swarm prepare dirs apps/core/src
+```
+
+This scans the immediate subdirectories of the given path and generates one instruction file per directory, focused on **architecture and concepts** — how the module is built, its design patterns, relationships, data flow, extension points, and invariants.
+
+**How it works:**
+1. Scans immediate subdirectories (skips hidden dirs and `node_modules`)
+2. For each subdirectory, a specialized agent explores the code and produces an instruction file
+3. Files are named by directory path: e.g., `src-auth.instructions.md`, `apps-core-src-engines.instructions.md`
+4. Each file uses `applyTo: "<dir>/**"` frontmatter to scope it to that directory
+
+**Output:**
+- `.github/instructions/<dir-path>.instructions.md` — One file per subdirectory, scoped via `applyTo`
+
+**Example:** Running `swarm prepare dirs apps/core/src` on a project with `engines/`, `utils/`, `config/` subdirectories produces:
+- `apps-core-src-engines.instructions.md` (applyTo: `apps/core/src/engines/**`)
+- `apps-core-src-utils.instructions.md` (applyTo: `apps/core/src/utils/**`)
+- `apps-core-src-config.instructions.md` (applyTo: `apps/core/src/config/**`)
+
 ### Brainstorm Mode
 
 Use `swarm brainstorm` to explore ideas interactively with a product strategist agent. No code is produced — just a structured discussion and summary:

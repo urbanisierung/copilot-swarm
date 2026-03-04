@@ -70,6 +70,8 @@ export type SwarmCommand =
 
 export type FleetMode = "analyze" | "plan" | "cleanup" | "architecture";
 
+export type PrepareMode = "dirs";
+
 interface CliArgs {
   command: SwarmCommand;
   verbose: boolean;
@@ -89,6 +91,8 @@ interface CliArgs {
   fleetConfigPath: string | undefined;
   fleetMode: FleetMode | undefined;
   fleetBranch: string | undefined;
+  prepareMode: PrepareMode | undefined;
+  preparePath: string | undefined;
 }
 
 export function readVersion(): string {
@@ -256,6 +260,15 @@ function parseCliArgs(): CliArgs {
     promptParts = promptParts.slice(1);
   }
 
+  // Parse prepare subcommand: `swarm prepare dirs <path>`
+  let prepareMode: PrepareMode | undefined;
+  let preparePath: string | undefined;
+  if (command === "prepare" && promptParts.length > 0 && promptParts[0] === "dirs") {
+    prepareMode = "dirs";
+    preparePath = promptParts[1];
+    promptParts = promptParts.slice(2);
+  }
+
   // For fleet cleanup, treat the first non-path positional as the branch name
   let fleetBranch = values["create-branch"] as string | undefined;
   if (command === "fleet" && fleetMode === "cleanup" && !fleetBranch && promptParts.length > 0) {
@@ -300,6 +313,8 @@ function parseCliArgs(): CliArgs {
     fleetConfigPath: values["fleet-config"] as string | undefined,
     fleetMode,
     fleetBranch,
+    prepareMode,
+    preparePath,
   };
 }
 
@@ -391,6 +406,10 @@ export interface SwarmConfig {
   readonly fleetMode?: FleetMode;
   /** Branch name to create in all fleet repos before execution. */
   readonly fleetBranch?: string;
+  /** Prepare subcommand: "dirs" for per-directory instruction files. */
+  readonly prepareMode?: PrepareMode;
+  /** Target directory path for `prepare dirs`. */
+  readonly preparePath?: string;
 }
 
 export async function loadConfig(): Promise<SwarmConfig> {
@@ -502,5 +521,7 @@ export async function loadConfig(): Promise<SwarmConfig> {
     fleetMode: cli.fleetMode,
     fleetBranch: cli.fleetBranch,
     autoModel: cli.autoModel || readEnvBoolean("AUTO_MODEL", false),
+    prepareMode: cli.prepareMode,
+    preparePath: cli.preparePath,
   };
 }
