@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.49
+
+### Patch Changes
+
+- 7e962b6: Improve preparation.
+
 ## 0.0.48
 
 ### Patch Changes
