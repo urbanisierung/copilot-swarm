@@ -304,23 +304,24 @@ This scans the immediate subdirectories of the given path and generates one inst
 1. Scans immediate subdirectories (skips hidden dirs and `node_modules`)
 2. Counts source files in each subdirectory to determine complexity
 3. **Simple directories** (≤ 10 source files): A single agent explores the code and produces one instruction file
-4. **Complex directories** (> 10 source files): Two-phase deep analysis:
-   - **Scout phase** (fast model): Identifies logical groups/topics within the directory (e.g., "engines", "configuration", "utilities")
-   - **Group phase** (primary model, parallel): One agent per group produces a focused instruction file covering that group's architecture, data flow, patterns, and invariants
+4. **Complex directories** (> 10 source files): Two strategies based on directory structure:
+   - **Has subdirectories**: Each subdirectory gets its own instruction file with a precise glob (`dir/subdir/**`). Root-level files get a separate overview file (`dir/*` non-recursive). No glob conflicts.
+   - **Flat directory** (no subdirs): Scout agent (fast model) identifies logical groups, parallel agents (primary model) analyze each group deeply, outputs merge into ONE consolidated instruction file with sections per group. Single `applyTo` glob.
 5. Up to 10 directories are analyzed in parallel
 6. Files are named by directory path: e.g., `src-auth.instructions.md`, `apps-core-src-engines.instructions.md`
-7. Each file uses `applyTo: "<dir>/**"` frontmatter to scope it to that directory
+7. Each file uses `applyTo` globs scoped to its content — never overlapping
 
 **Output:**
-- `.github/instructions/<dir-path>.instructions.md` — One file per simple subdirectory
-- `.github/instructions/<dir-path>-<group>.instructions.md` — One file per group in complex subdirectories
+- `.github/instructions/<dir-path>.instructions.md` — One file per simple subdirectory, or consolidated file for flat complex dirs
+- `.github/instructions/<dir-path>-<subdir>.instructions.md` — One file per sub-subdirectory in complex dirs with subdirectories
 
-**Example:** Running `swarm prepare dirs apps/core/src` on a project with `engines/` (3 files), `utils/` (5 files), and `core/` (15 files) subdirectories produces:
-- `apps-core-src-engines.instructions.md` — Simple: single file (≤ 10 source files)
-- `apps-core-src-utils.instructions.md` — Simple: single file (≤ 10 source files)
-- `apps-core-src-core-routing.instructions.md` — Deep: group "routing" from core/ (> 10 source files)
-- `apps-core-src-core-middleware.instructions.md` — Deep: group "middleware" from core/
-- `apps-core-src-core-models.instructions.md` — Deep: group "models" from core/
+**Example 1 — flat complex directory:** Running on `apps/core/src/` (42 files, no subdirs) produces:
+- `apps-core-src.instructions.md` — ONE consolidated file with sections (engines, configuration, utilities, etc.)
+
+**Example 2 — complex directory with subdirectories:** Running on `apps/core/` with `src/`, `defaults/`, `scripts/` produces:
+- `apps-core-src.instructions.md` (applyTo: `apps/core/src/**`)
+- `apps-core-defaults.instructions.md` (applyTo: `apps/core/defaults/**`)
+- `apps-core-scripts.instructions.md` (applyTo: `apps/core/scripts/**`)
 
 **Configuration:**
 - `PREPARE_DEEP_THRESHOLD` env var (default: `10`) — Source file count threshold for triggering deep analysis

@@ -97,6 +97,14 @@ export class TuiRenderer {
 
   private handleKey(data: Buffer): void {
     const seq = data.toString();
+
+    // Ctrl+C — re-emit SIGINT since raw mode swallows it
+    if (seq === "\x03") {
+      this.cleanup();
+      process.kill(process.pid, "SIGINT");
+      return;
+    }
+
     const streamCount = this.tracker.streams.length;
     if (streamCount === 0) return;
 
