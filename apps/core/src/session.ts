@@ -178,11 +178,27 @@ export class SessionManager {
     return session;
   }
 
-  async send(session: CopilotSession, prompt: string, spinnerLabel?: string): Promise<string> {
+  async send(session: CopilotSession, prompt: string, spinnerLabel?: string, collectAll = false): Promise<string> {
+    const allContent: string[] = [];
+    let unsub: (() => void) | undefined;
+
+    if (collectAll) {
+      unsub = session.on("assistant.message", (e) => {
+        if (e.data.content) {
+          allContent.push(e.data.content);
+        }
+      });
+    }
+
     if (spinnerLabel) this.logger.startSpinner(spinnerLabel);
     const response = await session.sendAndWait({ prompt }, this.config.sessionTimeoutMs);
     this.logger.stopSpinner();
     this.logger.newline();
+    unsub?.();
+
+    if (collectAll) {
+      return allContent.join("\n\n");
+    }
     return response?.data.content ?? "";
   }
 
@@ -238,6 +254,7 @@ export class SessionManager {
     model?: string,
     sessionKey?: string,
     agentLabel?: string,
+    collectAll?: boolean,
   ): Promise<string> {
     const maxAttempts = this.config.maxRetries;
     const label = agentLabel ?? "agent";
@@ -246,7 +263,7 @@ export class SessionManager {
       const session = await this.createSessionWithInstructions(instructions, model, label);
       if (sessionKey) this.recordSession(sessionKey, session, "inline-agent", "inline-agent");
       try {
-        const content = await this.send(session, prompt, spinnerLabel);
+        const content = await this.send(session, prompt, spinnerLabel, collectAll);
         if (!content && attempt < maxAttempts) {
           this.logger.warn(msg.emptyResponse("inline-agent", attempt, maxAttempts));
           continue;

@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here, in reverse chronological order.
 
+## 2026-03-04
+
+### Fixed
+- **`swarm prepare` instruction files contained task descriptions instead of generated content** — Fixed two issues: (1) PREPARE_INSTRUCTIONS referenced non-existent tool names (`list_dir`, `read_file`, `run_terminal`) instead of the correct Copilot CLI tools (`view`, `glob`, `grep`, `bash`), causing the agent to fail silently at repository exploration. (2) `SessionManager.send()` only captured the final `assistant.message` from `sendAndWait()`, but in multi-turn sessions the generated content may span earlier messages. Added `collectAll` parameter to `send()` and `callIsolatedWithInstructions()` that registers an event handler to collect ALL assistant message content. The prepare engine now uses this to capture the full output. Also added explicit instruction telling the agent to output content as text blocks (not via `create`/`edit` tools).
+
 ## 2026-03-03
 
 ### Added
