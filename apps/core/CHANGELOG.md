@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.47
+
+### Patch Changes
+
+- e9ea5be: Prepare sub directories.
+
 ## 0.0.46
 
 ### Patch Changes
