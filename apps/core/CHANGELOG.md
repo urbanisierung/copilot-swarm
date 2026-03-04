@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.48
+
+### Patch Changes
+
+- 9b8fbd0: Improved prepare mode.
+
 ## 0.0.47
 
 ### Patch Changes
