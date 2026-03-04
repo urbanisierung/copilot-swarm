@@ -463,7 +463,16 @@ if (config.command === "plan" || config.command === "auto") {
   renderer?.start();
   preparer
     .start()
-    .then(() => preparer.execute())
+    .then(() => {
+      if (config.prepareMode === "dirs") {
+        if (!config.preparePath) {
+          logger.error("Error: Missing path. Usage: swarm prepare dirs <path>");
+          process.exit(1);
+        }
+        return preparer.executeDirs(config.preparePath);
+      }
+      return preparer.execute();
+    })
     .catch(showLogOnError)
     .finally(() => {
       renderer?.stop();

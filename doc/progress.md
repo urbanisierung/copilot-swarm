@@ -7,6 +7,9 @@ All notable changes to this project are documented here, in reverse chronologica
 ### Fixed
 - **`swarm prepare` instruction files contained task descriptions instead of generated content** — Fixed two issues: (1) PREPARE_INSTRUCTIONS referenced non-existent tool names (`list_dir`, `read_file`, `run_terminal`) instead of the correct Copilot CLI tools (`view`, `glob`, `grep`, `bash`), causing the agent to fail silently at repository exploration. (2) `SessionManager.send()` only captured the final `assistant.message` from `sendAndWait()`, but in multi-turn sessions the generated content may span earlier messages. Added `collectAll` parameter to `send()` and `callIsolatedWithInstructions()` that registers an event handler to collect ALL assistant message content. The prepare engine now uses this to capture the full output. Also added explicit instruction telling the agent to output content as text blocks (not via `create`/`edit` tools).
 
+### Added
+- **`swarm prepare dirs <path>` subcommand** — Generates per-directory Copilot instruction files focused on architecture and concepts. Scans immediate subdirectories of the given path, then runs a specialized agent per directory that explores the code and produces an instruction file covering: module purpose, internal architecture, key abstractions, relationships to other modules, design patterns, data flow, extension points, invariants, and common pitfalls. Files are stored flat in `.github/instructions/` with path-based naming (e.g., `src-auth.instructions.md`) and `applyTo` globs scoped to each directory. Usage: `swarm prepare dirs src/`.
+
 ## 2026-03-03
 
 ### Added
