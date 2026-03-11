@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here, in reverse chronological order.
 
+## 2026-03-11
+
+### Fixed
+- **ESM module resolution error with `vscode-jsonrpc`** — `@github/copilot-sdk@0.1.32` imports `vscode-jsonrpc/node` without the `.js` extension, which fails under Node.js ESM resolution because `vscode-jsonrpc@8.2.1` lacks an `exports` field. Added a pnpm patch for `vscode-jsonrpc` that adds the missing `exports` map, allowing both `vscode-jsonrpc/node` and `vscode-jsonrpc/node.js` to resolve correctly.
+
 ## 2026-03-04
 
 ### Fixed

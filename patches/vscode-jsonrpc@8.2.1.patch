@@ -1,0 +1,18 @@
+diff --git a/package.json b/package.json
+index d0080b2ad03f6471915c5527bfd11debbbffeefa..97619530dbc180893286ca8a35aaade69b0d34b2 100644
+--- a/package.json
++++ b/package.json
+@@ -20,6 +20,13 @@
+ 		"./lib/node/main.js": "./lib/browser/main.js"
+ 	},
+ 	"typings": "./lib/common/api.d.ts",
++	"exports": {
++		".": "./lib/node/main.js",
++		"./node": "./node.js",
++		"./node.js": "./node.js",
++		"./browser": "./browser.js",
++		"./browser.js": "./browser.js"
++	},
+ 	"devDependencies": {
+ 		"@types/msgpack-lite": "^0.1.7",
+ 		"msgpack-lite": "^0.1.26"

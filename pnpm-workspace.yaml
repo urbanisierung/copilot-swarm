@@ -4,3 +4,6 @@ packages:
 
 onlyBuiltDependencies:
   - esbuild
+
+patchedDependencies:
+  vscode-jsonrpc@8.2.1: patches/vscode-jsonrpc@8.2.1.patch
