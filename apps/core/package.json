@@ -9,7 +9,8 @@
   },
   "files": [
     "dist",
-    "defaults"
+    "defaults",
+    "scripts"
   ],
   "publishConfig": {
     "access": "public"
@@ -35,7 +36,8 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "check": "biome check src/",
-    "test": "vitest run"
+    "test": "vitest run",
+    "postinstall": "node scripts/postinstall.js"
   },
   "dependencies": {
     "@github/copilot-sdk": "latest",
