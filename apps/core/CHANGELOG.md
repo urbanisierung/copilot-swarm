@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.50
+
+### Patch Changes
+
+- 4e235a4: Fix bad import.
+
 ## 0.0.49
 
 ### Patch Changes
