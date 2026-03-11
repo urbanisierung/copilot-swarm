@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.52
+
+### Patch Changes
+
+- d954593: Fix run mode with plan file.
+
 ## 0.0.51
 
 ### Patch Changes
