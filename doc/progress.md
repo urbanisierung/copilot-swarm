@@ -6,6 +6,7 @@ All notable changes to this project are documented here, in reverse chronologica
 
 ### Fixed
 - **ESM module resolution error with `vscode-jsonrpc`** — `@github/copilot-sdk@0.1.32` imports `vscode-jsonrpc/node` without the `.js` extension, which fails under Node.js ESM resolution because `vscode-jsonrpc@8.2.1` lacks an `exports` field. Added a pnpm patch for local development and a postinstall script (`scripts/postinstall.js`) that adds the missing `exports` map at install time, fixing the issue for both local and global (npm) installs.
+- **Plan file parsing fails when `## Refined Requirements` is empty** — When the plan phase produces a near-empty `## Refined Requirements` section (e.g. just `**`), `readPlanFile()` extracted only that stub, causing the decompose agent to receive no usable spec and fail with "Could not find JSON array". Simplified `readPlanFile()` to pass the entire plan document instead of cherry-picking sections — the full plan (~12K tokens) is well within model limits and contains valuable research context, component mappings, and technical analysis that improve task decomposition quality.
 
 ## 2026-03-04
 

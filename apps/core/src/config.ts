@@ -318,7 +318,6 @@ function parseCliArgs(): CliArgs {
   };
 }
 
-/** Extract the "Refined Requirements" section (and optional Engineering/Design Decisions) from a plan file. */
 function readPlanFile(filePath: string): string {
   const root = detectRepoRoot() ?? process.cwd();
   const resolved = path.isAbsolute(filePath) ? filePath : path.join(root, filePath);
@@ -327,35 +326,13 @@ function readPlanFile(filePath: string): string {
     process.exit(1);
   }
 
-  const content = fs.readFileSync(resolved, "utf-8");
-  const marker = "## Refined Requirements";
-  const start = content.indexOf(marker);
-  if (start === -1) {
-    console.error(`Error: Plan file does not contain a "${marker}" section: ${resolved}`);
+  const content = fs.readFileSync(resolved, "utf-8").trim();
+  if (!content) {
+    console.error(`Error: Plan file is empty: ${resolved}`);
     process.exit(1);
   }
 
-  const sections: string[] = [];
-
-  // Extract Refined Requirements
-  const afterMarker = content.substring(start + marker.length);
-  const nextHeading = afterMarker.indexOf("\n## ");
-  sections.push((nextHeading !== -1 ? afterMarker.substring(0, nextHeading) : afterMarker).trim());
-
-  // Also include Engineering Decisions and Design Decisions if present
-  for (const section of ["## Engineering Decisions", "## Design Decisions"]) {
-    const sStart = content.indexOf(section);
-    if (sStart !== -1) {
-      const afterSection = content.substring(sStart + section.length);
-      const sNext = afterSection.indexOf("\n## ");
-      const body = (sNext !== -1 ? afterSection.substring(0, sNext) : afterSection).trim();
-      if (body) {
-        sections.push(`${section.replace("## ", "### ")}\n\n${body}`);
-      }
-    }
-  }
-
-  return sections.join("\n\n");
+  return content;
 }
 
 /** Read the entire contents of a file as the prompt. */
