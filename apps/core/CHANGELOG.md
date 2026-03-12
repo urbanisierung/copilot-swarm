@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.53
+
+### Patch Changes
+
+- 8dbcff7: Improve cross-model review
+
 ## 0.0.52
 
 ### Patch Changes
