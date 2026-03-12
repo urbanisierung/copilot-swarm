@@ -662,8 +662,9 @@ export class PipelineEngine {
         await writeRoleSummary(this.effectiveConfig, `engineer-stream-${idx + 1}`, code);
         this.tracker?.updateStream(idx, "done");
 
-        // Save completed stream result
+        // Save completed stream result and sync back to context for checkpoint
         results[idx] = code;
+        ctx.streamResults = [...results];
         await save();
 
         return code;
@@ -790,12 +791,19 @@ export class PipelineEngine {
           this.logger.info(msg.crossModelIssues);
           current = await this.sessions.callIsolated(
             phase.fixAgent,
-            `Fix specific issues from a cross-model code review. ` +
-              `Do NOT rewrite or restructure the code. Only fix the exact issues listed below.\n\n` +
+            `You are fixing specific issues found during a cross-model code review. ` +
+              `CRITICAL RULES:\n` +
+              `- Do NOT revert, rewrite, or remove existing implementation code.\n` +
+              `- Do NOT restructure, refactor, or reorganize files.\n` +
+              `- Make ONLY minimal, surgical edits that directly address the specific issues listed below.\n` +
+              `- If a file is not mentioned in the review feedback, do NOT touch it.\n` +
+              `- Preserve all existing functionality — your job is to fix bugs and issues, not to re-implement.\n\n` +
               `Task:\n${ctx.tasks[idx]}\n\n` +
-              `Cross-model review feedback:\n${feedback}${cmFileList}\n\n` +
-              `Use \`edit_file\` to apply fixes directly to the files listed above. ` +
-              `Fix ONLY the issues in the review feedback. Do not refactor or reorganize.`,
+              `Implementation summary (for context — do NOT revert any of this):\n${current}\n\n` +
+              `Cross-model review feedback (fix ONLY these issues):\n${feedback}${cmFileList}\n\n` +
+              `Use \`read_file\` to inspect files before editing. ` +
+              `Use \`edit_file\` to apply minimal fixes to the specific issues above. ` +
+              `Do not make any changes beyond what the review feedback explicitly identifies.`,
             undefined,
             `cross-model/stream-${idx}/fix-${i}`,
           );

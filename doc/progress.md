@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here, in reverse chronological order.
 
+## 2026-03-12
+
+### Fixed
+- **Resume re-runs completed implement streams** — During the implement phase, completed stream results were stored in a local `results[]` array (a copy of `ctx.streamResults`), but `ctx.streamResults` was never synced back before checkpoint saves. On resume, the checkpoint had stale/empty `streamResults`, causing all streams to re-execute from scratch. Fixed by syncing `ctx.streamResults = [...results]` after each stream completion, before the checkpoint save.
+- **Cross-model review fix agent making overly broad changes** — The fix agent in the cross-model review phase had full `edit_file` capability with a loosely constrained prompt, allowing it to revert or rewrite implementation code rather than making targeted fixes. Strengthened the prompt with explicit rules: no reverting existing code, no restructuring, surgical edits only for cited issues, and now includes the implementation summary as context so the agent understands what was intentionally implemented.
+
 ## 2026-03-11
 
 ### Fixed
