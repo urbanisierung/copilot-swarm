@@ -161,6 +161,23 @@ The planning mode runs up to 9 phases:
 8. **Technical Analysis** — An engineering agent analyzes the codebase and reports complexity, affected files, risks, and suggested approach.
 9. **Cross-model Review** — If the review model differs from the primary model, the complete plan is reviewed by the review model for accuracy, feasibility, and completeness (up to 3 iterations). Skipped if both models are the same.
 
+#### Async Question Harvest
+
+Use `--harvest` to generate all clarification questions up front and answer them offline:
+
+```bash
+# Step 1: Generate questions file (runs PM, Engineer, Designer in parallel)
+swarm plan --harvest "Add a dark mode toggle"
+
+# Step 2: Answer questions in the generated file
+# Edit .swarm/sessions/<sid>/questions.md — fill in your answers
+
+# Step 3: Resume with answers
+swarm plan --resume
+```
+
+The questions file uses structured markdown with sections per role (`plan-clarify`, `plan-eng-clarify`, `plan-design-clarify`). Leave answers blank to let the agent decide. On resume, the full sequential pipeline runs with pre-populated answers — reviews, analysis, and cross-model checks all still execute.
+
 Output files:
 - `.swarm/plans/plan-<timestamp>.md` — Timestamped plan with refined requirements, engineering decisions, design decisions, and technical analysis (never overwritten)
 - `.swarm/plans/plan-latest.md` — Copy of the most recent plan (stable reference)

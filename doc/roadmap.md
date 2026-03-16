@@ -67,3 +67,13 @@ See [`doc/standalone-execution.md`](standalone-execution.md) for the full extrac
 - [x] `classifyModelForTask()` in SessionManager — automatic PRIMARY/FAST classification
 - [x] Demo scenarios for digest and auto-model in `swarm demo`
 - [x] Documentation updates (documentation, features, progress, roadmap)
+
+## Phase 8: Async Question Harvest ✅
+
+- [x] `--harvest` flag for plan mode — generate questions file for offline answering
+- [x] Parallel question generation — PM, Engineer, Designer roles run concurrently
+- [x] Structured markdown questions file at `.swarm/sessions/<sid>/questions.md`
+- [x] Questions file parser/writer (`questions-file.ts`) with round-trip fidelity
+- [x] Resume-from-answers — `swarm plan --resume` loads answered questions file
+- [x] Checkpoint integration — `questionsFile` field in `PipelineCheckpoint`
+- [x] Documentation updates (documentation, features, progress, roadmap)

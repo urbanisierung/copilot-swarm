@@ -56,6 +56,8 @@ export interface PipelineCheckpoint {
   chunkResults?: Record<string, string>;
   /** Chunked analysis: cached scout overview from the scout phase. */
   scoutOverview?: string;
+  /** Path to a questions file used for async harvest mode. */
+  questionsFile?: string;
 }
 
 /** Resolve checkpoint path — inside the run dir for new runs, or from latest pointer on resume. */

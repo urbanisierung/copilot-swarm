@@ -25,6 +25,7 @@ function makeConfig(runId: string): SwarmConfig {
     reviewRunId: undefined,
     sessionId: undefined,
     autoModel: false,
+    harvest: false,
   };
 }
 

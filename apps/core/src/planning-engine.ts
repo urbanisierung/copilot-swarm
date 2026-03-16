@@ -5,9 +5,10 @@ import type { SwarmConfig } from "./config.js";
 import { ResponseKeyword } from "./constants.js";
 import type { Logger } from "./logger.js";
 import { msg } from "./messages.js";
-import { brainstormsDir, loadRepoAnalysis, plansDir } from "./paths.js";
+import { brainstormsDir, loadRepoAnalysis, plansDir, questionsFilePath } from "./paths.js";
 import type { PipelineConfig } from "./pipeline-types.js";
 import type { ProgressTracker } from "./progress-tracker.js";
+import { parseQuestionsFile, splitNumberedQuestions, writeQuestionsFile } from "./questions-file.js";
 import { SessionManager } from "./session.js";
 import { openSplitEditor } from "./textarea.js";
 import type { TuiRenderer } from "./tui-renderer.js";
@@ -99,6 +100,52 @@ const DESIGN_CLEAR_KEYWORD = "DESIGN_CLEAR";
 const PLAN_APPROVED_KEYWORD = "PLAN_APPROVED";
 const MAX_REVIEW_ITERATIONS = 3;
 
+// --- Harvest-mode instructions: ask ALL questions in one shot ---
+
+const HARVEST_PLANNER_INSTRUCTIONS = `You are a Senior Product Manager reviewing a user's request before engineering work begins.
+Your ONLY job is to produce a comprehensive list of clarifying questions. Do NOT answer them yourself.
+
+**Rules:**
+1. Read the user's request carefully. Use \`list_dir\` and \`read_file\` to understand the existing project structure.
+2. Identify all ambiguities and produce questions about:
+   - Scope boundaries (what's included, what's not)
+   - Expected behavior, user flows, and edge cases
+   - Technical constraints or preferences
+   - Priority and phasing (if the request is large)
+3. Number all questions clearly (1, 2, 3, …).
+4. Ask as many questions as needed to fully clarify the request. Be thorough.
+5. Output ONLY the numbered questions — no preamble, no summary, no answers.`;
+
+const HARVEST_ENGINEER_INSTRUCTIONS = `You are a Senior Software Engineer reviewing a user's request before implementation.
+Your ONLY job is to produce a comprehensive list of technical clarifying questions. Do NOT answer them yourself.
+
+**Rules:**
+1. Use \`list_dir\`, \`read_file\`, and \`run_terminal\` to explore the codebase and understand the current state.
+2. Think about what you would need to know to implement this. Ask about:
+   - API contracts, data models, or interfaces that aren't specified
+   - Error handling and edge cases
+   - Integration points with existing code
+   - Testing expectations (unit, integration, e2e)
+   - Performance or security requirements
+3. Number all questions clearly (1, 2, 3, …).
+4. Ask as many questions as needed. Be thorough.
+5. Output ONLY the numbered questions — no preamble, no summary, no answers.`;
+
+const HARVEST_DESIGNER_INSTRUCTIONS = `You are a Senior UI/UX Designer reviewing a user's request before design work begins.
+Your ONLY job is to produce a comprehensive list of design clarifying questions. Do NOT answer them yourself.
+
+**Rules:**
+1. Use \`list_dir\` and \`read_file\` to understand the existing UI patterns, components, and design system in use.
+2. Ask about:
+   - Layout and component hierarchy preferences
+   - Interaction patterns (hover, click, drag, etc.)
+   - Responsive behavior and breakpoints
+   - Accessibility requirements
+   - Visual style (match existing patterns, or new direction?)
+3. Number all questions clearly (1, 2, 3, …).
+4. Ask as many questions as needed. Be thorough.
+5. Output ONLY the numbered questions — no preamble, no summary, no answers.`;
+
 const STEP_REVIEWER_INSTRUCTIONS = `You are a Senior Technical Reviewer evaluating one section of a project plan.
 Your goal is to verify the section is clear, complete, and actionable enough for implementation.
 
@@ -165,6 +212,11 @@ export class PlanningEngine {
   }
 
   async execute(): Promise<string> {
+    // Harvest mode: generate questions file and exit early
+    if (this.config.harvest) {
+      return this.harvestQuestions();
+    }
+
     this.logger.info(msg.planningStart);
 
     const useCrossModel = this.pipeline.reviewModel !== this.pipeline.primaryModel;
@@ -237,6 +289,32 @@ export class PlanningEngine {
         this.answeredQuestions = cp.answeredQuestions ?? {};
       } else {
         this.logger.info(msg.noCheckpoint);
+      }
+
+      // Load answers from questions file if it exists (harvest mode resume)
+      const qfPath = questionsFilePath(this.config);
+      try {
+        const qfContent = await fs.readFile(qfPath, "utf-8");
+        const fileAnswers = parseQuestionsFile(qfContent);
+        const answerCount = Object.values(fileAnswers).reduce((sum, pairs) => sum + pairs.length, 0);
+        if (answerCount > 0) {
+          this.logger.info(msg.planHarvestAnswersLoaded(answerCount));
+          // Map file phase keys to actual checkpoint phase keys (with index suffix)
+          // plan-clarify → plan-clarify-1, plan-eng-clarify → plan-eng-clarify-3, plan-design-clarify → plan-design-clarify-5
+          const phaseKeyMap: Record<string, string> = {
+            "plan-clarify": "plan-clarify-1",
+            "plan-eng-clarify": "plan-eng-clarify-3",
+            "plan-design-clarify": "plan-design-clarify-5",
+          };
+          for (const [fileKey, pairs] of Object.entries(fileAnswers)) {
+            const cpKey = phaseKeyMap[fileKey] ?? fileKey;
+            if (!this.answeredQuestions[cpKey] || this.answeredQuestions[cpKey].length === 0) {
+              this.answeredQuestions[cpKey] = pairs;
+            }
+          }
+        }
+      } catch {
+        // No questions file — normal resume
       }
     }
 
@@ -910,6 +988,93 @@ export class PlanningEngine {
    * Recover from a session timeout during clarification by creating a fresh
    * session and asking the agent to finalize using all collected Q&A context.
    */
+  /**
+   * Harvest mode: run all clarification roles in parallel to generate a questions file.
+   * Each role produces questions based on the raw request. The user answers offline,
+   * then resumes with `swarm plan --resume`.
+   */
+  private async harvestQuestions(): Promise<string> {
+    this.logger.info(msg.planHarvestStart);
+
+    let effectiveIssueBody = this.config.issueBody;
+
+    // Run prereqs first to enrich context
+    const prereqResults = await this.executePrereqs(effectiveIssueBody);
+    if (prereqResults) {
+      effectiveIssueBody = `${effectiveIssueBody}\n\n## Research Context\n\n${prereqResults}`;
+    }
+
+    // Load repo analysis if available
+    const repoAnalysis = loadRepoAnalysis(this.config) ?? "";
+
+    const contextParts: string[] = [];
+    if (repoAnalysis) contextParts.push(`## Repository Context\n\n${repoAnalysis}`);
+    contextParts.push(`## Task\n\n${effectiveIssueBody}`);
+    const fullContext = contextParts.join("\n\n");
+
+    // Run all 3 roles in parallel
+    this.logger.info(msg.planHarvestRunning);
+    const roleConfigs = [
+      { instructions: HARVEST_PLANNER_INSTRUCTIONS, key: "plan-clarify", label: "PM" },
+      { instructions: HARVEST_ENGINEER_INSTRUCTIONS, key: "plan-eng-clarify", label: "Engineer" },
+      { instructions: HARVEST_DESIGNER_INSTRUCTIONS, key: "plan-design-clarify", label: "Designer" },
+    ];
+
+    const results = await Promise.all(
+      roleConfigs.map(async (role) => {
+        const raw = await this.sessions.callIsolatedWithInstructions(
+          role.instructions,
+          `Here is the user's request:\n\n${fullContext}\n\nProduce your comprehensive list of clarifying questions.`,
+          `${role.label} is generating questions…`,
+          undefined,
+          `harvest-${role.key}`,
+          role.label,
+        );
+        return { phaseKey: role.key, questions: splitNumberedQuestions(raw) };
+      }),
+    );
+
+    // Build the role questions map
+    const roleQuestions: Record<string, string[]> = {};
+    for (const r of results) {
+      roleQuestions[r.phaseKey] = r.questions;
+    }
+
+    const totalQuestions = results.reduce((sum, r) => sum + r.questions.length, 0);
+
+    // Write questions file
+    const qfPath = questionsFilePath(this.config);
+    const dir = path.dirname(qfPath);
+    await fs.mkdir(dir, { recursive: true });
+
+    await writeQuestionsFile(qfPath, roleQuestions, {
+      sessionId: this.config.resolvedSessionId,
+      request: this.config.issueBody,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Save a checkpoint so resume knows the issueBody and prereqs
+    await saveCheckpoint(this.config, {
+      mode: "plan",
+      completedPhases: [],
+      spec: "",
+      engDecisions: "",
+      designDecisions: "",
+      analysis: "",
+      issueBody: effectiveIssueBody,
+      runId: this.config.runId,
+      tasks: [],
+      designSpec: "",
+      streamResults: [],
+      questionsFile: qfPath,
+    });
+
+    const relPath = path.relative(this.config.repoRoot, qfPath);
+    this.logger.info(msg.planHarvestComplete(totalQuestions, relPath));
+
+    return `Questions file written to ${relPath} with ${totalQuestions} question(s). Answer them and run: swarm plan --resume`;
+  }
+
   private async recoverClarification(
     phaseKey: string,
     context: string,
