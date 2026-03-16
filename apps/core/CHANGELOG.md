@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.54
+
+### Patch Changes
+
+- 620b6eb: Plan mode with harvest parameter
+
 ## 0.0.53
 
 ### Patch Changes
