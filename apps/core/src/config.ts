@@ -93,6 +93,7 @@ interface CliArgs {
   fleetBranch: string | undefined;
   prepareMode: PrepareMode | undefined;
   preparePath: string | undefined;
+  harvest: boolean;
 }
 
 export function readVersion(): string {
@@ -131,6 +132,7 @@ Options:
   --session <id>       Use a specific session (default: active session)
   --no-tui             Disable TUI dashboard (use plain log output)
   --auto-model         Auto-select model per task (use fast model when primary isn't needed)
+  --harvest            Plan mode: generate questions file for async answering (use with plan command)
   --verify-build <cmd> Shell command to verify the build (e.g. "npm run build")
   --verify-test <cmd>  Shell command to run tests (e.g. "npm test")
   --verify-lint <cmd>  Shell command to run linting (e.g. "npm run lint")
@@ -180,6 +182,7 @@ Examples:
   swarm fleet "Add OAuth" ./auth ./api --create-branch feat/oauth
   swarm fleet cleanup feat/oauth ./auth ./api  Discard changes, delete branch
   swarm run --auto-model "Fix validation"  Use fast model for simple tasks
+  swarm plan --harvest "Add dark mode"    Generate questions file, answer async
 
 Environment variables override defaults; CLI args override env vars.
 See documentation for all env var options.`;
@@ -196,6 +199,7 @@ function parseCliArgs(): CliArgs {
       editor: { type: "boolean", short: "e", default: false },
       "no-tui": { type: "boolean", default: false },
       "auto-model": { type: "boolean", default: false },
+      harvest: { type: "boolean", default: false },
       plan: { type: "string", short: "p" },
       file: { type: "string", short: "f" },
       run: { type: "string" },
@@ -304,6 +308,7 @@ function parseCliArgs(): CliArgs {
     resume: values.resume as boolean,
     noTui: values["no-tui"] as boolean,
     autoModel: values["auto-model"] as boolean,
+    harvest: values.harvest as boolean,
     reviewRunId: values.run as string | undefined,
     sessionId: values.session as string | undefined,
     verifyBuild: values["verify-build"] as string | undefined,
@@ -387,6 +392,8 @@ export interface SwarmConfig {
   readonly prepareMode?: PrepareMode;
   /** Target directory path for `prepare dirs`. */
   readonly preparePath?: string;
+  /** When true, run plan mode in harvest mode — generate questions file for async answering. */
+  readonly harvest: boolean;
 }
 
 export async function loadConfig(): Promise<SwarmConfig> {
@@ -500,5 +507,6 @@ export async function loadConfig(): Promise<SwarmConfig> {
     autoModel: cli.autoModel || readEnvBoolean("AUTO_MODEL", false),
     prepareMode: cli.prepareMode,
     preparePath: cli.preparePath,
+    harvest: cli.harvest,
   };
 }

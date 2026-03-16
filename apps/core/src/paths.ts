@@ -64,6 +64,11 @@ export function modeLatestPointerPath(config: SwarmConfig, mode: string): string
   return latestPointerPath(config);
 }
 
+/** Questions file for async harvest mode: .swarm/sessions/<sid>/questions.md */
+export function questionsFilePath(config: SwarmConfig): string {
+  return path.join(sessionScopedRoot(config), "questions.md");
+}
+
 /** Aggregated stats file: .swarm/stats.json */
 export function statsFilePath(config: SwarmConfig): string {
   return path.join(swarmRoot(config), "stats.json");

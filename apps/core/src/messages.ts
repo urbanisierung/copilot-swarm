@@ -89,6 +89,13 @@ export const msg = {
   sessionRecoveryFailed: "  ⚠️  Recovery session also failed — using last available response",
   clarificationAutoSkipped: "  ⏭️  Non-interactive mode — auto-skipping clarification (agent will use best judgment)",
 
+  // --- Harvest Mode ---
+  planHarvestStart: "🧠 Starting Harvest Mode — generating questions for all roles in parallel…",
+  planHarvestRunning: "\n[Harvest: Running PM, Engineer, and Designer in parallel]",
+  planHarvestComplete: (count: number, filePath: string) =>
+    `\n✅ Harvest complete — ${count} question(s) written to ${filePath}\n💡 Answer the questions, then run: swarm plan --resume`,
+  planHarvestAnswersLoaded: (count: number) => `  📥 Loaded ${count} answer(s) from questions file`,
+
   // --- Analyze Mode ---
   analyzeStart: "🔍 Starting Repository Analysis...",
   analyzeChunkedStart: (totalFiles: number, chunkCount: number) =>

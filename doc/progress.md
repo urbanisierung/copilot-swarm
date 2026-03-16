@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here, in reverse chronological order.
 
+## 2026-03-16
+
+### Added
+- **Async question harvest mode** — `swarm plan --harvest "prompt"` runs all three clarification roles (PM, Engineer, Designer) in parallel to generate a questions file at `.swarm/sessions/<sid>/questions.md`. Users answer offline, then `swarm plan --resume` loads the answers and runs the full sequential pipeline. Questions file uses structured markdown with phase keys per section for unambiguous parsing.
+- **Questions file parser** — `writeQuestionsFile()` / `parseQuestionsFile()` / `splitNumberedQuestions()` in `questions-file.ts` handle the structured markdown format. Supports inline and multi-line answers, partial answers, and round-trip fidelity.
+- **10 new tests** for the questions file parser (round-trip, empty answers, multi-line, inline, no-questions-for-role, numbered question splitting).
+
 ## 2026-03-12
 
 ### Fixed
