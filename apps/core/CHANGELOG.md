@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.55
+
+### Patch Changes
+
+- 6c0de81: Fix harvest parameter
+
 ## 0.0.54
 
 ### Patch Changes
