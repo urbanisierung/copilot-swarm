@@ -155,3 +155,40 @@ export function splitNumberedQuestions(raw: string): string[] {
 
   return questions.filter((q) => q.length > 0);
 }
+
+const KNOWN_PHASE_KEYS = new Set(HARVEST_ROLES.map((r) => r.phaseKey));
+
+/**
+ * Parse the consolidation agent's output back into a roleQuestions map.
+ * Expects sections delimited by `## phase-key` headers with numbered questions.
+ */
+export function parseConsolidatedQuestions(raw: string): Record<string, string[]> {
+  const result: Record<string, string[]> = {};
+  let currentKey: string | null = null;
+  let currentLines: string[] = [];
+
+  const flush = () => {
+    if (currentKey) {
+      const questions = splitNumberedQuestions(currentLines.join("\n"));
+      if (questions.length > 0) {
+        result[currentKey] = questions;
+      }
+    }
+    currentLines = [];
+  };
+
+  for (const line of raw.split("\n")) {
+    const sectionMatch = line.match(/^##\s+([\w-]+)/);
+    if (sectionMatch) {
+      flush();
+      currentKey = KNOWN_PHASE_KEYS.has(sectionMatch[1]) ? sectionMatch[1] : null;
+      continue;
+    }
+    if (currentKey) {
+      currentLines.push(line);
+    }
+  }
+  flush();
+
+  return result;
+}
