@@ -1,0 +1,50 @@
+---
+title: "swarm analyze"
+description: Generate a comprehensive repository context document.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+Produces a detailed analysis of your repository covering tech stack, architecture, patterns, conventions, and a guide for implementing new features.
+
+## Usage
+
+```bash
+swarm analyze
+```
+
+## Process
+
+1. **Architect exploration** *(primary model)* — An architect agent explores the repository structure and produces a structured analysis.
+2. **Senior engineer review** *(primary model)* — Independently verifies accuracy and completeness (up to 3 iterations).
+3. **Cross-model verification** — The same loop with the review model, catching model-specific blind spots.
+
+### Large Repository Support
+
+Repos with 500+ files automatically use chunked parallel analysis:
+
+1. **Scout** *(fast model)* — Scans structure and README for high-level overview.
+2. **Partition** — Groups directories into ~300-file chunks respecting natural boundaries.
+3. **Parallel chunk analysis** *(primary model)* — Multiple agents analyze chunks in parallel.
+4. **Synthesis** — Merges chunk analyses into a unified document.
+5. **Review** — Senior engineer reviews the synthesis.
+
+Configure thresholds via environment variables:
+- `ANALYZE_CHUNK_THRESHOLD` — File count to trigger chunked mode (default: 500)
+- `ANALYZE_CHUNK_MAX_FILES` — Max files per chunk (default: 300)
+
+## Central Cache
+
+Analysis results are cached centrally at `~/.config/copilot-swarm/analysis/<repo-key>/`. Cache is keyed by git remote origin and validated via tree hash — same content = cache hit regardless of commit history.
+
+<Aside type="tip">
+The analysis is automatically injected as context into the spec phase (run mode) and clarification phases (plan mode), so agents understand the codebase before implementing.
+</Aside>
+
+## Output
+
+```
+.swarm/analysis/
+  repo-analysis.md    # Final analysis document
+  chunks/             # Individual chunk analyses (chunked mode only)
+```

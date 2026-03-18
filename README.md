@@ -37,8 +37,10 @@ pnpm turbo test        # Vitest
 
 ```
 apps/
-  ai/              # Copilot Swarm Orchestrator
-doc/               # Documentation
+  core/            # Copilot Swarm Orchestrator (CLI)
+  landing/         # Landing page (Astro)
+  docs/            # Documentation site (Astro Starlight)
+doc/               # Internal documentation
 .github/
   agents/          # Agent instruction files (.md)
   instructions/    # Copilot instructions

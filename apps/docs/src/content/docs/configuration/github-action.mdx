@@ -1,0 +1,116 @@
+---
+title: GitHub Action
+description: Use Copilot Swarm in your CI/CD pipeline.
+---
+
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+Copilot Swarm provides a reusable composite action for running in any repo's CI pipeline.
+
+## Setup
+
+1. Create a Copilot CLI token: **Organization Settings** → **Developer Settings** → **Personal Access Tokens (Classic)** → select `copilot` scope
+2. Add as repository secret: `COPILOT_CLI_TOKEN`
+
+## Basic Usage
+
+```yaml
+name: Copilot Swarm
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  swarm:
+    if: github.event.label.name == 'run-swarm'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: urbanisierung/copilot-swarm/action@main
+        env:
+          COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
+        with:
+          command: run
+          prompt: ${{ github.event.issue.body }}
+```
+
+## Action Inputs
+
+| Input | Default | Description |
+|---|---|---|
+| `command` | `run` | Command: `run`, `plan`, `analyze`, `review`, `finish` |
+| `prompt` | — | Task description (inline) |
+| `prompt-file` | — | Path to a file containing the prompt |
+| `plan-file` | — | Path to a plan file |
+| `resume` | `false` | Resume from last checkpoint |
+| `session` | — | Session ID |
+| `run-id` | — | Run ID for review mode |
+| `verbose` | `false` | Enable verbose output |
+| `version` | `latest` | Version of `@copilot-swarm/core` |
+| `primary-model` | — | Primary model override |
+| `review-model` | — | Review model override |
+
+## Action Outputs
+
+| Output | Description |
+|---|---|
+| `output-dir` | Path to the `.swarm` output directory |
+| `run-id` | The run ID of this execution |
+
+## Long Prompts
+
+<Tabs>
+  <TabItem label="File in repo">
+    ```yaml
+    - uses: urbanisierung/copilot-swarm/action@main
+      with:
+        prompt-file: docs/feature-spec.md
+    ```
+  </TabItem>
+  <TabItem label="YAML multi-line">
+    ```yaml
+    - uses: urbanisierung/copilot-swarm/action@main
+      with:
+        prompt: |
+          Add a user preferences page with:
+          - Dark mode toggle
+          - Language selector (EN, DE, FR)
+          - Notification settings
+    ```
+  </TabItem>
+  <TabItem label="Issue body">
+    ```yaml
+    - uses: urbanisierung/copilot-swarm/action@main
+      with:
+        prompt: ${{ github.event.issue.body }}
+    ```
+  </TabItem>
+</Tabs>
+
+<Aside type="note">
+Plan mode in CI auto-skips interactive clarification — agents use their best judgment. For best results, provide detailed prompts or use a two-phase workflow.
+</Aside>
+
+## Full Pipeline Example
+
+```yaml
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: urbanisierung/copilot-swarm/action@main
+        env:
+          COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
+        with:
+          command: run
+          prompt: "Add dark mode toggle to the settings page"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: swarm-output
+          path: .swarm/
+```

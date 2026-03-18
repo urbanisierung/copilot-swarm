@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here, in reverse chronological order.
 
+## 2026-03-18
+
+### Added
+- **Landing page** (`apps/landing`) — Single-page marketing site built with Astro 6. Features a dark, developer-focused design with gradient hero section ("One prompt. An entire engineering team."), feature grid, pipeline visualization, agent showcase (all 11 agents), quickstart steps, mode overview, and footer. Static build with Vite.
+- **Documentation site** (`apps/docs`) — Comprehensive docs site built with Astro Starlight 0.38. Covers all CLI commands (16 pages), all agent roles (11 pages), pipeline configuration, environment variables, GitHub Action setup, installation guide, and a quick start guide with plan + run walkthrough. Full-text search via Pagefind. Custom dark theme matching the landing page.
+- Both apps integrated into Turborepo pipeline (build, typecheck, check).
+
 ## 2026-03-16
 
 ### Added

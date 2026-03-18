@@ -1,0 +1,40 @@
+/* Custom Starlight styles — matching the landing page design */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+:root {
+  --sl-font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --sl-font-mono: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+}
+
+/* Dark theme overrides */
+:root[data-theme="dark"] {
+  --sl-color-accent-low: #1e1245;
+  --sl-color-accent: #a78bfa;
+  --sl-color-accent-high: #d4c4fc;
+  --sl-color-bg-nav: rgba(10, 10, 15, 0.85);
+  --sl-color-bg: #0a0a0f;
+  --sl-color-bg-sidebar: #0e0e16;
+}
+
+/* Light theme overrides */
+:root[data-theme="light"] {
+  --sl-color-accent-low: #ede9fe;
+  --sl-color-accent: #7c3aed;
+  --sl-color-accent-high: #3b1a8c;
+}
+
+/* Sidebar customization */
+.sidebar-content a[aria-current="page"] {
+  font-weight: 600;
+}
+
+/* Code blocks */
+pre {
+  border: 1px solid var(--sl-color-gray-5);
+}
+
+/* Hero page overrides */
+.hero-section {
+  text-align: center;
+  padding: 4rem 1rem;
+}

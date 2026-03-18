@@ -1,0 +1,39 @@
+---
+title: Product Manager
+description: The master strategist — analyzes requirements and produces actionable specs.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+**Role:** Master PM — Strategist  
+**Config key:** `pm`  
+**Built-in file:** `builtin:pm`  
+**Tools:** `read_file`, `list_dir`
+
+## Responsibilities
+
+1. **Understand Context** — Explores the project structure and existing codebase to ground decisions in reality.
+2. **Write Specs** — Produces specifications with: problem statement, acceptance criteria, technical requirements, edge cases, and out-of-scope items.
+3. **Decompose** — Breaks specs into independent sub-tasks. Marks frontend tasks with `[FRONTEND]` for routing to the design pipeline.
+4. **Clarify** — When other agents request clarification, provides precise answers grounded in the original requirements. Makes reasonable assumptions when needed.
+5. **Report** — Summarizes decisions and rationale.
+
+## Pipeline Involvement
+
+| Phase | Role |
+|---|---|
+| **Spec** | Drafts the specification |
+| **Decompose** | Breaks spec into tasks with dependency annotations |
+| **Implement** | Answers clarification requests from engineers |
+| **Plan mode** | Leads requirements clarification Q&A |
+
+## Review Cycle
+
+The PM's spec is reviewed by two independent agents:
+
+1. **Creative Reviewer** — Challenges from a product perspective (up to 3 iterations)
+2. **Technical Architect** — Validates feasibility and alignment (up to 3 iterations)
+
+<Aside type="note">
+Reviews use isolated sessions to prevent self-review bias — each reviewer gets fresh context.
+</Aside>

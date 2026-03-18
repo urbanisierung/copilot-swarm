@@ -1,0 +1,96 @@
+---
+title: Installation
+description: How to install and configure Copilot Swarm.
+---
+
+import { Tabs, TabItem, Aside } from "@astrojs/starlight/components";
+
+## System Requirements
+
+| Requirement | Version |
+|---|---|
+| Node.js | Latest LTS (v22+) |
+| GitHub Copilot | Business or Enterprise subscription |
+| `gh` CLI | Optional — for GitHub issue input |
+| pnpm | Optional — for monorepo development |
+
+## Install Methods
+
+<Tabs>
+  <TabItem label="Global (recommended)">
+    ```bash
+    npm install -g @copilot-swarm/core
+    ```
+
+    After installation, the `swarm` binary is available globally:
+
+    ```bash
+    swarm --version
+    swarm --help
+    ```
+  </TabItem>
+  <TabItem label="npx (no install)">
+    ```bash
+    npx @copilot-swarm/core "Your task description"
+    ```
+
+    This downloads and runs the latest version without a permanent install.
+  </TabItem>
+  <TabItem label="pnpm">
+    ```bash
+    pnpm add -g @copilot-swarm/core
+    ```
+  </TabItem>
+  <TabItem label="From source">
+    ```bash
+    git clone https://github.com/urbanisierung/copilot-swarm.git
+    cd copilot-swarm
+    pnpm install
+    pnpm turbo build
+
+    # Run from source
+    pnpm --filter @copilot-swarm/core start -- "Your task"
+    ```
+  </TabItem>
+</Tabs>
+
+## Authentication
+
+Copilot Swarm uses the GitHub Copilot SDK, which requires an active Copilot subscription.
+
+### Local development
+
+The Copilot SDK authenticates through your existing GitHub Copilot setup. If you can use Copilot in VS Code, you're good to go.
+
+### CI / GitHub Actions
+
+For automation, you need a Copilot CLI token:
+
+1. Go to **Organization Settings** → **Developer Settings** → **Personal Access Tokens (Classic)**
+2. Select the `copilot` scope (specifically `copilot:cli` if visible)
+3. Add the token as a repository secret named `COPILOT_CLI_TOKEN`
+
+```yaml
+- uses: urbanisierung/copilot-swarm/action@main
+  env:
+    COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
+  with:
+    command: run
+    prompt: "Add dark mode toggle"
+```
+
+<Aside type="note">
+See [GitHub Action configuration](/configuration/github-action/) for full CI/CD setup.
+</Aside>
+
+## Verify Installation
+
+```bash
+# Check version
+swarm --version
+
+# Run a simple task
+swarm task "Add a hello world endpoint to the API"
+```
+
+The TUI dashboard should appear showing agent progress. If you see errors about authentication, ensure your Copilot subscription is active.

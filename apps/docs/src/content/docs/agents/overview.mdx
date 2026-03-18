@@ -1,0 +1,98 @@
+---
+title: Agent Roles Overview
+description: Understanding the 11 specialized agents in Copilot Swarm.
+---
+
+import { Card, CardGrid } from "@astrojs/starlight/components";
+
+Copilot Swarm coordinates **11 specialized agents**, each with a distinct role, tools, and expertise — mirroring a real engineering team.
+
+## Agent Suites
+
+### PM Suite
+
+Handles requirements, specifications, and task decomposition.
+
+<CardGrid>
+  <Card title="Product Manager" icon="document">
+    Analyzes requirements, writes specs, decomposes work, answers clarification requests.
+  </Card>
+  <Card title="Creative Reviewer" icon="approve-check-circle">
+    Challenges the PM's spec from a product perspective — pushes for better thinking.
+  </Card>
+  <Card title="Technical Architect" icon="setting">
+    Validates feasibility, flags risks, ensures alignment with existing architecture.
+  </Card>
+</CardGrid>
+
+### Design Suite
+
+Creates and reviews UI/UX specifications for frontend tasks.
+
+<CardGrid>
+  <Card title="UI/UX Designer" icon="pencil">
+    Creates component designs, interaction flows, accessibility specs.
+  </Card>
+  <Card title="Design Reviewer" icon="approve-check-circle">
+    Evaluates designs for usability, accessibility, and design system consistency.
+  </Card>
+</CardGrid>
+
+### Engineering Suite
+
+Implements, reviews, and tests the code.
+
+<CardGrid>
+  <Card title="Senior Engineer" icon="laptop">
+    Implements the specification — reads code, writes code, runs builds and tests.
+  </Card>
+  <Card title="Code Reviewer" icon="warning">
+    Security & quality gate — reviews for correctness, vulnerabilities, standards.
+  </Card>
+  <Card title="QA Engineer" icon="approve-check-circle">
+    Validates implementation against the spec — runs tests, checks acceptance criteria.
+  </Card>
+</CardGrid>
+
+### Cross-Model Review Suite
+
+<CardGrid>
+  <Card title="Cross-Model Reviewer" icon="random">
+    Different AI model provides fresh assessment, catching model-specific blind spots.
+  </Card>
+</CardGrid>
+
+### Fleet Suite
+
+Coordinates multi-repository orchestration.
+
+<CardGrid>
+  <Card title="Fleet Strategist" icon="globe">
+    Plans cross-repo features: shared contracts, dependency graphs, execution waves.
+  </Card>
+  <Card title="Fleet Reviewer" icon="approve-check-circle">
+    Verifies cross-repo consistency, interface compatibility, integration completeness.
+  </Card>
+</CardGrid>
+
+## Session Strategy
+
+| Context | Strategy | Reason |
+|---|---|---|
+| PM Reviews | Isolated sessions | Fresh context = honest critique (no self-review bias) |
+| Task Streams | Single long-lived session | Engineer → Code Review → QA share context, minimizing overhead |
+| Cross-Model Review | Fresh isolated sessions | Different model gets unbiased view |
+
+## Customization
+
+Agents are defined as Markdown files with YAML frontmatter. Override any built-in agent:
+
+```yaml
+# swarm.config.yaml
+agents:
+  pm: ./my-agents/custom-pm.md         # Custom file path
+  engineer: builtin:engineer            # Built-in default
+  code-reviewer: builtin:eng-code-reviewer
+```
+
+Resolution order: `builtin:` prefix → file path → `AGENTS_DIR` fallback.

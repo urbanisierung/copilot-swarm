@@ -4,6 +4,7 @@ packages:
 
 onlyBuiltDependencies:
   - esbuild
+  - sharp
 
 patchedDependencies:
   vscode-jsonrpc@8.2.1: patches/vscode-jsonrpc@8.2.1.patch

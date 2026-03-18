@@ -1,0 +1,16 @@
+{
+  "name": "@copilot-swarm/landing",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "typecheck": "astro check",
+    "check": "biome check src/styles src/layouts src/pages --files-include='*.css' --files-include='*.ts' || true"
+  },
+  "dependencies": {
+    "astro": "^6.0.4"
+  }
+}

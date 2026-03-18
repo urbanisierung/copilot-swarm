@@ -1,0 +1,97 @@
+---
+title: "swarm fleet"
+description: Orchestrate features across multiple repositories.
+---
+
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+Coordinate a feature that spans multiple repositories. A meta-orchestrator analyzes all repos, produces a cross-repo strategy, and executes in dependency-ordered waves.
+
+## Usage
+
+<Tabs>
+  <TabItem label="Explicit repos">
+    ```bash
+    swarm fleet "Add OAuth login" --repos ~/auth-service --repos ~/api-gateway --repos ~/frontend
+    ```
+  </TabItem>
+  <TabItem label="Positional paths">
+    ```bash
+    swarm fleet "Add OAuth" ./auth-service ./api-gateway ./frontend
+    ```
+  </TabItem>
+  <TabItem label="Config file">
+    ```bash
+    swarm fleet "Add OAuth" --fleet-config fleet.config.yaml
+    ```
+  </TabItem>
+</Tabs>
+
+## Subcommands
+
+| Subcommand | Description |
+|---|---|
+| `fleet` (default) | Full pipeline: analyze → strategize → execute → review |
+| `fleet analyze` | Analysis only — understand each repo |
+| `fleet plan` | Analyze + interactive PM/engineer clarification + strategize |
+| `fleet architecture` | Map cross-repo relationships and produce architecture doc |
+| `fleet cleanup <branch> ./repos...` | Discard changes, switch to default branch, delete feature branch |
+
+## Full Pipeline
+
+1. **Analyze** — Runs `swarm analyze` on each repo in parallel.
+2. **Strategize** — Strategist agent receives all analyses and produces: shared contracts, per-repo tasks, dependency graph, and execution waves.
+3. **Execute waves** — Repos with no cross-repo dependencies run in parallel (wave 1). Dependent repos run next (wave 2+), with prior wave results as context.
+4. **Cross-repo review** — Reviewer checks consistency across all repo changes.
+5. **Summary** — Unified output with per-repo results.
+
+## Fleet Config
+
+```yaml
+repos:
+  - path: ~/auth-service
+    role: "Authentication backend — manages OAuth tokens"
+  - path: ~/api-gateway
+    role: "API gateway — routes and validates requests"
+  - path: ~/frontend
+    role: "React frontend — user-facing OAuth login flow"
+
+overrides:
+  ~/frontend:
+    verifyBuild: "npm run build"
+    verifyTest: "npm test"
+
+integrationTest: "npm run test:integration"
+```
+
+## Branch Management
+
+Create a consistent feature branch across all repos:
+
+```bash
+swarm fleet "Add OAuth" --repos ~/auth ~/api --create-branch feat/oauth
+```
+
+Validates all repos before creating branches:
+- Must be on default branch
+- No uncommitted changes
+- Target branch must not exist
+
+If any repo fails validation, **no repos are modified**.
+
+<Aside type="tip">
+Use `swarm fleet cleanup feat/oauth ./auth ./api` to revert all repos if something goes wrong.
+</Aside>
+
+## Output
+
+Fleet output is stored centrally (not inside any single repo):
+
+```
+~/.config/copilot-swarm/fleet/<runId>/
+  fleet-analysis.md       # Combined analysis
+  strategy.md             # Cross-repo strategy
+  fleet-review.md         # Consistency review
+  fleet-summary.md        # Final summary
+  fleet-checkpoint.json   # Resume state
+```

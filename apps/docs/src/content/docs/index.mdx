@@ -1,0 +1,74 @@
+---
+title: Welcome to Copilot Swarm
+description: Multi-agent orchestrator that coordinates AI agents through a structured pipeline.
+template: splash
+hero:
+  tagline: One prompt spawns an entire engineering team. PM, designer, engineers, reviewers, and testers — all collaborating to ship production-ready code.
+  image:
+    dark: ../../assets/logo-dark.svg
+    light: ../../assets/logo-light.svg
+  actions:
+    - text: Quick Start
+      link: /getting-started/quickstart/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/urbanisierung/copilot-swarm
+      icon: external
+---
+
+import { Card, CardGrid, LinkCard } from "@astrojs/starlight/components";
+
+<CardGrid stagger>
+  <Card title="Multi-Agent Pipeline" icon="setting">
+    Coordinates PM, designer, engineer, reviewer, and tester agents through a
+    declarative, config-driven pipeline with self-correcting review loops.
+  </Card>
+  <Card title="Parallel Execution" icon="rocket">
+    Independent tasks run simultaneously in separate streams. Wave-based
+    execution handles dependencies automatically.
+  </Card>
+  <Card title="Cross-Model Review" icon="approve-check-circle">
+    A different AI model reviews the final output, catching systematic blind
+    spots and biases specific to the primary model.
+  </Card>
+  <Card title="Fleet Mode" icon="globe">
+    Orchestrate features across multiple repositories with shared contracts,
+    dependency-ordered execution waves, and cross-repo consistency review.
+  </Card>
+</CardGrid>
+
+## Modes for every workflow
+
+<CardGrid>
+  <LinkCard
+    title="Plan"
+    description="Interactively refine requirements with PM, engineer, and designer."
+    href="/commands/plan/"
+  />
+  <LinkCard
+    title="Run"
+    description="Execute the full orchestration pipeline."
+    href="/commands/run/"
+  />
+  <LinkCard
+    title="Task"
+    description="Lightweight autonomous pipeline for well-scoped tasks."
+    href="/commands/task/"
+  />
+  <LinkCard
+    title="Fleet"
+    description="Coordinate work across multiple repositories."
+    href="/commands/fleet/"
+  />
+  <LinkCard
+    title="Brainstorm"
+    description="Explore ideas with a product strategist agent."
+    href="/commands/brainstorm/"
+  />
+  <LinkCard
+    title="Analyze"
+    description="Generate a comprehensive repository context document."
+    href="/commands/analyze/"
+  />
+</CardGrid>

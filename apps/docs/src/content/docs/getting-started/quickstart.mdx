@@ -1,0 +1,123 @@
+---
+title: Quick Start
+description: Get up and running with Copilot Swarm in under a minute.
+---
+
+import { Steps, Tabs, TabItem, Aside } from "@astrojs/starlight/components";
+
+## Prerequisites
+
+- **Node.js** — latest LTS (v22+)
+- **GitHub Copilot** — active subscription (Business or Enterprise for SDK access)
+- **`gh` CLI** — optional, for GitHub issue input
+
+## Install
+
+<Tabs>
+  <TabItem label="npx (no install)">
+    ```bash
+    npx @copilot-swarm/core "Add a dark mode toggle"
+    ```
+  </TabItem>
+  <TabItem label="Global install">
+    ```bash
+    npm install -g @copilot-swarm/core
+
+    # Then use the short binary name
+    swarm "Add a dark mode toggle"
+    ```
+  </TabItem>
+  <TabItem label="pnpm">
+    ```bash
+    pnpm add -g @copilot-swarm/core
+    swarm "Add a dark mode toggle"
+    ```
+  </TabItem>
+</Tabs>
+
+## Your first plan + run
+
+<Steps>
+
+1. **Create a session** to group related runs:
+
+   ```bash
+   swarm session create "OAuth login feature"
+   ```
+
+2. **Plan** — interactively refine your requirements. A PM agent asks questions to fill gaps, an engineer validates feasibility, and a designer clarifies UI/UX:
+
+   ```bash
+   swarm plan "Add OAuth login with PKCE flow"
+   ```
+
+   During planning, agents ask targeted questions in a split-pane editor. Answer what you can, skip what's clear. The plan is saved to `.swarm/plans/plan-latest.md`.
+
+3. **Run** — execute the full pipeline using the refined plan:
+
+   ```bash
+   swarm --plan .swarm/plans/plan-latest.md
+   ```
+
+   The orchestrator will:
+   - Skip the spec phase (the plan is the spec)
+   - Decompose work into parallel tasks
+   - Spawn engineer streams for each task
+   - Run code review and QA on each stream
+   - Cross-model review (if configured)
+   - Verify with build/test/lint commands
+
+4. **Review the output** — check what was implemented:
+
+   ```bash
+   swarm digest
+   ```
+
+   This shows a concise summary of what was done, key decisions, files changed, and verification status.
+
+5. **Commit and ship**:
+
+   ```bash
+   git add -A
+   git commit -m "feat: OAuth login with PKCE"
+   git push
+   ```
+
+</Steps>
+
+<Aside type="tip">
+If a run fails (timeout, network error), just resume — the orchestrator picks up where it left off:
+
+```bash
+swarm --resume
+```
+
+Auto-resume handles up to 3 retries automatically.
+</Aside>
+
+## Understanding the output
+
+All output is organized under `.swarm/` in your project:
+
+```
+.swarm/
+  sessions/
+    <sessionId>/
+      session.json          # Session metadata
+      runs/<runId>/
+        checkpoint.json     # Resume state (deleted on success)
+        summary.md          # Final summary
+        roles/              # Per-agent summaries
+      plans/
+        plan-latest.md      # Latest plan
+        plan-<timestamp>.md # Timestamped plans
+      analysis/
+        repo-analysis.md    # Repository analysis
+```
+
+## What's next?
+
+- [Commands overview](/commands/overview/) — all available commands at a glance
+- [Agent roles](/agents/overview/) — understand the 11 specialized agents
+- [Pipeline configuration](/configuration/pipeline/) — customize the workflow
+- [Environment variables](/configuration/environment/) — all configuration options

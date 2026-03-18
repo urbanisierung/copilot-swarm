@@ -1,0 +1,49 @@
+---
+title: Cross-Model Reviewer
+description: A different AI model provides a fresh, unbiased code assessment.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+**Role:** Independent Senior Reviewer — Fresh Perspective  
+**Config key:** `cross-model`  
+**Built-in file:** `builtin:cross-model-reviewer`  
+**Tools:** `read_file`, `run_terminal`, `list_dir`
+
+## Purpose
+
+After all task streams pass their same-model QA gate, a **different AI model** reviews the entire output. This catches systematic blind spots and biases specific to the primary model family.
+
+## Responsibilities
+
+1. **Read Changes** — Examines all modified files (does not trust summaries).
+2. **Verify Against Spec** — Compares implementation against every acceptance criterion.
+3. **Test** — Runs build, linter, type checker, and test suite.
+4. **Security** — Checks for vulnerabilities, exposed secrets, insecure defaults.
+5. **Quality** — Verifies error handling, edge cases, performance, conventions.
+6. **Exploratory Testing** — Looks for uncovered edge cases.
+7. **Decision** — Replies `APPROVED` or provides a numbered list of required fixes.
+
+## Pipeline Involvement
+
+| Phase | Role |
+|---|---|
+| **Cross-Model Review** | Reviews all stream outputs (conditional — only if review model ≠ primary model) |
+
+<Aside type="tip">
+Issues found by the cross-model reviewer loop back to the **primary model's engineer** for fixes, preserving implementation style and consistency.
+</Aside>
+
+## Model Configuration
+
+```yaml
+# swarm.config.yaml
+primaryModel: claude-opus-4-6
+reviewModel: gpt-5.3-codex    # Different model for cross-review
+```
+
+Or via environment variables:
+
+```bash
+PRIMARY_MODEL=claude-opus-4-6 REVIEW_MODEL=gpt-5.3-codex swarm "Add feature"
+```

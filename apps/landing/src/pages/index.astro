@@ -1,0 +1,382 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout
+  title="Copilot Swarm — One prompt. An entire engineering team."
+  description="Multi-agent orchestrator that coordinates PM, designer, engineer, reviewer, and tester agents through a structured pipeline. Powered by the GitHub Copilot SDK."
+>
+  <!-- NAV -->
+  <nav>
+    <div class="container">
+      <a href="/" class="logo">
+        <img src="/logo.svg" alt="Copilot Swarm" />
+        Copilot Swarm
+      </a>
+      <ul class="nav-links">
+        <li><a href="#features">Features</a></li>
+        <li><a href="#pipeline">Pipeline</a></li>
+        <li><a href="#agents">Agents</a></li>
+        <li><a href="#quickstart">Quick Start</a></li>
+        <li><a href="https://github.com/urbanisierung/copilot-swarm" target="_blank">GitHub</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-badge">
+      <span class="dot"></span>
+      Powered by GitHub Copilot SDK
+    </div>
+    <h1>
+      One prompt.<br />
+      <span class="gradient">An entire engineering team.</span>
+    </h1>
+    <p class="subtitle">
+      Stop prompting one agent at a time. Copilot Swarm spawns a full team of AI agents —
+      PM, designer, engineers, reviewers, and testers — that collaborate, review each other's work,
+      and ship production-ready code. All from a single command.
+    </p>
+    <div class="hero-actions">
+      <a href="#quickstart" class="btn btn-primary">Get Started</a>
+      <a href="https://github.com/urbanisierung/copilot-swarm" target="_blank" class="btn btn-secondary">
+        ⭐ Star on GitHub
+      </a>
+    </div>
+
+    <div class="terminal-preview">
+      <div class="terminal-header">
+        <span class="terminal-dot red"></span>
+        <span class="terminal-dot yellow"></span>
+        <span class="terminal-dot green"></span>
+        <span class="terminal-title">terminal</span>
+      </div>
+      <div class="terminal-body">
+        <div><span class="prompt">$</span> <span class="command">npx @copilot-swarm/core "Add OAuth login with PKCE"</span></div>
+        <br />
+        <div><span class="highlight">🐝 Copilot Swarm v1.0.0</span> <span class="output">· claude-opus-4-6 · /my-app</span></div>
+        <br />
+        <div><span class="output">Phase</span> <span class="green">✔ Spec</span> <span class="output">→</span> <span class="green">✔ Decompose</span> <span class="output">→</span> <span class="blue">◆ Implement</span> <span class="output">→ Verify</span></div>
+        <br />
+        <div><span class="output">Streams</span></div>
+        <div>&nbsp;&nbsp;<span class="green">✔</span> <span class="output">stream-0</span> &nbsp;<span class="pink">auth/oauth-pkce.ts</span> &nbsp;<span class="output">done</span></div>
+        <div>&nbsp;&nbsp;<span class="green">✔</span> <span class="output">stream-1</span> &nbsp;<span class="pink">auth/token-rotation.ts</span> &nbsp;<span class="output">done</span></div>
+        <div>&nbsp;&nbsp;<span class="yellow">◆</span> <span class="output">stream-2</span> &nbsp;<span class="pink">components/LoginForm.tsx</span> &nbsp;<span class="output">testing</span></div>
+        <br />
+        <div><span class="output">Active Agents</span></div>
+        <div>&nbsp;&nbsp;<span class="orange">▸ QA Engineer</span> &nbsp;<span class="output">stream-2 · 01:23</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section id="features">
+    <div class="container">
+      <h2>Built for real engineering workflows</h2>
+      <p class="section-sub">
+        Not just another AI wrapper. Copilot Swarm mimics how high-performing engineering teams actually work.
+      </p>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🏗️</div>
+          <h3>Declarative Pipeline</h3>
+          <p>Define your entire workflow in a YAML config — agents, phases, review loops, and conditions. Zero code changes to customize.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">⚡</div>
+          <h3>Parallel Execution</h3>
+          <p>Independent tasks run simultaneously in separate streams. Backend and frontend work happens concurrently. Wave-based execution for dependent tasks.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔄</div>
+          <h3>Self-Correcting Loops</h3>
+          <p>Every agent is paired with a reviewer. Code review and QA loops catch issues before they ship. Up to 3 review iterations per phase.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🧠</div>
+          <h3>Cross-Model Review</h3>
+          <p>A different AI model reviews the final output, catching systematic blind spots and biases specific to the primary model.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">💾</div>
+          <h3>Checkpoint & Resume</h3>
+          <p>Every phase, iteration, and stream is checkpointed. Resume from exactly where you left off. Auto-retry on transient failures.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🚢</div>
+          <h3>Fleet Mode</h3>
+          <p>Orchestrate features across multiple repositories. Shared contracts, dependency-ordered waves, and cross-repo consistency review.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📋</div>
+          <h3>Interactive Planning</h3>
+          <p>Refine vague requirements before running. PM, engineer, and designer each clarify from their perspective, all reviewed independently.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">✅</div>
+          <h3>Built-in Verification</h3>
+          <p>Post-implementation verification runs your actual build, test, and lint commands. Auto-detects from package.json, Cargo.toml, go.mod, and more.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🖥️</div>
+          <h3>TUI Dashboard</h3>
+          <p>Full-screen terminal dashboard showing phase progress, active agents with elapsed time, stream status, and activity log. Real-time visibility.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PIPELINE -->
+  <section id="pipeline" style="background: var(--color-bg-alt);">
+    <div class="container">
+      <h2>A structured, multi-phase pipeline</h2>
+      <p class="section-sub">
+        Each phase produces artifacts that feed the next. Reviews ensure quality at every step.
+      </p>
+      <div class="pipeline">
+        <div class="pipeline-step">
+          <span class="step-icon">📝</span>
+          <span class="step-label">Spec</span>
+          <span class="step-agent">PM + Reviewers</span>
+        </div>
+        <span class="pipeline-arrow">→</span>
+        <div class="pipeline-step">
+          <span class="step-icon">🔀</span>
+          <span class="step-label">Decompose</span>
+          <span class="step-agent">PM</span>
+        </div>
+        <span class="pipeline-arrow">→</span>
+        <div class="pipeline-step">
+          <span class="step-icon">🎨</span>
+          <span class="step-label">Design</span>
+          <span class="step-agent">Designer + Review</span>
+        </div>
+        <span class="pipeline-arrow">→</span>
+        <div class="pipeline-step">
+          <span class="step-icon">⚙️</span>
+          <span class="step-label">Implement</span>
+          <span class="step-agent">Eng + CR + QA</span>
+        </div>
+        <span class="pipeline-arrow">→</span>
+        <div class="pipeline-step">
+          <span class="step-icon">🧠</span>
+          <span class="step-label">Cross-Model</span>
+          <span class="step-agent">Alt Model Review</span>
+        </div>
+        <span class="pipeline-arrow">→</span>
+        <div class="pipeline-step">
+          <span class="step-icon">✅</span>
+          <span class="step-label">Verify</span>
+          <span class="step-agent">Build + Test + Lint</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- AGENTS -->
+  <section id="agents">
+    <div class="container">
+      <h2>11 specialized agents, one team</h2>
+      <p class="section-sub">
+        Each agent has a distinct role, tools, and expertise — just like a real engineering team.
+      </p>
+      <div class="agent-grid">
+        <div class="agent-card">
+          <div class="agent-avatar">📋</div>
+          <div>
+            <h4>Product Manager</h4>
+            <p>Analyzes requirements, writes specs, decomposes work into tasks, answers clarification requests.</p>
+          </div>
+        </div>
+        <div class="agent-card">
+          <div class="agent-avatar">🎯</div>
+          <div>
+            <h4>Creative Reviewer</h4>
+            <p>Challenges the PM's spec, pushes for better product thinking and completeness.</p>
+          </div>
+        </div>
+        <div class="agent-card">
+          <div class="agent-avatar">🏛️</div>
+          <div>
+            <h4>Technical Architect</h4>
+            <p>Validates feasibility, flags risks, ensures alignment with existing architecture.</p>
+          </div>
+        </div>
+        <div class="agent-card">
+          <div class="agent-avatar">🎨</div>
+          <div>
+            <h4>UI/UX Designer</h4>
+            <p>Creates component designs, interaction flows, and accessibility-compliant layouts.</p>
+          </div>
+        </div>
+        <div class="agent-card">
+          <div class="agent-avatar">🖌️</div>
+          <div>
+            <h4>Design Reviewer</h4>
+            <p>Evaluates designs for usability, accessibility, and design system consistency.</p>
+          </div>
+        </div>
+        <div class="agent-card">
+          <div class="agent-avatar">💻</div>
+          <div>
+            <h4>Senior Engineer</h4>
+            <p>Implements the specification — reads code, writes code, runs builds and tests.</p>
+          </div>
+        </div>
+        <div class="agent-card">
+          <div class="agent-avatar">🔒</div>
+          <div>
+            <h4>Code Reviewer</h4>
+            <p>Security & quality gate. Reviews for correctness, vulnerabilities, and standards.</p>
+          </div>
+        </div>
+        <div class="agent-card">
+          <div class="agent-avatar">🧪</div>
+          <div>
+            <h4>QA Engineer</h4>
+            <p>Validates implementation against the spec. Runs tests, checks acceptance criteria.</p>
+          </div>
+        </div>
+        <div class="agent-card">
+          <div class="agent-avatar">🧠</div>
+          <div>
+            <h4>Cross-Model Reviewer</h4>
+            <p>Different AI model provides fresh, unbiased assessment catching model-specific blind spots.</p>
+          </div>
+        </div>
+        <div class="agent-card">
+          <div class="agent-avatar">🗺️</div>
+          <div>
+            <h4>Fleet Strategist</h4>
+            <p>Coordinates multi-repo features: shared contracts, dependency graphs, execution waves.</p>
+          </div>
+        </div>
+        <div class="agent-card">
+          <div class="agent-avatar">🔗</div>
+          <div>
+            <h4>Fleet Reviewer</h4>
+            <p>Verifies cross-repo consistency, interface compatibility, and integration completeness.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- QUICKSTART -->
+  <section id="quickstart" style="background: var(--color-bg-alt);">
+    <div class="container">
+      <h2>Up and running in 60 seconds</h2>
+      <p class="section-sub">
+        Copilot Swarm runs anywhere Node.js and GitHub Copilot are available. No config needed.
+      </p>
+      <div class="quickstart-steps">
+        <div class="qs-step">
+          <div class="qs-num">1</div>
+          <div class="qs-content">
+            <h4>Install</h4>
+            <p>Install globally or run directly with npx — no project setup required.</p>
+            <code>npm install -g @copilot-swarm/core</code>
+          </div>
+        </div>
+        <div class="qs-step">
+          <div class="qs-num">2</div>
+          <div class="qs-content">
+            <h4>Plan</h4>
+            <p>Interactively refine your requirements with PM, engineer, and designer agents.</p>
+            <code>swarm plan "Add OAuth login with PKCE flow"</code>
+          </div>
+        </div>
+        <div class="qs-step">
+          <div class="qs-num">3</div>
+          <div class="qs-content">
+            <h4>Run</h4>
+            <p>Execute the full pipeline — agents spec, decompose, implement, review, test, and verify.</p>
+            <code>swarm --plan .swarm/plans/plan-latest.md</code>
+          </div>
+        </div>
+        <div class="qs-step">
+          <div class="qs-num">4</div>
+          <div class="qs-content">
+            <h4>Ship</h4>
+            <p>Review the changes, commit, and push. The agents handled the heavy lifting.</p>
+            <code>git add -A && git commit -m "feat: OAuth login with PKCE"</code>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MODES -->
+  <section>
+    <div class="container">
+      <h2>Multiple modes for every workflow</h2>
+      <p class="section-sub">
+        From quick tasks to multi-repo orchestration — pick the right tool for the job.
+      </p>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🚀</div>
+          <h3>Task Mode</h3>
+          <p>Lightweight autonomous pipeline for well-scoped tasks. Skips the full planning ceremony — PM review, decompose, implement, verify.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🤖</div>
+          <h3>Auto Mode</h3>
+          <p>Fully autonomous: analysis → planning → implementation in one shot. No interaction needed. Perfect for CI/CD and batch processing.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">💡</div>
+          <h3>Brainstorm Mode</h3>
+          <p>Explore ideas with a product strategist agent. Interactive Q&A that challenges assumptions and generates structured summaries.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔍</div>
+          <h3>Analyze Mode</h3>
+          <p>Generate a comprehensive repository context document. Dual-model review ensures accuracy. Cached centrally for reuse.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📝</div>
+          <h3>Review Mode</h3>
+          <p>Provide feedback on a previous run. Agents receive the original context plus your feedback and apply targeted fixes.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🌐</div>
+          <h3>Fleet Mode</h3>
+          <p>Coordinate features across multiple repositories with shared contracts, execution waves, and cross-repo consistency review.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section style="background: var(--color-bg-alt); text-align: center;">
+    <div class="container">
+      <h2>Ready to build with a full AI team?</h2>
+      <p class="section-sub">
+        Open source. Runs locally. Powered by GitHub Copilot.
+      </p>
+      <div class="hero-actions" style="margin-top: 2rem;">
+        <a href="https://github.com/urbanisierung/copilot-swarm" target="_blank" class="btn btn-primary">
+          View on GitHub
+        </a>
+        <a href="https://docs.copilot-swarm.dev" class="btn btn-secondary">
+          Read the Docs
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="container">
+      <ul class="footer-links">
+        <li><a href="https://github.com/urbanisierung/copilot-swarm" target="_blank">GitHub</a></li>
+        <li><a href="https://docs.copilot-swarm.dev">Documentation</a></li>
+        <li><a href="https://www.npmjs.com/package/@copilot-swarm/core" target="_blank">npm</a></li>
+        <li><a href="https://x.com/urbanisierung" target="_blank">𝕏</a></li>
+      </ul>
+      <p>Built by <a href="https://github.com/urbanisierung" target="_blank">urbanisierung</a>. Open source under MIT.</p>
+    </div>
+  </footer>
+</Layout>
