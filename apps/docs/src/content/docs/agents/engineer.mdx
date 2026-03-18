@@ -1,0 +1,36 @@
+---
+title: Senior Engineer
+description: The builder — implements specifications by reading and writing code.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+**Role:** Senior Engineer — Implementation Lead  
+**Config key:** `engineer`  
+**Built-in file:** `builtin:engineer`  
+**Tools:** `read_file`, `edit_file`, `run_terminal`, `list_dir`
+
+## Responsibilities
+
+1. **Analyze First** — Explores existing code, architecture, and conventions before making changes.
+2. **Execute Changes** — Uses `edit_file` to implement logic directly (does not just suggest code).
+3. **Follow Design** — For frontend tasks, implements the design spec precisely using specified components, tokens, and interaction patterns.
+4. **Verify** — Runs the build, linter, type checker, and tests.
+5. **Fix Defects** — When receiving QA reports or code review feedback, fixes all issues and verifies each fix.
+6. **Clarification** — Responds `CLARIFICATION_NEEDED` to route questions to the PM agent.
+
+## Pipeline Involvement
+
+| Phase | Role |
+|---|---|
+| **Implement** | Implements each task in its own stream |
+| **Cross-Model Review** | Fixes issues found by the cross-model reviewer |
+| **Verify** | Fixes build/test/lint failures |
+
+<Aside type="note">
+The engineer does **not** make git commits. The user manages version control.
+</Aside>
+
+## Session Strategy
+
+Implementation uses a **single long-lived session** per stream. The engineer, code reviewer, and QA engineer share this session to maintain context across review iterations.

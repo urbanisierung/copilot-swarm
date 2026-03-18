@@ -1,0 +1,43 @@
+---
+title: "swarm task"
+description: Lightweight autonomous pipeline for well-scoped tasks.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+A streamlined pipeline that skips the full planning ceremony. Faster than `auto` for tasks that don't need extensive clarification.
+
+## Usage
+
+```bash
+swarm task "Fix the login validation bug"
+swarm task -f task-description.md
+```
+
+## Pipeline
+
+1. **Pre-analysis** — Checks for research sub-tasks (URLs, libraries to investigate). Runs them in parallel.
+2. **PM review** — A PM agent reviews and refines the task into a clear specification, auto-answering open questions.
+3. **Decomposition** — Determines how many streams are needed. Dependent tasks are grouped into execution waves.
+4. **Implementation** — Parallel streams with QA loops. Wave-based execution for dependent tasks.
+5. **Verification** — Build/test/lint commands to verify the implementation.
+
+## When to Use
+
+- Well-scoped, focused tasks
+- Bug fixes
+- Small features
+- When you want fast execution without planning overhead
+
+<Aside type="tip">
+Use `swarm task` for focused work and `swarm auto` for larger, more complex features.
+</Aside>
+
+## Comparison with Other Modes
+
+| Aspect | `task` | `auto` | `plan` + `run` |
+|---|---|---|---|
+| User interaction | None | None | Interactive Q&A |
+| Planning depth | PM review only | Full planning | Full planning |
+| Speed | Fastest | Moderate | Slowest (but highest quality) |
+| Best for | Bug fixes, small features | Well-defined features | Complex, ambiguous features |

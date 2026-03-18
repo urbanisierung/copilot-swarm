@@ -17,6 +17,7 @@
     "release": "turbo run build && changeset publish"
   },
   "devDependencies": {
+    "@astrojs/check": "^0.9.8",
     "@biomejs/biome": "^2.3.15",
     "@changesets/cli": "^2.29.8",
     "@types/node": "latest",

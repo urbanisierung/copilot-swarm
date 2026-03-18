@@ -1,0 +1,92 @@
+---
+title: "swarm plan"
+description: Interactive planning mode — clarify requirements before running the pipeline.
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+Interactively refine vague requirements before committing to the full pipeline. Three roles — PM, engineer, designer — each clarify from their perspective.
+
+## Usage
+
+```bash
+swarm plan "Add a dark mode toggle"
+swarm plan -e   # Open editor for longer prompts
+```
+
+## Planning Phases
+
+<Steps>
+
+1. **Pre-Analysis** — Scans the prompt for parallelizable research sub-tasks (e.g., "study this URL", "research best practices"). Runs them concurrently. Skipped if no research tasks detected.
+
+2. **Requirements Clarification** — A PM agent asks targeted questions to fill gaps. You answer in a split-pane editor (your answer on the left, agent's questions on the right).
+
+3. **PM Review** — A reviewer verifies the refined requirements are clear, complete, and actionable (up to 3 iterations).
+
+4. **Engineer Clarification** — A senior engineer asks about API contracts, edge cases, testing expectations, and integration points.
+
+5. **Engineer Review** — A reviewer verifies the engineering decisions are sound (up to 3 iterations).
+
+6. **Designer Clarification** — A UI/UX designer clarifies visual, interaction, and accessibility details. Skipped for non-frontend tasks.
+
+7. **Designer Review** — A reviewer verifies the design decisions (up to 3 iterations).
+
+8. **Technical Analysis** — An engineering agent analyzes the codebase and reports complexity, affected files, risks, and suggested approach.
+
+9. **Cross-Model Review** — If the review model differs from the primary, the complete plan is reviewed by a different model for accuracy and feasibility.
+
+</Steps>
+
+## Async Question Harvest
+
+Generate all questions up front and answer them offline:
+
+```bash
+# Step 1: Generate questions file
+swarm plan --harvest "Add a dark mode toggle"
+
+# Step 2: Edit the questions file
+# .swarm/sessions/<sid>/questions.md
+
+# Step 3: Resume with answers
+swarm plan --resume
+```
+
+The questions file uses structured markdown with sections per role (`plan-clarify`, `plan-eng-clarify`, `plan-design-clarify`). Leave answers blank to let the agent decide.
+
+## Interactive Editor
+
+During clarification, a split-pane editor opens:
+
+- **Left panel** — Editable text area for your answer
+- **Right panel** — Read-only scrollable context with agent questions
+- **Tab** — Switch focus between panels
+- **PgUp/PgDown** — Scroll the right panel
+- **Command palette** — Submit, Skip, or Cancel
+
+Press Enter on an empty line to skip a round. All answers are checkpointed and replayed on resume.
+
+## Output
+
+```
+.swarm/plans/
+  plan-latest.md              # Stable reference to the latest plan
+  plan-<timestamp>.md         # Timestamped plan (never overwritten)
+```
+
+The plan file contains refined requirements, engineering decisions, design decisions, and technical analysis.
+
+## Running from a Plan
+
+After planning, feed the plan into the run pipeline:
+
+```bash
+swarm --plan .swarm/plans/plan-latest.md
+```
+
+The spec phase is automatically skipped — the plan's refined requirements become the specification.
+
+<Aside type="tip">
+The plan file also includes engineering and design decisions from the planning phase, giving the implementation agents richer context than a raw prompt.
+</Aside>

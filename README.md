@@ -1,6 +1,8 @@
 # Copilot Swarm
 
-A Turborepo monorepo for experimenting with AI-powered development workflows, featuring **Copilot Swarm** — a multi-agent orchestrator that coordinates multiple AI agents through a declarative, config-driven pipeline.
+A Turborepo monorepo for **Copilot Swarm** — a multi-agent orchestrator that coordinates PM, designer, engineer, reviewer, and tester agents through a declarative pipeline, powered by the GitHub Copilot SDK.
+
+🌐 [cpswarm.com](https://cpswarm.com) · 📖 [docs.cpswarm.com](https://docs.cpswarm.com) · 📦 [npm](https://www.npmjs.com/package/@copilot-swarm/core)
 
 ## Motivation
 
@@ -37,8 +39,10 @@ pnpm turbo test        # Vitest
 
 ```
 apps/
-  ai/              # Copilot Swarm Orchestrator
-doc/               # Documentation
+  core/            # Copilot Swarm Orchestrator (CLI)
+  landing/         # Landing page (Astro)
+  docs/            # Documentation site (Astro Starlight)
+doc/               # Internal documentation
 .github/
   agents/          # Agent instruction files (.md)
   instructions/    # Copilot instructions
@@ -46,6 +50,7 @@ doc/               # Documentation
 
 ## Documentation
 
+- 📖 [docs.cpswarm.com](https://docs.cpswarm.com) — Full documentation
 - [Copilot Swarm Concept](doc/copilot-swarm.md) — Architecture, agent roles, workflow
 - [Code Architecture](doc/copilot-swarm-code.md) — File structure, modules, config reference
 - [Features](doc/features.md) — High-level feature list

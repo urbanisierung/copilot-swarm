@@ -1,0 +1,124 @@
+---
+title: Pipeline Configuration
+description: Customize the orchestration pipeline via swarm.config.yaml.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+The orchestrator reads `swarm.config.yaml` from the repository root. If not found, it uses the built-in default pipeline.
+
+## Default Configuration
+
+```yaml
+# Model tiers
+primaryModel: claude-opus-4-6      # Main implementation model
+reviewModel: gpt-5.3-codex         # Cross-model reviewer (different family)
+fastModel: claude-haiku-4.5        # Lightweight coordination tasks
+
+# Agent registry
+agents:
+  pm:              builtin:pm
+  pm-reviewer:     builtin:pm-reviewer
+  spec-reviewer:   builtin:eng-spec-reviewer
+  designer:        builtin:designer
+  design-reviewer: builtin:design-reviewer
+  engineer:        builtin:engineer
+  code-reviewer:   builtin:eng-code-reviewer
+  tester:          builtin:tester
+  cross-model:     builtin:cross-model-reviewer
+  fleet-strategist: builtin:fleet-strategist
+  fleet-reviewer:  builtin:fleet-reviewer
+
+# Pipeline phases
+pipeline:
+  - phase: spec
+    condition: noPlanProvided
+    agent: pm
+    reviews:
+      - agent: pm-reviewer
+        maxIterations: 3
+        approvalKeyword: APPROVED
+      - agent: spec-reviewer
+        maxIterations: 3
+        approvalKeyword: APPROVED
+
+  - phase: decompose
+    agent: pm
+    frontendMarker: "[FRONTEND]"
+
+  - phase: design
+    condition: hasFrontendTasks
+    agent: designer
+    clarificationAgent: pm
+    reviews:
+      - agent: design-reviewer
+        maxIterations: 3
+        approvalKeyword: APPROVED
+        clarificationKeyword: CLARIFICATION_NEEDED
+        clarificationAgent: pm
+
+  - phase: implement
+    parallel: true
+    agent: engineer
+    clarificationAgent: pm
+    clarificationKeyword: CLARIFICATION_NEEDED
+    reviews:
+      - agent: code-reviewer
+        maxIterations: 3
+        approvalKeyword: APPROVED
+    qa:
+      agent: tester
+      maxIterations: 5
+      approvalKeyword: ALL_PASSED
+
+  - phase: cross-model-review
+    condition: differentReviewModel
+    agent: cross-model
+    fixAgent: engineer
+    maxIterations: 3
+    approvalKeyword: APPROVED
+
+  - phase: verify
+    fixAgent: engineer
+    maxIterations: 3
+```
+
+## Model Tiers
+
+| Tier | Default | Purpose |
+|---|---|---|
+| `primaryModel` | `claude-opus-4-6` | Main work: spec, engineering, code review, QA, design |
+| `reviewModel` | `gpt-5.3-codex` | Cross-model verification (different model family) |
+| `fastModel` | `claude-haiku-4.5` | Coordination: prereq analysis, decomposition, PM review in task mode |
+
+## Phase Conditions
+
+| Condition | Triggers when |
+|---|---|
+| `noPlanProvided` | No `--plan` flag was used |
+| `hasFrontendTasks` | At least one task marked with `[FRONTEND]` |
+| `differentReviewModel` | `reviewModel` differs from `primaryModel` |
+
+## Custom Agents
+
+Override any agent by pointing to your own markdown file:
+
+```yaml
+agents:
+  pm: ./my-agents/custom-pm.md
+  engineer: ./my-agents/strict-engineer.md
+```
+
+Agent files use YAML frontmatter:
+
+```markdown
+---
+name: My Custom PM
+tools: [read_file, list_dir]
+---
+You are a specialized PM for our e-commerce platform...
+```
+
+<Aside type="tip">
+Use `builtin:` prefix to reference the default agents. File paths are resolved relative to the repository root.
+</Aside>

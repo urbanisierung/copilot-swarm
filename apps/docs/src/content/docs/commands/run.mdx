@@ -1,0 +1,94 @@
+---
+title: "swarm run"
+description: Execute the full orchestration pipeline.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+The default command. Runs the full multi-agent orchestration pipeline from spec to verification.
+
+## Usage
+
+```bash
+swarm "Add a dark mode toggle"
+swarm run "Add login form"
+swarm run -v "Fix the auth bug"
+```
+
+## Pipeline Phases
+
+1. **Spec** — PM drafts a specification, reviewed by the Creative Reviewer (challenges assumptions) and Technical Architect (validates feasibility). Up to 3 review iterations each.
+2. **Decompose** — PM breaks the spec into independent, parallelizable tasks. Tasks marked `[FRONTEND]` receive design specs.
+3. **Design** *(conditional)* — If frontend tasks exist, a Designer creates UI/UX specs, reviewed by the Design Reviewer.
+4. **Implement** *(parallel)* — Each task runs in its own stream. The Senior Engineer implements, Code Reviewer validates, and QA Engineer tests against the spec. Engineers can escalate to the PM for clarification.
+5. **Cross-Model Review** *(conditional)* — If the review model differs from the primary model, a different AI reviews all output. Catches model-specific blind spots.
+6. **Verify** — Runs build, test, and lint commands. On failure, errors are fed to a fix agent and re-verified.
+
+## Using a Plan
+
+Skip the spec phase by providing a plan from `swarm plan`:
+
+```bash
+swarm --plan .swarm/plans/plan-latest.md
+```
+
+The plan's refined requirements, engineering decisions, and design decisions are used directly as the spec.
+
+## Wave-Based Execution
+
+Tasks can declare dependencies. The decompose phase groups tasks into waves via topological sort:
+
+- **Wave 1** — Tasks with no dependencies (run in parallel)
+- **Wave 2** — Tasks depending on wave 1 (run with wave 1 output as context)
+- **Wave N** — And so on
+
+Tasks without dependencies behave exactly as before (single wave).
+
+## Verification
+
+Post-implementation verification runs shell commands. Resolution priority:
+
+1. CLI flags: `--verify-build`, `--verify-test`, `--verify-lint`
+2. YAML config: `verify:` section in `swarm.config.yaml`
+3. Auto-detect from project files (`package.json`, `Cargo.toml`, `go.mod`, etc.)
+
+Supported ecosystems: Node.js, Rust, Go, Python, Maven, Gradle.
+
+<Aside type="tip">
+For greenfield projects, verification re-detects commands after implementation since project files may not exist at the start.
+</Aside>
+
+## Output
+
+```
+.swarm/sessions/<id>/runs/<runId>/
+  checkpoint.json     # Resume state (deleted on success)
+  summary.md          # Final summary
+  roles/
+    pm.md             # PM's spec
+    engineer-0.md     # Engineer stream 0 output
+    engineer-1.md     # Engineer stream 1 output
+    ...
+```
+
+## Examples
+
+```bash
+# Basic run
+swarm "Add a dark mode toggle to the settings page"
+
+# Verbose output (no TUI)
+swarm -v "Fix the login validation bug"
+
+# From a file
+swarm -f requirements.md
+
+# From a GitHub issue
+swarm "gh:#42"
+
+# With custom verification
+swarm --verify-build "npm run build" --verify-test "npm test" "Add OAuth"
+
+# Auto-model selection (fast model for simple tasks)
+swarm --auto-model "Add dark mode and fix typos in docs"
+```

@@ -1,0 +1,81 @@
+---
+title: Commands Overview
+description: All available Copilot Swarm commands at a glance.
+---
+
+import { LinkCard, CardGrid } from "@astrojs/starlight/components";
+
+## Usage
+
+```
+swarm [command] [options] "<prompt>"
+```
+
+## Core Commands
+
+<CardGrid>
+  <LinkCard title="run" description="Execute the full orchestration pipeline (default command)." href="/commands/run/" />
+  <LinkCard title="plan" description="Interactive planning mode — refine requirements before running." href="/commands/plan/" />
+  <LinkCard title="auto" description="Autonomous plan + run with no interaction." href="/commands/auto/" />
+  <LinkCard title="task" description="Lightweight autonomous pipeline for well-scoped tasks." href="/commands/task/" />
+</CardGrid>
+
+## Analysis & Exploration
+
+<CardGrid>
+  <LinkCard title="analyze" description="Generate a comprehensive repository context document." href="/commands/analyze/" />
+  <LinkCard title="brainstorm" description="Interactive idea exploration with a strategist agent." href="/commands/brainstorm/" />
+  <LinkCard title="digest" description="Concise highlights summary of a completed run." href="/commands/digest/" />
+</CardGrid>
+
+## Multi-Repo
+
+<CardGrid>
+  <LinkCard title="fleet" description="Orchestrate features across multiple repositories." href="/commands/fleet/" />
+</CardGrid>
+
+## Workflow Management
+
+<CardGrid>
+  <LinkCard title="review" description="Review and fix a previous run based on feedback." href="/commands/review/" />
+  <LinkCard title="prepare" description="Generate Copilot instruction files for a repository." href="/commands/prepare/" />
+  <LinkCard title="session" description="Create, list, and switch sessions (feature grouping)." href="/commands/session/" />
+  <LinkCard title="finish" description="Finalize a session — summarize and log to changelog." href="/commands/finish/" />
+  <LinkCard title="list" description="List all sessions across all repositories." href="/commands/list/" />
+  <LinkCard title="stats" description="View agent invocation statistics." href="/commands/stats/" />
+  <LinkCard title="backup & restore" description="Sync artifacts to/from the central store." href="/commands/backup-restore/" />
+</CardGrid>
+
+## Global Options
+
+| Option | Description |
+|---|---|
+| `-v, --verbose` | Enable verbose streaming output |
+| `-e, --editor` | Open interactive text editor for the prompt |
+| `-p, --plan <file>` | Use a plan file as input |
+| `-f, --file <file>` | Read prompt from a file |
+| `-r, --resume` | Resume from the last checkpoint |
+| `--run <runId>` | Specify which run to review/digest |
+| `--session <id>` | Use a specific session |
+| `--no-tui` | Disable TUI dashboard |
+| `--auto-model` | Auto-select model per task based on complexity |
+| `--verify-build <cmd>` | Shell command to verify the build |
+| `--verify-test <cmd>` | Shell command to run tests |
+| `--verify-lint <cmd>` | Shell command to run linting |
+| `-V, --version` | Show version number |
+| `-h, --help` | Show help message |
+
+## Prompt Sources
+
+The task description can be provided in multiple ways (first match wins):
+
+| Source | Example |
+|---|---|
+| `--plan <file>` | `swarm --plan .swarm/plans/plan-latest.md` |
+| `--file <file>` | `swarm -f requirements.md` |
+| `--editor` | `swarm -e` |
+| Inline text | `swarm "Add dark mode"` |
+| GitHub issue | `swarm "gh:owner/repo#123"` |
+| GitHub issue (current repo) | `swarm "gh:#42"` |
+| GitHub issue (URL) | `swarm "https://github.com/owner/repo/issues/123"` |
+| `ISSUE_BODY` env var | `ISSUE_BODY="Add dark mode" swarm` |

@@ -57,6 +57,8 @@ High-level feature list for Copilot Swarm.
 | **Digest mode** | 2026-03-01 | `swarm digest` — Show a concise highlights summary of a completed run. Reads the latest (or `--run <runId>`) run's artifacts (checkpoint, summary, role files) and uses the fast model to produce a human-readable overview: what was done, key decisions, files changed, verification status. Printed directly to stdout |
 | **Auto-model selection** | 2026-03-01 | `--auto-model` flag (or `AUTO_MODEL=true`) enables per-task model selection during the implement phase. A fast-model classifier assesses each task's complexity and selects `primaryModel` for complex work (architecture, security, algorithms) or `fastModel` for simple tasks (CRUD, config, docs, boilerplate). Saves cost on mixed-complexity runs without sacrificing quality |
 | **Interactive stream selection** | 2026-03-01 | During TUI mode, navigate streams with ↑↓ arrow keys to see a detail panel with full task description, model, and current activity. Press Escape/q to deselect. Works in all modes that use streams (run, analyze, fleet) |
+| **Landing page** | 2026-03-18 | `apps/landing` — Single-page marketing site built with Astro 6. Dark developer-focused design, feature grid, pipeline visualization, agent showcase, quickstart steps |
+| **Documentation site** | 2026-03-18 | `apps/docs` — Comprehensive Astro Starlight docs site covering all commands, agent roles, pipeline config, environment variables, GitHub Action, and quick start guide |
 
 ## Pipeline Phases
 
