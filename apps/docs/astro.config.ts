@@ -80,6 +80,10 @@ export default defineConfig({
             { label: "GitHub Action", slug: "configuration/github-action" },
           ],
         },
+        {
+          label: "Changelog",
+          slug: "changelog",
+        },
       ],
     }),
   ],

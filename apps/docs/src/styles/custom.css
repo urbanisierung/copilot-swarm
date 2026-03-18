@@ -34,8 +34,13 @@ pre {
 }
 
 /* Hide the empty default Starlight hero on splash page */
-[data-page-title="Copilot Swarm"] .hero {
+[data-has-hero] .hero {
   display: none;
+}
+
+/* Remove gap between header and custom hero */
+[data-has-hero] main {
+  padding-block-start: 0;
 }
 
 /* ── CUSTOM HERO ── */
