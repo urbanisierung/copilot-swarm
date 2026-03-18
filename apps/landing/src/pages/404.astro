@@ -1,0 +1,179 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout
+  title="404 — Lost in the Swarm"
+  description="This page doesn't exist."
+>
+  <div class="not-found">
+    <div class="glow"></div>
+
+    <div class="terminal-404">
+      <div class="terminal-header">
+        <span class="dot red"></span>
+        <span class="dot yellow"></span>
+        <span class="dot green"></span>
+        <span class="title">swarm</span>
+      </div>
+      <div class="terminal-body">
+        <div class="line"><span class="prompt">$</span> <span class="cmd">swarm find --page "{Astro.url.pathname}"</span></div>
+        <br />
+        <div class="line"><span class="err">✖ Error 404</span> — page not found in any stream</div>
+        <br />
+        <div class="line"><span class="muted">Agents searched:</span></div>
+        <div class="line agent">&nbsp;&nbsp;🧑‍💼 PM &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="muted">nothing here</span></div>
+        <div class="line agent">&nbsp;&nbsp;🎨 Designer &nbsp;&nbsp;&nbsp;&nbsp;<span class="muted">nothing here</span></div>
+        <div class="line agent">&nbsp;&nbsp;👩‍💻 Engineer &nbsp;&nbsp;&nbsp;&nbsp;<span class="muted">nothing here</span></div>
+        <div class="line agent">&nbsp;&nbsp;🔍 Reviewer &nbsp;&nbsp;&nbsp;&nbsp;<span class="muted">nothing here</span></div>
+        <div class="line agent">&nbsp;&nbsp;🧪 QA &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="muted">nothing here</span></div>
+        <br />
+        <div class="line"><span class="muted">Suggestion:</span> <span class="accent">swarm navigate --home</span></div>
+      </div>
+    </div>
+
+    <h1>4<span class="zero">0</span>4</h1>
+    <p class="sub">This page got lost somewhere between agents.</p>
+
+    <div class="actions">
+      <a href="/" class="btn btn-primary">← Back to Home</a>
+      <a href="https://docs.cpswarm.com" class="btn btn-secondary">Read the Docs</a>
+    </div>
+  </div>
+</Layout>
+
+<style>
+  .not-found {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .glow {
+    position: absolute;
+    top: 20%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(
+      circle,
+      rgba(167, 139, 250, 0.08) 0%,
+      transparent 70%
+    );
+    pointer-events: none;
+  }
+
+  .terminal-404 {
+    max-width: 520px;
+    width: 100%;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    overflow: hidden;
+    text-align: left;
+    margin-bottom: 3rem;
+    position: relative;
+  }
+
+  .terminal-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: var(--color-bg-card);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .terminal-header .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+  .dot.red {
+    background: #ff5f57;
+  }
+  .dot.yellow {
+    background: #febc2e;
+  }
+  .dot.green {
+    background: #28c840;
+  }
+
+  .terminal-header .title {
+    flex: 1;
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+  }
+
+  .terminal-body {
+    padding: 1.25rem;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    line-height: 1.8;
+    background: var(--color-bg-alt);
+  }
+
+  .prompt {
+    color: var(--color-accent-green);
+  }
+  .cmd {
+    color: var(--color-text);
+  }
+  .err {
+    color: #ef4444;
+    font-weight: 600;
+  }
+  .muted {
+    color: var(--color-text-muted);
+  }
+  .accent {
+    color: var(--color-accent);
+  }
+  .agent {
+    opacity: 0.7;
+  }
+
+  h1 {
+    font-size: clamp(5rem, 15vw, 10rem);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    color: var(--color-text);
+    opacity: 0.15;
+    margin-bottom: 0.5rem;
+  }
+
+  h1 .zero {
+    background: linear-gradient(
+      135deg,
+      var(--color-accent) 0%,
+      var(--color-accent-blue) 50%,
+      var(--color-accent-green) 100%
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    opacity: 1;
+  }
+
+  .sub {
+    color: var(--color-text-muted);
+    font-size: 1.15rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+</style>

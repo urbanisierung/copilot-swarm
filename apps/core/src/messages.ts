@@ -95,6 +95,10 @@ export const msg = {
   planHarvestComplete: (count: number, filePath: string) =>
     `\n✅ Harvest complete — ${count} question(s) written to ${filePath}\n💡 Answer the questions, then run: swarm plan --resume`,
   planHarvestAnswersLoaded: (count: number) => `  📥 Loaded ${count} answer(s) from questions file`,
+  planHarvestConsolidating: "\n[Harvest: Consolidating — deduplicating and normalizing questions]",
+  planHarvestConsolidated: (before: number, after: number, removed: number) =>
+    `  ✂️  Consolidated ${before} → ${after} questions (${removed} duplicate(s) merged)`,
+  planHarvestConsolidationSkipped: "  ⚠️  Consolidation produced empty output — using original questions",
 
   // --- Analyze Mode ---
   analyzeStart: "🔍 Starting Repository Analysis...",

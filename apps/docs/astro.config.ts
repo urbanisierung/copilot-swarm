@@ -7,6 +7,7 @@ export default defineConfig({
     starlight({
       title: "Copilot Swarm",
       description: "Multi-agent orchestrator for AI-powered development workflows",
+      favicon: "/favicon.svg",
       logo: {
         dark: "./src/assets/logo-dark.svg",
         light: "./src/assets/logo-light.svg",
@@ -78,6 +79,10 @@ export default defineConfig({
             { label: "Environment Variables", slug: "configuration/environment" },
             { label: "GitHub Action", slug: "configuration/github-action" },
           ],
+        },
+        {
+          label: "Changelog",
+          slug: "changelog",
         },
       ],
     }),

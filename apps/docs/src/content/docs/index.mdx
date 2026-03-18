@@ -1,23 +1,56 @@
 ---
-title: Welcome to Copilot Swarm
+title: Copilot Swarm
 description: Multi-agent orchestrator that coordinates AI agents through a structured pipeline.
 template: splash
 hero:
-  tagline: One prompt spawns an entire engineering team. PM, designer, engineers, reviewers, and testers — all collaborating to ship production-ready code.
-  image:
-    dark: ../../assets/logo-dark.svg
-    light: ../../assets/logo-light.svg
-  actions:
-    - text: Quick Start
-      link: /getting-started/quickstart/
-      icon: right-arrow
-      variant: primary
-    - text: View on GitHub
-      link: https://github.com/urbanisierung/copilot-swarm
-      icon: external
+  title: |
+    <span class="sr-only">Copilot Swarm</span>
+  tagline: |
+    <span class="sr-only">Multi-agent orchestrator</span>
 ---
 
 import { Card, CardGrid, LinkCard } from "@astrojs/starlight/components";
+
+<div class="custom-hero">
+  <div class="hero-badge">
+    <span class="hero-dot"></span>
+    Powered by GitHub Copilot SDK
+  </div>
+  <h1 class="hero-title">
+    One prompt.<br />
+    <span class="hero-gradient">An entire engineering team.</span>
+  </h1>
+  <p class="hero-subtitle">
+    Stop prompting one agent at a time. Copilot Swarm spawns a full team of AI agents —
+    PM, designer, engineers, reviewers, and testers — that collaborate, review each other's work,
+    and ship production-ready code.
+  </p>
+  <div class="hero-actions">
+    <a href="/getting-started/quickstart/" class="hero-btn hero-btn-primary">Get Started →</a>
+    <a href="https://github.com/urbanisierung/copilot-swarm" class="hero-btn hero-btn-secondary">⭐ Star on GitHub</a>
+  </div>
+
+  <div class="hero-terminal">
+    <div class="hero-terminal-header">
+      <span class="hero-terminal-dot" style="background:#ff5f57"></span>
+      <span class="hero-terminal-dot" style="background:#febc2e"></span>
+      <span class="hero-terminal-dot" style="background:#28c840"></span>
+      <span class="hero-terminal-title">terminal</span>
+    </div>
+    <div class="hero-terminal-body">
+      <div><span style="color:#34d399">$</span> <span>npx @copilot-swarm/core "Add OAuth login with PKCE"</span></div>
+      <br />
+      <div><span style="color:#a78bfa">🐝 Copilot Swarm v1.0</span> <span style="color:#8888a0">· claude-opus-4-6 · /my-app</span></div>
+      <br />
+      <div><span style="color:#8888a0">Phase</span> <span style="color:#34d399">✔ Spec</span> <span style="color:#8888a0">→</span> <span style="color:#34d399">✔ Decompose</span> <span style="color:#8888a0">→</span> <span style="color:#60a5fa">◆ Implement</span> <span style="color:#8888a0">→ Verify</span></div>
+      <br />
+      <div><span style="color:#8888a0">Streams</span></div>
+      <div>&nbsp;&nbsp;<span style="color:#34d399">✔</span> <span style="color:#8888a0">stream-0</span> &nbsp;<span style="color:#f472b6">auth/oauth-pkce.ts</span> &nbsp;<span style="color:#8888a0">done</span></div>
+      <div>&nbsp;&nbsp;<span style="color:#34d399">✔</span> <span style="color:#8888a0">stream-1</span> &nbsp;<span style="color:#f472b6">auth/token-rotation.ts</span> &nbsp;<span style="color:#8888a0">done</span></div>
+      <div>&nbsp;&nbsp;<span style="color:#fbbf24">◆</span> <span style="color:#8888a0">stream-2</span> &nbsp;<span style="color:#f472b6">components/LoginForm.tsx</span> &nbsp;<span style="color:#8888a0">testing</span></div>
+    </div>
+  </div>
+</div>
 
 <CardGrid stagger>
   <Card title="Multi-Agent Pipeline" icon="setting">

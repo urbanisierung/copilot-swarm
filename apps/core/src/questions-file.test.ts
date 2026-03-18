@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { parseQuestionsFile, splitNumberedQuestions, writeQuestionsFile } from "./questions-file.js";
+import {
+  parseConsolidatedQuestions,
+  parseQuestionsFile,
+  splitNumberedQuestions,
+  writeQuestionsFile,
+} from "./questions-file.js";
 
 describe("splitNumberedQuestions", () => {
   it("splits numbered questions with dot format", () => {
@@ -165,5 +170,71 @@ The scope includes:
 
     expect(written).toContain("_No questions from this role._");
     await fs.unlink(tmpPath);
+  });
+});
+
+describe("parseConsolidatedQuestions", () => {
+  it("parses sections with numbered questions", () => {
+    const raw = `## plan-clarify
+1. What is the scope?
+2. Who is the target user?
+
+## plan-eng-clarify
+1. What API format?
+
+## plan-design-clarify
+1. Match existing style?
+2. Responsive breakpoints?`;
+
+    const result = parseConsolidatedQuestions(raw);
+    expect(result["plan-clarify"]).toEqual(["What is the scope?", "Who is the target user?"]);
+    expect(result["plan-eng-clarify"]).toEqual(["What API format?"]);
+    expect(result["plan-design-clarify"]).toEqual(["Match existing style?", "Responsive breakpoints?"]);
+  });
+
+  it("ignores unknown section headers", () => {
+    const raw = `## plan-clarify
+1. Question one
+
+## unknown-section
+1. Should be ignored
+
+## plan-eng-clarify
+1. Engineering question`;
+
+    const result = parseConsolidatedQuestions(raw);
+    expect(result["plan-clarify"]).toEqual(["Question one"]);
+    expect(result["plan-eng-clarify"]).toEqual(["Engineering question"]);
+    expect(result["unknown-section"]).toBeUndefined();
+  });
+
+  it("returns empty object for garbage input", () => {
+    const result = parseConsolidatedQuestions("Just some random text without any sections");
+    expect(Object.keys(result)).toHaveLength(0);
+  });
+
+  it("handles preamble text before first section", () => {
+    const raw = `Here are the consolidated questions:
+
+## plan-clarify
+1. What is the scope?`;
+
+    const result = parseConsolidatedQuestions(raw);
+    expect(result["plan-clarify"]).toEqual(["What is the scope?"]);
+  });
+
+  it("skips empty sections", () => {
+    const raw = `## plan-clarify
+1. What is the scope?
+
+## plan-eng-clarify
+
+## plan-design-clarify
+1. Responsive?`;
+
+    const result = parseConsolidatedQuestions(raw);
+    expect(result["plan-clarify"]).toEqual(["What is the scope?"]);
+    expect(result["plan-eng-clarify"]).toBeUndefined();
+    expect(result["plan-design-clarify"]).toEqual(["Responsive?"]);
   });
 });

@@ -8,7 +8,12 @@ import { msg } from "./messages.js";
 import { brainstormsDir, loadRepoAnalysis, plansDir, questionsFilePath } from "./paths.js";
 import type { PipelineConfig } from "./pipeline-types.js";
 import type { ProgressTracker } from "./progress-tracker.js";
-import { parseQuestionsFile, splitNumberedQuestions, writeQuestionsFile } from "./questions-file.js";
+import {
+  parseConsolidatedQuestions,
+  parseQuestionsFile,
+  splitNumberedQuestions,
+  writeQuestionsFile,
+} from "./questions-file.js";
 import { SessionManager } from "./session.js";
 import { openSplitEditor } from "./textarea.js";
 import type { TuiRenderer } from "./tui-renderer.js";
@@ -145,6 +150,32 @@ Your ONLY job is to produce a comprehensive list of design clarifying questions.
 3. Number all questions clearly (1, 2, 3, …).
 4. Ask as many questions as needed. Be thorough.
 5. Output ONLY the numbered questions — no preamble, no summary, no answers.`;
+
+const HARVEST_CONSOLIDATION_INSTRUCTIONS = `You are an editor consolidating clarifying questions from three roles (PM, Engineer, Designer).
+
+**Your job:**
+1. **Deduplicate:** If two or more questions are identical or very similar (asking essentially the same thing), merge them into one and place it in the category that fits best.
+2. **Categorize:** If a question clearly belongs in a different role's section, move it there.
+3. **Format consistently:** Every question must follow the exact same formatting:
+   - Numbered sequentially within each section (1. 2. 3. …)
+   - One question per number. Multi-sentence is fine, but keep it focused.
+   - No sub-bullets, no bold, no markdown formatting inside questions.
+   - Plain text only.
+4. **Preserve meaning:** Do NOT remove questions that are unique. Do NOT add new questions.
+
+**Output format — use EXACTLY this structure:**
+
+## plan-clarify
+1. First PM question
+2. Second PM question
+
+## plan-eng-clarify
+1. First engineering question
+
+## plan-design-clarify
+1. First design question
+
+Output ONLY the sections above. No preamble, no summary, no commentary.`;
 
 const STEP_REVIEWER_INSTRUCTIONS = `You are a Senior Technical Reviewer evaluating one section of a project plan.
 Your goal is to verify the section is clear, complete, and actionable enough for implementation.
@@ -1035,12 +1066,15 @@ export class PlanningEngine {
     );
 
     // Build the role questions map
-    const roleQuestions: Record<string, string[]> = {};
+    let roleQuestions: Record<string, string[]> = {};
     for (const r of results) {
       roleQuestions[r.phaseKey] = r.questions;
     }
 
-    const totalQuestions = results.reduce((sum, r) => sum + r.questions.length, 0);
+    // Consolidation pass: deduplicate, merge, and normalize formatting
+    roleQuestions = await this.consolidateHarvestQuestions(roleQuestions);
+
+    const totalQuestions = Object.values(roleQuestions).reduce((sum, qs) => sum + qs.length, 0);
 
     // Write questions file
     const qfPath = questionsFilePath(this.config);
@@ -1073,6 +1107,54 @@ export class PlanningEngine {
     this.logger.info(msg.planHarvestComplete(totalQuestions, relPath));
 
     return `Questions file written to ${relPath} with ${totalQuestions} question(s). Answer them and run: swarm plan --resume`;
+  }
+
+  /**
+   * Consolidation pass using fastModel: deduplicate similar questions,
+   * merge them into the best-fitting category, and normalize formatting.
+   */
+  private async consolidateHarvestQuestions(
+    roleQuestions: Record<string, string[]>,
+  ): Promise<Record<string, string[]>> {
+    const totalBefore = Object.values(roleQuestions).reduce((sum, qs) => sum + qs.length, 0);
+    if (totalBefore === 0) return roleQuestions;
+
+    // Format questions for the consolidation agent
+    const sections: string[] = [];
+    for (const [key, questions] of Object.entries(roleQuestions)) {
+      sections.push(`## ${key}`);
+      for (let i = 0; i < questions.length; i++) {
+        sections.push(`${i + 1}. ${questions[i]}`);
+      }
+      sections.push("");
+    }
+
+    this.logger.info(msg.planHarvestConsolidating);
+
+    const raw = await this.sessions.callIsolatedWithInstructions(
+      HARVEST_CONSOLIDATION_INSTRUCTIONS,
+      `Here are the questions from all roles:\n\n${sections.join("\n")}\n\nConsolidate them following your instructions.`,
+      "Consolidating questions…",
+      this.pipeline.fastModel,
+      "harvest-consolidate",
+      "Consolidator",
+    );
+
+    const consolidated = parseConsolidatedQuestions(raw);
+
+    // Only use consolidated output if it produced valid results
+    const totalAfter = Object.values(consolidated).reduce((sum, qs) => sum + qs.length, 0);
+    if (totalAfter === 0) {
+      this.logger.warn(msg.planHarvestConsolidationSkipped);
+      return roleQuestions;
+    }
+
+    const removed = totalBefore - totalAfter;
+    if (removed > 0) {
+      this.logger.info(msg.planHarvestConsolidated(totalBefore, totalAfter, removed));
+    }
+
+    return consolidated;
   }
 
   private async recoverClarification(

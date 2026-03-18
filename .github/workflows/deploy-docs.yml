@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "apps/docs/**"
+      - "apps/core/CHANGELOG.md"
       - "pnpm-lock.yaml"
   workflow_dispatch:
 
