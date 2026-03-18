@@ -1,262 +1,210 @@
-# @copilot-swarm/core
+<p align="center">
+  <img src="https://cpswarm.com/logo.svg" width="80" alt="Copilot Swarm" />
+</p>
 
-Multi-agent orchestrator for GitHub Copilot — coordinates PM, designer, engineer, reviewer, and tester agents through a declarative pipeline.
+<h1 align="center">Copilot Swarm</h1>
+
+<p align="center">
+  <strong>One prompt. An entire engineering team.</strong><br/>
+  Multi-agent orchestrator that coordinates PM, designer, engineer, reviewer, and tester agents — all powered by the GitHub Copilot SDK.
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/@copilot-swarm/core"><img src="https://img.shields.io/npm/v/@copilot-swarm/core?color=a78bfa&label=npm" alt="npm version" /></a>
+  <a href="https://www.npmjs.com/package/@copilot-swarm/core"><img src="https://img.shields.io/npm/dm/@copilot-swarm/core?color=60a5fa" alt="monthly downloads" /></a>
+  <a href="https://github.com/urbanisierung/copilot-swarm/blob/main/LICENSE"><img src="https://img.shields.io/github/license/urbanisierung/copilot-swarm?color=34d399" alt="license" /></a>
+  <a href="https://github.com/urbanisierung/copilot-swarm"><img src="https://img.shields.io/github/stars/urbanisierung/copilot-swarm?style=flat&color=fbbf24" alt="stars" /></a>
+</p>
+
+<p align="center">
+  <a href="https://cpswarm.com">Website</a> · <a href="https://docs.cpswarm.com">Documentation</a> · <a href="https://docs.cpswarm.com/getting-started/quickstart/">Quick Start</a> · <a href="https://github.com/urbanisierung/copilot-swarm">GitHub</a>
+</p>
+
+---
 
 ## Why?
 
-Modern AI coding assistants work well for individual tasks, but complex features benefit from a structured multi-agent approach. Copilot Swarm mimics a high-performing engineering team: a PM writes specs, reviewers challenge them, an engineer implements, a code reviewer gates quality, and a QA tester validates — all coordinated automatically with self-correcting review loops.
+AI coding assistants are great for single tasks — but complex features need a team. Copilot Swarm spawns a **full engineering team of AI agents** that collaborate, review each other's work, and self-correct until the job is done:
+
+```
+You: "Add OAuth login with PKCE flow"
+
+Swarm: PM writes spec → Reviewers challenge it → Engineer implements →
+       Code reviewer validates → QA tests against spec → Different AI model
+       double-checks everything → Build/test/lint verification passes ✅
+```
+
+No babysitting. No copy-pasting between chats. One command.
 
 ## Quick Start
 
 ```bash
-# Run directly — no install required
 npx @copilot-swarm/core "Add a dark mode toggle"
+```
 
-# Or install globally for the short `swarm` command
+Or install globally:
+
+```bash
 npm install -g @copilot-swarm/core
 swarm "Add a dark mode toggle"
 ```
 
-> **Prerequisite:** An active [GitHub Copilot](https://github.com/features/copilot) subscription and the [GitHub CLI](https://cli.github.com/) (`gh`) authenticated on your machine.
+> **Prerequisites:** [Node.js](https://nodejs.org/) ≥ 22 · [GitHub Copilot](https://github.com/features/copilot) subscription · [GitHub CLI](https://cli.github.com/) (`gh auth login`)
 
-## CLI Reference
-
-```
-Usage: swarm [command] [options] "<prompt>"
-
-Commands:
-  run              Run the full orchestration pipeline (default)
-  plan             Interactive planning mode — clarify requirements before running
-  analyze          Analyze the repository and generate a context document
-
-Options:
-  -v, --verbose        Enable verbose streaming output
-  -p, --plan <file>    Use a plan file as input (reads the refined requirements section)
-  -f, --file <file>    Read prompt from a file instead of inline text
-  -r, --resume         Resume from the last checkpoint (skip completed phases)
-  -V, --version        Show version number
-  -h, --help           Show this help message
-```
-
-### Examples
+## How It Works
 
 ```bash
-# Basic run
-swarm "Fix the login bug on the settings page"
+swarm plan "Add OAuth login"                       # 1. Refine requirements interactively
+swarm --plan .swarm/plans/plan-latest.md           # 2. Execute the full pipeline
+swarm digest                                       # 3. See what was built
+git add -A && git commit -m "feat: OAuth login"    # 4. Ship it
+```
 
-# Verbose output (streams agent deltas, tool calls, intent updates)
-swarm -v "Add user avatar upload"
+### The Pipeline
 
-# Read prompt from a file
-swarm plan -f requirements.md
-swarm -f feature-description.txt
+Every run flows through a structured, multi-phase pipeline with self-correcting review loops:
 
-# Plan first, run later
+| Phase | Agents | What happens |
+|---|---|---|
+| **Spec** | PM → Creative Reviewer → Tech Architect | PM drafts spec, two reviewers challenge it (3 iterations each) |
+| **Decompose** | PM | Breaks spec into parallel tasks, marks `[FRONTEND]` work |
+| **Design** | Designer → Design Reviewer | UI/UX spec for frontend tasks *(conditional)* |
+| **Implement** | Engineer → Code Reviewer → QA | Parallel streams: build → review → test (5 QA iterations) |
+| **Cross-Model** | Different AI model | Catches model-specific blind spots *(conditional)* |
+| **Verify** | — | Runs your actual `build`, `test`, `lint` commands |
+
+## Commands
+
+| Command | Description |
+|---|---|
+| `swarm run` | Full orchestration pipeline *(default)* |
+| `swarm plan` | Interactive planning — refine requirements before running |
+| `swarm task` | Lightweight autonomous pipeline for well-scoped tasks |
+| `swarm auto` | Fully autonomous plan + run (no interaction) |
+| `swarm analyze` | Generate a repository context document |
+| `swarm brainstorm` | Explore ideas with a strategist agent |
+| `swarm review` | Fix a previous run based on feedback |
+| `swarm fleet` | Multi-repo orchestration with shared contracts |
+| `swarm prepare` | Generate Copilot instruction files |
+| `swarm digest` | Concise summary of a completed run |
+| `swarm session` | Group related runs under a feature |
+| `swarm stats` | Agent invocation statistics |
+
+📖 [Full command reference →](https://docs.cpswarm.com/commands/overview/)
+
+## Modes at a Glance
+
+```bash
+# Interactive planning — PM, engineer, designer each clarify
 swarm plan "Redesign the notification system"
-swarm --plan .swarm/plans/plan-latest.md
 
-# Resume a failed/timed-out run
-swarm --resume
+# Quick autonomous task — skip planning, just implement
+swarm task "Fix the login validation bug"
+
+# Full autonomous — analysis → planning → implementation
+swarm auto -f requirements.md
+
+# Multi-repo — coordinate across services
+swarm fleet "Add OAuth" ./auth-service ./api-gateway ./frontend
+
+# Explore ideas before committing
+swarm brainstorm "Should we migrate to GraphQL?"
+
+# Review & iterate on a previous run
+swarm review "Fix the auth bug in stream 1"
 ```
 
-The prompt can also be passed via the `ISSUE_BODY` environment variable. CLI arguments take precedence.
+## 11 Built-in Agents
 
-## Planning Mode
+| Agent | Role | Suite |
+|---|---|---|
+| **Product Manager** | Writes specs, decomposes tasks, answers clarifications | PM |
+| **Creative Reviewer** | Challenges specs from a product perspective | PM |
+| **Technical Architect** | Validates feasibility and architecture alignment | PM |
+| **UI/UX Designer** | Creates component designs and interaction flows | Design |
+| **Design Reviewer** | Reviews for usability, accessibility, design system | Design |
+| **Senior Engineer** | Implements code, runs builds, fixes defects | Engineering |
+| **Code Reviewer** | Security & quality gate for all code changes | Engineering |
+| **QA Engineer** | Tests implementation against acceptance criteria | Engineering |
+| **Cross-Model Reviewer** | Different AI model catches systematic blind spots | Review |
+| **Fleet Strategist** | Plans cross-repo features with shared contracts | Fleet |
+| **Fleet Reviewer** | Validates cross-repo consistency and integration | Fleet |
 
-Use `swarm plan` to interactively refine vague requirements before running the full pipeline:
-
-```bash
-swarm plan "Add a dark mode toggle"
-```
-
-Two phases run in sequence:
-
-1. **Requirements Clarification** — A PM agent asks targeted questions to fill gaps in the requirements. Answer interactively in the terminal. Press Enter to skip a round.
-2. **Technical Analysis** — An engineering agent analyzes the codebase and reports complexity, affected files, risks, and a suggested approach.
-
-Output:
-
-- `.swarm/plans/plan-<timestamp>.md` — Timestamped plan (never overwritten)
-- `.swarm/plans/plan-latest.md` — Copy of the most recent plan
-
-Then feed the plan into the full pipeline:
-
-```bash
-swarm --plan .swarm/plans/plan-latest.md
-```
-
-## Analyze Mode
-
-Generate a comprehensive repository context document:
-
-```bash
-swarm analyze
-```
-
-Produces `.swarm/analysis/repo-analysis.md` — a structured analysis covering tech stack, architecture, key files, commands, patterns, and a step-by-step guide for implementing new features. The analysis goes through a dual-model review process:
-
-1. **Architect** explores the repo and drafts the document
-2. **Senior engineer** reviews for accuracy (up to 3 iterations)
-3. **Cross-model verification** — same flow with a different AI model to catch blind spots
-
-## Pipeline
-
-The default pipeline runs five phases:
-
-| Phase | What happens |
-|---|---|
-| **Spec** | PM drafts a specification, reviewed by a creative reviewer and a technical architect (up to 3 iterations each) |
-| **Decompose** | PM splits the spec into 2–3 independent tasks, marking frontend tasks with `[FRONTEND]` |
-| **Design** | *(conditional)* If frontend tasks exist, a designer creates a UI/UX spec, reviewed by a design reviewer |
-| **Implement** | Each task runs in parallel: engineer implements → code reviewer gates quality → QA validates against spec |
-| **Cross-model review** | *(conditional)* A different AI model reviews all output, catching model-specific blind spots |
-
-### Built-in Agents
-
-| Agent | Role |
-|---|---|
-| `pm` | Analyzes requirements, writes specs, decomposes tasks |
-| `pm-reviewer` | Challenges the PM's spec for completeness |
-| `spec-reviewer` | Validates technical feasibility |
-| `designer` | Creates UI/UX specifications for frontend tasks |
-| `design-reviewer` | Reviews designs for usability and accessibility |
-| `engineer` | Implements code based on specs and designs |
-| `code-reviewer` | Security and quality gate |
-| `tester` | QA validation against acceptance criteria |
-| `cross-model` | Independent review using a different AI model |
+Every agent is customizable — override any role with your own markdown instructions.  
+📖 [Agent documentation →](https://docs.cpswarm.com/agents/overview/)
 
 ## Configuration
 
-Drop a `swarm.config.yaml` in your repo root to customize the pipeline. If not present, the built-in default is used.
+Drop a `swarm.config.yaml` in your repo root — or use the built-in defaults:
 
 ```yaml
-primaryModel: claude-opus-4-6
-reviewModel: gpt-5.3-codex
+primaryModel: claude-opus-4-6       # Main implementation model
+reviewModel: gpt-5.3-codex          # Cross-model review (different family)
+fastModel: claude-haiku-4.5         # Cheap model for coordination
 
 agents:
-  pm:            builtin:pm
-  engineer:      .github/agents/engineer.md   # Custom instructions
-  security:      .github/agents/security.md   # New agent
+  pm: builtin:pm
+  engineer: ./my-agents/strict-engineer.md  # Custom override
   code-reviewer: builtin:eng-code-reviewer
-
-pipeline:
-  - phase: spec
-    agent: pm
-    reviews:
-      - agent: pm-reviewer
-        maxIterations: 3
-        approvalKeyword: APPROVED
-
-  - phase: decompose
-    agent: pm
-    frontendMarker: "[FRONTEND]"
-
-  # No design phase — backend-only project
-
-  - phase: implement
-    parallel: true
-    agent: engineer
-    reviews:
-      - agent: code-reviewer
-        maxIterations: 3
-        approvalKeyword: APPROVED
-      - agent: security
-        maxIterations: 2
-        approvalKeyword: APPROVED
-    qa:
-      agent: tester
-      maxIterations: 8
-      approvalKeyword: ALL_PASSED
-
-  - phase: cross-model-review
-    condition: differentReviewModel
-    agent: cross-model
-    fixAgent: engineer
-    maxIterations: 3
-    approvalKeyword: APPROVED
 ```
 
-### Agent Resolution
+📖 [Full configuration reference →](https://docs.cpswarm.com/configuration/pipeline/)
 
-| Format | Resolution |
-|---|---|
-| `builtin:<name>` | Loads from the package's built-in agent definitions |
-| `path/to/file.md` | Loads from the repository root |
-| *(fallback)* | Looks for `<AGENTS_DIR>/<name>.md` |
+## Key Features
 
-## Environment Variables
+- **🔄 Self-correcting loops** — Every agent paired with a reviewer (up to 3–5 iterations)
+- **⚡ Parallel execution** — Independent tasks run simultaneously; wave-based execution for dependencies
+- **🧠 Cross-model review** — A different AI model catches blind spots of the primary
+- **💾 Checkpoint & resume** — Every phase/stream/iteration saved; `--resume` picks up exactly where it stopped
+- **🖥️ TUI dashboard** — Full-screen terminal UI with phase progress, active agents, and stream status
+- **🚢 Fleet mode** — Multi-repo orchestration with shared contracts and consistency review
+- **📋 Interactive planning** — PM, engineer, and designer each clarify from their perspective
+- **✅ Built-in verification** — Runs your actual build/test/lint commands post-implementation
+- **🤖 Auto-model selection** — `--auto-model` uses the fast model for simple tasks, saving cost
+- **📝 Declarative pipeline** — Customize everything via `swarm.config.yaml`
 
-| Variable | Default | Description |
-|---|---|---|
-| `ISSUE_BODY` | — | Task description (alternative to CLI prompt) |
-| `VERBOSE` | `false` | Enable verbose streaming output |
-| `AGENTS_DIR` | `.github/agents` | Directory for agent instruction files |
-| `SWARM_DIR` | `.swarm` | Root directory for all swarm output |
-| `SESSION_TIMEOUT_MS` | `1800000` | Timeout per agent session (ms) |
-| `MAX_AUTO_RESUME` | `3` | Auto-resume attempts on failure |
-| `MAX_RETRIES` | `2` | Retry attempts for failed agent responses |
-| `PRIMARY_MODEL` | `claude-opus-4-6` | AI model for primary agents (overrides YAML) |
-| `REVIEW_MODEL` | `gpt-5.3-codex` | AI model for cross-model review (overrides YAML) |
-
-## GitHub Actions
-
-Trigger the swarm from GitHub Issues by adding a workflow to your repo:
+## GitHub Action
 
 ```yaml
-# .github/workflows/swarm-trigger.yml
-name: Run Copilot Swarm
-on:
-  issues:
-    types: [labeled]
-
-jobs:
-  swarm:
-    if: contains(fromJson('["run-swarm","run-swarm-verbose"]'), github.event.label.name)
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: "22" }
-      - uses: mvkaran/setup-copilot-cli@v1
-        with: { token: "${{ secrets.COPILOT_CLI_TOKEN }}" }
-      - run: npx @copilot-swarm/core "${{ github.event.issue.body }}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
-          VERBOSE: ${{ github.event.label.name == 'run-swarm-verbose' }}
+- uses: urbanisierung/copilot-swarm/action@main
+  env:
+    COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
+  with:
+    command: run
+    prompt: ${{ github.event.issue.body }}
 ```
 
-Label an issue with `run-swarm` or `run-swarm-verbose` to trigger it.
+📖 [GitHub Action docs →](https://docs.cpswarm.com/configuration/github-action/)
 
 ## Output
 
-All output is organized under `.swarm/`:
+All artifacts are organized under `.swarm/`:
 
 ```
 .swarm/
-  plans/                    # Planning mode output
-    plan-latest.md
-    plan-<timestamp>.md
-  runs/                     # Per-run output (timestamped)
-    <runId>/
-      summary.md
-      roles/
-        pm.md, designer.md, engineer-stream-*.md, ...
-  analysis/                 # Repository analysis
-    repo-analysis.md
-  latest                    # Pointer to most recent run
+  sessions/<id>/
+    runs/<runId>/
+      summary.md          # Final summary
+      roles/              # Per-agent output (pm.md, engineer-0.md, ...)
+    plans/
+      plan-latest.md      # Latest plan
+    analysis/
+      repo-analysis.md    # Repository analysis
 ```
 
 ## Requirements
 
 - **Node.js** ≥ 22
-- **GitHub Copilot** — active subscription
+- **GitHub Copilot** — active subscription (Business or Enterprise)
 - **GitHub CLI** (`gh`) — authenticated
+
+## Links
+
+- 🌐 [cpswarm.com](https://cpswarm.com) — Website
+- 📖 [docs.cpswarm.com](https://docs.cpswarm.com) — Documentation
+- 📦 [@copilot-swarm/core](https://www.npmjs.com/package/@copilot-swarm/core) — npm
+- 🐛 [GitHub Issues](https://github.com/urbanisierung/copilot-swarm/issues) — Bug reports & feature requests
 
 ## License
 
-MIT
+MIT © [urbanisierung](https://github.com/urbanisierung)
