@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.57
+
+### Patch Changes
+
+- 9b40aef: Final review and correction of the question document
+
 ## 0.0.56
 
 ### Patch Changes
