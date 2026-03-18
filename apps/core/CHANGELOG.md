@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.56
+
+### Patch Changes
+
+- d232c9a: Docs
+
 ## 0.0.55
 
 ### Patch Changes
@@ -329,7 +335,6 @@
 ### Patch Changes
 
 - ad6dd20: Initial release of Copilot Swarm — a multi-agent orchestrator for GitHub Copilot.
-
   - Declarative pipeline via `swarm.config.yaml` (spec → decompose → design → implement → cross-model review)
   - Interactive planning mode (`swarm plan`) with PM clarification and engineering analysis
   - 9 built-in agents: PM, designer, engineer, reviewers, tester, cross-model reviewer
