@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://cpswarm.com/logo.svg" width="80" alt="Copilot Swarm" />
+  <img src="https://raw.githubusercontent.com/urbanisierung/copilot-swarm/main/doc/logo.svg" width="80" alt="Copilot Swarm" />
 </p>
 
 <h1 align="center">Copilot Swarm</h1>

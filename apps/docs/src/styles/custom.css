@@ -33,8 +33,169 @@ pre {
   border: 1px solid var(--sl-color-gray-5);
 }
 
-/* Hero page overrides */
-.hero-section {
+/* Hide the empty default Starlight hero on splash page */
+[data-page-title="Copilot Swarm"] .hero {
+  display: none;
+}
+
+/* ── CUSTOM HERO ── */
+.custom-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
-  padding: 4rem 1rem;
+  padding: 2rem 1rem 4rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.custom-hero::before {
+  content: "";
+  position: absolute;
+  top: -40%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 800px;
+  height: 800px;
+  background: radial-gradient(circle, rgba(167, 139, 250, 0.1) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 1rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  color: var(--sl-color-gray-3);
+  margin-bottom: 2rem;
+  background: var(--sl-color-gray-6);
+}
+
+.hero-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #34d399;
+  display: inline-block;
+  animation: hero-pulse 2s infinite;
+}
+
+@keyframes hero-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.hero-title {
+  font-size: clamp(2.2rem, 6vw, 4rem);
+  font-weight: 800;
+  line-height: 1.1;
+  max-width: 800px;
+  letter-spacing: -0.03em;
+  margin-bottom: 0;
+}
+
+.hero-gradient {
+  background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 50%, #34d399 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-subtitle {
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  color: var(--sl-color-gray-3);
+  max-width: 600px;
+  margin: 1.5rem auto 2.5rem;
+  line-height: 1.6;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.hero-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.8rem 1.8rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.hero-btn-primary {
+  background: #a78bfa;
+  color: #0a0a0f;
+}
+.hero-btn-primary:hover {
+  background: #b99dff;
+  color: #0a0a0f;
+  transform: translateY(-1px);
+}
+
+.hero-btn-secondary {
+  background: var(--sl-color-gray-6);
+  color: var(--sl-color-white);
+  border: 1px solid var(--sl-color-gray-5);
+}
+.hero-btn-secondary:hover {
+  border-color: #a78bfa;
+  color: var(--sl-color-white);
+  transform: translateY(-1px);
+}
+
+/* ── TERMINAL PREVIEW ── */
+.hero-terminal {
+  margin-top: 3rem;
+  max-width: 680px;
+  width: 100%;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 12px;
+  overflow: hidden;
+  text-align: left;
+}
+
+.hero-terminal-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--sl-color-gray-6);
+  border-bottom: 1px solid var(--sl-color-gray-5);
+}
+
+.hero-terminal-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.hero-terminal-title {
+  flex: 1;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--sl-color-gray-3);
+  font-family: var(--sl-font-mono);
+}
+
+.hero-terminal-body {
+  padding: 1.25rem;
+  font-family: var(--sl-font-mono);
+  font-size: 0.85rem;
+  line-height: 1.8;
+  background: var(--sl-color-gray-7, var(--sl-color-bg));
 }

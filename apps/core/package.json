@@ -15,18 +15,29 @@
   "publishConfig": {
     "access": "public"
   },
+  "homepage": "https://cpswarm.com",
   "repository": {
     "type": "git",
     "url": "https://github.com/urbanisierung/copilot-swarm.git",
     "directory": "apps/core"
   },
+  "bugs": {
+    "url": "https://github.com/urbanisierung/copilot-swarm/issues"
+  },
   "keywords": [
     "copilot",
+    "github-copilot",
     "ai",
     "agents",
-    "orchestrator",
     "multi-agent",
-    "swarm"
+    "orchestrator",
+    "swarm",
+    "pipeline",
+    "code-generation",
+    "copilot-sdk",
+    "ai-agents",
+    "developer-tools",
+    "cli"
   ],
   "engines": {
     "node": ">=22"
