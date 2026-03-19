@@ -1206,7 +1206,9 @@ export class PlanningEngine {
   private async verifyHarvestQuestions(): Promise<string> {
     this.logger.info(msg.planHarvestVerifyStart);
 
-    const qfPath = questionsFilePath(this.config);
+    const qfPath = this.config.questionsFilePath
+      ? path.resolve(this.config.repoRoot, this.config.questionsFilePath)
+      : questionsFilePath(this.config);
     let content: string;
     try {
       content = await fs.readFile(qfPath, "utf-8");
