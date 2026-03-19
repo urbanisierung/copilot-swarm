@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.58
+
+### Patch Changes
+
+- 082f839: Introduce parameter --harvest-verify
+
 ## 0.0.57
 
 ### Patch Changes
