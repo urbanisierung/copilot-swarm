@@ -169,17 +169,21 @@ Your ONLY job is to produce a comprehensive list of design clarifying questions.
    Always include an open-ended "Other" option so the user can provide a custom answer.
 6. Output ONLY the numbered questions — no preamble, no summary, no answers.`;
 
-const HARVEST_CONSOLIDATION_INSTRUCTIONS = `You are an editor consolidating clarifying questions from three roles (PM, Engineer, Designer).
+const HARVEST_CONSOLIDATION_INSTRUCTIONS = `You are a strict editor. Your job: aggressively eliminate duplicate and overlapping questions from three roles (PM, Engineer, Designer).
 
-**Your job:**
-1. **Deduplicate:** If two or more questions are identical or very similar (asking essentially the same thing), merge them into one and place it in the category that fits best.
-2. **Categorize:** If a question clearly belongs in a different role's section, move it there.
-3. **Format consistently:** Every question must follow the exact same formatting:
-   - Numbered sequentially within each section (1. 2. 3. …)
-   - One question per number. Multi-sentence is fine, but keep it focused.
-   - No sub-bullets, no bold, no markdown formatting inside questions.
-   - Plain text only.
-4. **Preserve meaning:** Do NOT remove questions that are unique. Do NOT add new questions.
+**Critical rules:**
+1. **Cross-section deduplication is your PRIMARY task.** The three roles often ask about the same topic from different angles. When PM asks "Should X?" and Engineering asks "How should X be implemented?" and Design asks "How should X look in the UI?" — these are ONE question if they're about the same topic. Keep only the most complete version in the section that fits best.
+2. **Semantic duplicates must be merged.** Two questions are duplicates if answering one would answer the other. They do NOT need to use the same words. Examples of duplicates:
+   - "Should cancel be supported?" and "If cancel is not available at launch, what should the UI show?" → same topic
+   - "Where should config be stored?" and "Should config use the existing column family?" → same topic
+   - "What happens during rolling upgrade?" and "How should compatibility be handled during upgrade?" → same topic
+3. **When merging, combine the best phrasing** into a single question. Capture all the nuance from both versions.
+4. **Each unique TOPIC should appear exactly ONCE** in the final output. If 5 questions across 3 sections all relate to "cancel listener support", produce ONE merged question.
+5. **Categorize correctly:** PM questions = scope, priority, phasing, behavior decisions. Engineering = implementation, data model, API design, testing. Design = UI layout, interaction, accessibility.
+6. **Format:** Numbered sequentially (1. 2. 3. …). Plain text only. No sub-bullets, no markdown formatting inside questions.
+7. Do NOT add new questions. Do NOT remove genuinely unique questions.
+
+**Expected outcome:** The output should have SIGNIFICANTLY fewer questions than the input. If you receive 100+ questions, a good consolidation typically produces 30-50.
 
 **Output format — use EXACTLY this structure:**
 
@@ -195,20 +199,21 @@ const HARVEST_CONSOLIDATION_INSTRUCTIONS = `You are an editor consolidating clar
 
 Output ONLY the sections above. No preamble, no summary, no commentary.`;
 
-const HARVEST_VERIFY_CONSOLIDATION_INSTRUCTIONS = `You are an editor consolidating clarifying questions from three roles (PM, Engineer, Designer).
+const HARVEST_VERIFY_CONSOLIDATION_INSTRUCTIONS = `You are a strict editor. Your job: aggressively eliminate duplicate and overlapping questions from three roles (PM, Engineer, Designer).
 Some questions may already have answers filled in. You MUST preserve every answer.
 
-**Your job:**
-1. **Deduplicate:** If two or more questions are identical or very similar, merge them into one and place it in the category that fits best.
-2. **Categorize:** If a question clearly belongs in a different role's section, move it there.
-3. **Format consistently:** Every question must follow the exact same formatting:
-   - Numbered sequentially within each section (1. 2. 3. …)
-   - One question per number. Multi-sentence is fine, but keep it focused.
-   - No sub-bullets, no bold, no markdown formatting inside questions.
-   - Plain text only for the question line.
-4. **Preserve meaning:** Do NOT remove questions that are unique. Do NOT add new questions.
-5. **Preserve answers:** If a question has an answer, include it VERBATIM after the question using the **Answer:** marker. If two questions with answers are merged, concatenate BOTH answers separated by a blank line — never discard answer text.
-6. **Unanswered questions:** If a question has no answer, still include the **Answer:** marker with nothing after it.
+**Critical rules:**
+1. **Cross-section deduplication is your PRIMARY task.** The three roles often ask about the same topic from different angles. When PM asks "Should X?" and Engineering asks "How should X be implemented?" and Design asks "How should X look in the UI?" — these are ONE question. Keep only the most complete version in the section that fits best.
+2. **Semantic duplicates must be merged.** Two questions are duplicates if answering one would answer the other. They do NOT need to use the same words.
+3. **When merging, combine the best phrasing** into a single question. Capture all the nuance from both versions.
+4. **Each unique TOPIC should appear exactly ONCE** in the final output.
+5. **Categorize correctly:** PM questions = scope, priority, phasing, behavior decisions. Engineering = implementation, data model, API design, testing. Design = UI layout, interaction, accessibility.
+6. **Preserve answers:** If a question has an answer, include it VERBATIM after the question using the **Answer:** marker. If two questions with answers are merged, concatenate BOTH answers separated by a blank line — never discard answer text.
+7. **Unanswered questions:** If a question has no answer, still include the **Answer:** marker with nothing after it.
+8. **Format:** Numbered sequentially (1. 2. 3. …). Plain text only. No sub-bullets, no markdown formatting inside questions.
+9. Do NOT add new questions. Do NOT remove genuinely unique questions.
+
+**Expected outcome:** The output should have SIGNIFICANTLY fewer questions than the input.
 
 **Output format — use EXACTLY this structure:**
 
@@ -1176,39 +1181,68 @@ export class PlanningEngine {
     const totalBefore = Object.values(roleQuestions).reduce((sum, qs) => sum + qs.length, 0);
     if (totalBefore === 0) return roleQuestions;
 
-    // Format questions for the consolidation agent
-    const sections: string[] = [];
-    for (const [key, questions] of Object.entries(roleQuestions)) {
-      sections.push(`## ${key}`);
-      for (let i = 0; i < questions.length; i++) {
-        sections.push(`${i + 1}. ${questions[i]}`);
+    const formatForConsolidation = (rq: Record<string, string[]>): string => {
+      const sections: string[] = [];
+      for (const [key, questions] of Object.entries(rq)) {
+        sections.push(`## ${key}`);
+        for (let i = 0; i < questions.length; i++) {
+          sections.push(`${i + 1}. ${questions[i]}`);
+        }
+        sections.push("");
       }
-      sections.push("");
-    }
+      return sections.join("\n");
+    };
 
+    // Pass 1: primary consolidation using the primary model
     this.logger.info(msg.planHarvestConsolidating);
 
     const raw = await this.sessions.callIsolatedWithInstructions(
       HARVEST_CONSOLIDATION_INSTRUCTIONS,
-      `Here are the questions from all roles:\n\n${sections.join("\n")}\n\nConsolidate them following your instructions.`,
-      "Consolidating questions…",
-      this.pipeline.fastModel,
-      "harvest-consolidate",
+      `Here are ${totalBefore} questions from all roles:\n\n${formatForConsolidation(roleQuestions)}\n\nConsolidate them following your instructions. Eliminate ALL semantic duplicates across sections.`,
+      "Consolidating questions (pass 1)…",
+      undefined, // use primaryModel
+      "harvest-consolidate-1",
       "Consolidator",
     );
 
-    const consolidated = parseConsolidatedQuestions(raw);
+    let consolidated = parseConsolidatedQuestions(raw);
+    let totalAfter = Object.values(consolidated).reduce((sum, qs) => sum + qs.length, 0);
 
-    // Only use consolidated output if it produced valid results
-    const totalAfter = Object.values(consolidated).reduce((sum, qs) => sum + qs.length, 0);
     if (totalAfter === 0) {
       this.logger.warn(msg.planHarvestConsolidationSkipped);
       return roleQuestions;
     }
 
-    const removed = totalBefore - totalAfter;
-    if (removed > 0) {
-      this.logger.info(msg.planHarvestConsolidated(totalBefore, totalAfter, removed));
+    const removedPass1 = totalBefore - totalAfter;
+    if (removedPass1 > 0) {
+      this.logger.info(msg.planHarvestConsolidated(totalBefore, totalAfter, removedPass1));
+    }
+
+    // Pass 2: verification pass — catch any remaining duplicates
+    if (totalAfter > 5) {
+      this.logger.info("  🔍 Running verification pass…");
+      const verifyRaw = await this.sessions.callIsolatedWithInstructions(
+        HARVEST_CONSOLIDATION_INSTRUCTIONS,
+        `Here are ${totalAfter} questions that have already been through one round of consolidation. There may still be remaining duplicates or questions about the same topic in different sections.\n\n${formatForConsolidation(consolidated)}\n\nCarefully review ALL questions across ALL sections. Merge any remaining duplicates. Each unique topic should appear exactly once.`,
+        "Verifying consolidation (pass 2)…",
+        undefined, // use primaryModel
+        "harvest-consolidate-2",
+        "Consolidator",
+      );
+
+      const verified = parseConsolidatedQuestions(verifyRaw);
+      const totalVerified = Object.values(verified).reduce((sum, qs) => sum + qs.length, 0);
+
+      if (totalVerified > 0 && totalVerified <= totalAfter) {
+        const removedPass2 = totalAfter - totalVerified;
+        if (removedPass2 > 0) {
+          this.logger.info(
+            `  ✅ Verification removed ${removedPass2} more duplicate(s): ${totalAfter} → ${totalVerified}`,
+          );
+        }
+        consolidated = verified;
+        totalAfter = totalVerified;
+      }
     }
 
     return consolidated;
@@ -1240,38 +1274,40 @@ export class PlanningEngine {
       return msg.planHarvestVerifyEmpty;
     }
 
-    // Format Q&A pairs for the consolidation agent
-    const sections: string[] = [];
-    for (const [key, pairs] of Object.entries(allPairs)) {
-      sections.push(`## ${key}`);
-      for (let i = 0; i < pairs.length; i++) {
-        sections.push(`${i + 1}. ${pairs[i].question}`);
-        if (pairs[i].answer) {
-          sections.push(`**Answer:** ${pairs[i].answer}`);
-        } else {
-          sections.push("**Answer:**");
+    const formatQAPairs = (pairs: Record<string, Array<{ question: string; answer: string }>>): string => {
+      const secs: string[] = [];
+      for (const [key, qs] of Object.entries(pairs)) {
+        secs.push(`## ${key}`);
+        for (let i = 0; i < qs.length; i++) {
+          secs.push(`${i + 1}. ${qs[i].question}`);
+          if (qs[i].answer) {
+            secs.push(`**Answer:** ${qs[i].answer}`);
+          } else {
+            secs.push("**Answer:**");
+          }
+          secs.push("");
         }
-        sections.push("");
       }
-    }
+      return secs.join("\n");
+    };
 
     this.logger.info(msg.planHarvestConsolidating);
 
     const raw = await this.sessions.callIsolatedWithInstructions(
       HARVEST_VERIFY_CONSOLIDATION_INSTRUCTIONS,
-      `Here are the questions (some with answers) from all roles:\n\n${sections.join("\n")}\n\nConsolidate them following your instructions. Preserve every answer.`,
-      "Verifying questions…",
-      this.pipeline.fastModel,
-      "harvest-verify",
+      `Here are ${totalBefore} questions (some with answers) from all roles:\n\n${formatQAPairs(allPairs)}\n\nConsolidate them following your instructions. Preserve every answer. Eliminate ALL semantic duplicates across sections.`,
+      "Verifying questions (pass 1)…",
+      undefined, // use primaryModel
+      "harvest-verify-1",
       "Verifier",
     );
 
-    const consolidated = parseConsolidatedQAPairs(raw);
-    const totalAfter = Object.values(consolidated).reduce((sum, qs) => sum + qs.length, 0);
+    let consolidated = parseConsolidatedQAPairs(raw);
+    let totalAfter = Object.values(consolidated).reduce((sum, qs) => sum + qs.length, 0);
 
     // Validate: no answers lost
     const answersBefore = Object.values(allPairs).reduce((sum, qs) => sum + qs.filter((q) => q.answer).length, 0);
-    const answersAfter = Object.values(consolidated).reduce((sum, qs) => sum + qs.filter((q) => q.answer).length, 0);
+    let answersAfter = Object.values(consolidated).reduce((sum, qs) => sum + qs.filter((q) => q.answer).length, 0);
 
     if (totalAfter === 0 || answersAfter < answersBefore) {
       this.logger.warn(msg.planHarvestConsolidationSkipped);
@@ -1285,6 +1321,35 @@ export class PlanningEngine {
       const removed = totalBefore - totalAfter;
       if (removed > 0) {
         this.logger.info(msg.planHarvestConsolidated(totalBefore, totalAfter, removed));
+      }
+
+      // Pass 2: verification for remaining duplicates
+      if (totalAfter > 5) {
+        this.logger.info("  🔍 Running verification pass…");
+        const verifyRaw = await this.sessions.callIsolatedWithInstructions(
+          HARVEST_VERIFY_CONSOLIDATION_INSTRUCTIONS,
+          `Here are ${totalAfter} questions that have already been through one round of consolidation. There may still be remaining duplicates.\n\n${formatQAPairs(consolidated)}\n\nCarefully review ALL questions across ALL sections. Merge any remaining duplicates. Each unique topic should appear exactly once. Preserve every answer.`,
+          "Verifying consolidation (pass 2)…",
+          undefined, // use primaryModel
+          "harvest-verify-2",
+          "Verifier",
+        );
+
+        const verified = parseConsolidatedQAPairs(verifyRaw);
+        const totalVerified = Object.values(verified).reduce((sum, qs) => sum + qs.length, 0);
+        const answersVerified = Object.values(verified).reduce((sum, qs) => sum + qs.filter((q) => q.answer).length, 0);
+
+        if (totalVerified > 0 && answersVerified >= answersAfter) {
+          const removedPass2 = totalAfter - totalVerified;
+          if (removedPass2 > 0) {
+            this.logger.info(
+              `  ✅ Verification removed ${removedPass2} more duplicate(s): ${totalAfter} → ${totalVerified}`,
+            );
+          }
+          consolidated = verified;
+          totalAfter = totalVerified;
+          answersAfter = answersVerified;
+        }
       }
 
       await writeQuestionsFileWithAnswers(qfPath, consolidated, {

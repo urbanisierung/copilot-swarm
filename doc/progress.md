@@ -11,6 +11,9 @@ All notable changes to this project are documented here, in reverse chronologica
 - **Structured logging** — JSON Lines (`.jsonl`) log files with rich error context: stack traces, error codes, model names, agent names, timing, and error classification (transient/permanent). New `--log-level` flag (`error`|`warn`|`info`|`debug`) and `LOG_LEVEL` env var. `--verbose` maps to `debug`. Automatic log rotation (>7 days or >20 files). Individual stream failure logging in parallel execution. `swarm logs` command shows recent log files with `jq` tips. Error classification utility categorizes failures as rate limit, timeout, network, auth, context length, etc.
 - 151 tests across 8 test files (24 new logger tests).
 
+### Improved
+- **Harvest consolidation quality** — Consolidation now uses the primary model instead of the fast model for significantly better reasoning over large question sets. Two-pass deduplication: first pass consolidates, second pass verifies and catches remaining semantic duplicates. Stronger prompts that explicitly target cross-section semantic overlap (same topic asked from PM/Engineer/Designer angles). Expected to reduce 100+ questions down to 30–50 unique topics.
+
 ## 2026-03-18
 
 ### Added
