@@ -100,7 +100,13 @@ export const msg = {
     `  ✂️  Consolidated ${before} → ${after} questions (${removed} duplicate(s) merged)`,
   planHarvestConsolidationSkipped: "  ⚠️  Consolidation produced empty output — using original questions",
 
-  // --- Analyze Mode ---
+  // --- Harvest Verify ---
+  planHarvestVerifyStart: "🔍 Verifying questions file — consolidating and deduplicating…",
+  planHarvestVerifyNoFile: (filePath: string) =>
+    `❌ Questions file not found: ${filePath}\n💡 Generate one first: swarm plan --harvest "<request>"`,
+  planHarvestVerifyEmpty: "⚠️  Questions file contains no questions — nothing to verify.",
+  planHarvestVerifyComplete: (before: number, after: number, filePath: string) =>
+    `\n✅ Verification complete — ${before} → ${after} question(s) in ${filePath}`,
   analyzeStart: "🔍 Starting Repository Analysis...",
   analyzeChunkedStart: (totalFiles: number, chunkCount: number) =>
     `🔍 Large repository detected (${totalFiles} files) — splitting into ${chunkCount} chunk(s) for parallel analysis`,

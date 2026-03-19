@@ -94,6 +94,7 @@ interface CliArgs {
   prepareMode: PrepareMode | undefined;
   preparePath: string | undefined;
   harvest: boolean;
+  harvestVerify: boolean;
 }
 
 export function readVersion(): string {
@@ -133,6 +134,7 @@ Options:
   --no-tui             Disable TUI dashboard (use plain log output)
   --auto-model         Auto-select model per task (use fast model when primary isn't needed)
   --harvest            Plan mode: generate questions file for async answering (use with plan command)
+  --harvest-verify     Verify/consolidate an existing questions file (preserves answers)
   --verify-build <cmd> Shell command to verify the build (e.g. "npm run build")
   --verify-test <cmd>  Shell command to run tests (e.g. "npm test")
   --verify-lint <cmd>  Shell command to run linting (e.g. "npm run lint")
@@ -183,6 +185,7 @@ Examples:
   swarm fleet cleanup feat/oauth ./auth ./api  Discard changes, delete branch
   swarm run --auto-model "Fix validation"  Use fast model for simple tasks
   swarm plan --harvest "Add dark mode"    Generate questions file, answer async
+  swarm plan --harvest-verify             Verify/consolidate existing questions file
 
 Environment variables override defaults; CLI args override env vars.
 See documentation for all env var options.`;
@@ -200,6 +203,7 @@ function parseCliArgs(): CliArgs {
       "no-tui": { type: "boolean", default: false },
       "auto-model": { type: "boolean", default: false },
       harvest: { type: "boolean", default: false },
+      "harvest-verify": { type: "boolean", default: false },
       plan: { type: "string", short: "p" },
       file: { type: "string", short: "f" },
       run: { type: "string" },
@@ -309,6 +313,7 @@ function parseCliArgs(): CliArgs {
     noTui: values["no-tui"] as boolean,
     autoModel: values["auto-model"] as boolean,
     harvest: values.harvest as boolean,
+    harvestVerify: values["harvest-verify"] as boolean,
     reviewRunId: values.run as string | undefined,
     sessionId: values.session as string | undefined,
     verifyBuild: values["verify-build"] as string | undefined,
@@ -394,6 +399,8 @@ export interface SwarmConfig {
   readonly preparePath?: string;
   /** When true, run plan mode in harvest mode — generate questions file for async answering. */
   readonly harvest: boolean;
+  /** When true, verify/consolidate an existing questions file (preserves answers). */
+  readonly harvestVerify: boolean;
 }
 
 export async function loadConfig(): Promise<SwarmConfig> {
@@ -508,5 +515,6 @@ export async function loadConfig(): Promise<SwarmConfig> {
     prepareMode: cli.prepareMode,
     preparePath: cli.preparePath,
     harvest: cli.harvest,
+    harvestVerify: cli.harvestVerify,
   };
 }

@@ -5,7 +5,7 @@ export default defineConfig({
   site: "https://docs.cpswarm.com",
   integrations: [
     starlight({
-      title: "Copilot Swarm",
+      title: "SWARM",
       description: "Multi-agent orchestrator for AI-powered development workflows",
       favicon: "/favicon.svg",
       logo: {

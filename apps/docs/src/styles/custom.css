@@ -38,9 +38,10 @@ pre {
   display: none;
 }
 
-/* Remove gap between header and custom hero */
+/* Splash page: use the hero background for the entire page so any
+   internal Starlight padding/gaps are invisible. */
 [data-has-hero] main {
-  padding-block-start: 0;
+  background: var(--sl-color-bg);
 }
 
 /* ── CUSTOM HERO ── */

@@ -59,6 +59,55 @@ export async function writeQuestionsFile(
   await fs.writeFile(filePath, lines.join("\n"));
 }
 
+/** Write a questions file preserving existing answers. */
+export async function writeQuestionsFileWithAnswers(
+  filePath: string,
+  roleQAPairs: Record<string, QAPair[]>,
+  meta: { sessionId?: string; request: string; timestamp: string },
+): Promise<void> {
+  const lines: string[] = [];
+  const preview = meta.request.length > 100 ? `${meta.request.substring(0, 100)}...` : meta.request;
+
+  lines.push("# Plan Questions");
+  lines.push("");
+  lines.push(`> Session: ${meta.sessionId ?? "default"}`);
+  lines.push(`> Request: ${preview.replace(/\n/g, " ")}`);
+  lines.push(`> Generated: ${meta.timestamp}`);
+  lines.push("");
+  lines.push("<!-- Fill in your answers below each question. Leave blank to let the agent decide. -->");
+  lines.push("<!-- When done, run: swarm plan --resume -->");
+  lines.push("");
+
+  for (const role of HARVEST_ROLES) {
+    const pairs = roleQAPairs[role.phaseKey] ?? [];
+    lines.push(`## ${role.label} (\`${role.phaseKey}\`)`);
+    lines.push("");
+
+    if (pairs.length === 0) {
+      lines.push("_No questions from this role._");
+      lines.push("");
+      continue;
+    }
+
+    for (let i = 0; i < pairs.length; i++) {
+      lines.push(`### Q${i + 1}`);
+      for (const qLine of pairs[i].question.split("\n")) {
+        lines.push(`> ${qLine}`);
+      }
+      lines.push("");
+      lines.push("**Answer:**");
+      if (pairs[i].answer) {
+        lines.push("");
+        lines.push(pairs[i].answer);
+      }
+      lines.push("");
+      lines.push("");
+    }
+  }
+
+  await fs.writeFile(filePath, lines.join("\n"));
+}
+
 /**
  * Parse a questions file and extract answered Q&A pairs per phase key.
  * Unanswered questions (empty answer) are omitted.
@@ -129,6 +178,66 @@ export function parseQuestionsFile(content: string): Record<string, QAPair[]> {
 }
 
 /**
+ * Parse a questions file and extract ALL Q&A pairs per phase key,
+ * including unanswered questions (empty answer string).
+ */
+export function parseQuestionsFileAll(content: string): Record<string, QAPair[]> {
+  const result: Record<string, QAPair[]> = {};
+  let currentPhaseKey: string | null = null;
+  let currentQuestion: string | null = null;
+  let collectingAnswer = false;
+  let answerLines: string[] = [];
+
+  const flushQA = () => {
+    if (currentPhaseKey && currentQuestion !== null) {
+      const answer = answerLines.join("\n").trim();
+      if (!result[currentPhaseKey]) result[currentPhaseKey] = [];
+      result[currentPhaseKey].push({ question: currentQuestion.trim(), answer });
+    }
+    currentQuestion = null;
+    collectingAnswer = false;
+    answerLines = [];
+  };
+
+  for (const line of content.split("\n")) {
+    const sectionMatch = line.match(/^## .+\(`([^`]+)`\)/);
+    if (sectionMatch) {
+      flushQA();
+      currentPhaseKey = sectionMatch[1];
+      continue;
+    }
+
+    if (/^### Q\d+/.test(line)) {
+      flushQA();
+      currentQuestion = "";
+      collectingAnswer = false;
+      continue;
+    }
+
+    if (/^\*\*Answer:\*\*/.test(line)) {
+      const inline = line.replace(/^\*\*Answer:\*\*/, "").trim();
+      collectingAnswer = true;
+      answerLines = inline ? [inline] : [];
+      continue;
+    }
+
+    if (currentQuestion !== null && !collectingAnswer) {
+      const stripped = line.replace(/^>\s?/, "");
+      if (currentQuestion) {
+        currentQuestion += `\n${stripped}`;
+      } else {
+        currentQuestion = stripped;
+      }
+    } else if (collectingAnswer) {
+      answerLines.push(line);
+    }
+  }
+
+  flushQA();
+  return result;
+}
+
+/**
  * Split raw agent output (numbered questions) into individual question strings.
  * Handles patterns like "1. question", "1) question", "1: question".
  */
@@ -190,5 +299,64 @@ export function parseConsolidatedQuestions(raw: string): Record<string, string[]
   }
   flush();
 
+  return result;
+}
+
+/**
+ * Parse the verify-consolidation agent's output into Q&A pairs per phase key.
+ * Expects `## phase-key` headers, numbered questions, and `**Answer:**` markers.
+ */
+export function parseConsolidatedQAPairs(raw: string): Record<string, QAPair[]> {
+  const result: Record<string, QAPair[]> = {};
+  let currentKey: string | null = null;
+  let currentQuestion: string | null = null;
+  let collectingAnswer = false;
+  let answerLines: string[] = [];
+
+  const flush = () => {
+    if (currentKey && currentQuestion !== null) {
+      const answer = answerLines.join("\n").trim();
+      if (!result[currentKey]) result[currentKey] = [];
+      result[currentKey].push({ question: currentQuestion.trim(), answer });
+    }
+    currentQuestion = null;
+    collectingAnswer = false;
+    answerLines = [];
+  };
+
+  for (const line of raw.split("\n")) {
+    const sectionMatch = line.match(/^##\s+([\w-]+)/);
+    if (sectionMatch) {
+      flush();
+      currentKey = KNOWN_PHASE_KEYS.has(sectionMatch[1]) ? sectionMatch[1] : null;
+      continue;
+    }
+
+    if (!currentKey) continue;
+
+    // Detect answer marker
+    if (/^\*\*Answer:\*\*/.test(line)) {
+      const inline = line.replace(/^\*\*Answer:\*\*/, "").trim();
+      collectingAnswer = true;
+      answerLines = inline ? [inline] : [];
+      continue;
+    }
+
+    // Detect numbered question start
+    if (/^\d+[.):\s]/.test(line.trim())) {
+      flush();
+      currentQuestion = line.trim().replace(/^\d+[.):\s]+/, "");
+      collectingAnswer = false;
+      continue;
+    }
+
+    if (collectingAnswer) {
+      answerLines.push(line);
+    } else if (currentQuestion !== null && line.trim()) {
+      currentQuestion += `\n${line}`;
+    }
+  }
+
+  flush();
   return result;
 }
