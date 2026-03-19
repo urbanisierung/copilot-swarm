@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.61
+
+### Patch Changes
+
+- 89010e8: Improved harvest checks.
+
 ## 0.0.60
 
 ### Patch Changes
