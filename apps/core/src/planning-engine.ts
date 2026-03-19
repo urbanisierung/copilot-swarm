@@ -122,7 +122,12 @@ Your ONLY job is to produce a comprehensive list of clarifying questions. Do NOT
    - Priority and phasing (if the request is large)
 3. Number all questions clearly (1, 2, 3, …).
 4. Ask as many questions as needed to fully clarify the request. Be thorough.
-5. Output ONLY the numbered questions — no preamble, no summary, no answers.`;
+5. When a question has a finite set of likely choices, list them as labeled options:
+   A) First option
+   B) Second option
+   C) Other (please describe)
+   Always include an open-ended "Other" option so the user can provide a custom answer.
+6. Output ONLY the numbered questions — no preamble, no summary, no answers.`;
 
 const HARVEST_ENGINEER_INSTRUCTIONS = `You are a Senior Software Engineer reviewing a user's request before implementation.
 Your ONLY job is to produce a comprehensive list of technical clarifying questions. Do NOT answer them yourself.
@@ -137,7 +142,12 @@ Your ONLY job is to produce a comprehensive list of technical clarifying questio
    - Performance or security requirements
 3. Number all questions clearly (1, 2, 3, …).
 4. Ask as many questions as needed. Be thorough.
-5. Output ONLY the numbered questions — no preamble, no summary, no answers.`;
+5. When a question has a finite set of likely choices, list them as labeled options:
+   A) First option
+   B) Second option
+   C) Other (please describe)
+   Always include an open-ended "Other" option so the user can provide a custom answer.
+6. Output ONLY the numbered questions — no preamble, no summary, no answers.`;
 
 const HARVEST_DESIGNER_INSTRUCTIONS = `You are a Senior UI/UX Designer reviewing a user's request before design work begins.
 Your ONLY job is to produce a comprehensive list of design clarifying questions. Do NOT answer them yourself.
@@ -152,7 +162,12 @@ Your ONLY job is to produce a comprehensive list of design clarifying questions.
    - Visual style (match existing patterns, or new direction?)
 3. Number all questions clearly (1, 2, 3, …).
 4. Ask as many questions as needed. Be thorough.
-5. Output ONLY the numbered questions — no preamble, no summary, no answers.`;
+5. When a question has a finite set of likely choices, list them as labeled options:
+   A) First option
+   B) Second option
+   C) Other (please describe)
+   Always include an open-ended "Other" option so the user can provide a custom answer.
+6. Output ONLY the numbered questions — no preamble, no summary, no answers.`;
 
 const HARVEST_CONSOLIDATION_INSTRUCTIONS = `You are an editor consolidating clarifying questions from three roles (PM, Engineer, Designer).
 

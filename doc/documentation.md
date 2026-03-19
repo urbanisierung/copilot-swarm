@@ -176,7 +176,7 @@ swarm plan --harvest "Add a dark mode toggle"
 swarm plan --resume
 ```
 
-The questions file uses structured markdown with sections per role (`plan-clarify`, `plan-eng-clarify`, `plan-design-clarify`). Leave answers blank to let the agent decide. On resume, the full sequential pipeline runs with pre-populated answers — reviews, analysis, and cross-model checks all still execute.
+The questions file uses structured markdown with sections per role (`plan-clarify`, `plan-eng-clarify`, `plan-design-clarify`). Questions use section-prefixed numbering (Q1.1, Q1.2, ..., Q2.1, ...) for global uniqueness. A summary HTML comment at the top shows total and per-section question counts. Multiple-choice questions include labeled options (A, B, C, ...) — just write the letter or a custom answer. Leave answers blank to let the agent decide. On resume, the full sequential pipeline runs with pre-populated answers — reviews, analysis, and cross-model checks all still execute.
 
 #### Verifying Questions
 
