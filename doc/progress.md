@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here, in reverse chronological order.
 
+## 2026-03-19
+
+### Added
+- **Harvest verify mode** — `swarm plan --harvest-verify` verifies/consolidates an existing questions file. Runs the same deduplication and categorization pass as `--harvest`, but on a file that may already have user-provided answers. All answers are preserved; if two answered questions merge, both answers are concatenated. Falls back to the original file if consolidation would lose any answers. New functions: `parseQuestionsFileAll()`, `writeQuestionsFileWithAnswers()`, `parseConsolidatedQAPairs()`. 14 new tests (122 total).
+
 ## 2026-03-18
 
 ### Added

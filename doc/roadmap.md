@@ -77,3 +77,4 @@ See [`doc/standalone-execution.md`](standalone-execution.md) for the full extrac
 - [x] Resume-from-answers — `swarm plan --resume` loads answered questions file
 - [x] Checkpoint integration — `questionsFile` field in `PipelineCheckpoint`
 - [x] Documentation updates (documentation, features, progress, roadmap)
+- [x] `--harvest-verify` flag — verify/consolidate existing questions file, preserving answers

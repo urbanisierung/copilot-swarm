@@ -9,10 +9,13 @@ import { brainstormsDir, loadRepoAnalysis, plansDir, questionsFilePath } from ".
 import type { PipelineConfig } from "./pipeline-types.js";
 import type { ProgressTracker } from "./progress-tracker.js";
 import {
+  parseConsolidatedQAPairs,
   parseConsolidatedQuestions,
   parseQuestionsFile,
+  parseQuestionsFileAll,
   splitNumberedQuestions,
   writeQuestionsFile,
+  writeQuestionsFileWithAnswers,
 } from "./questions-file.js";
 import { SessionManager } from "./session.js";
 import { openSplitEditor } from "./textarea.js";
@@ -177,6 +180,40 @@ const HARVEST_CONSOLIDATION_INSTRUCTIONS = `You are an editor consolidating clar
 
 Output ONLY the sections above. No preamble, no summary, no commentary.`;
 
+const HARVEST_VERIFY_CONSOLIDATION_INSTRUCTIONS = `You are an editor consolidating clarifying questions from three roles (PM, Engineer, Designer).
+Some questions may already have answers filled in. You MUST preserve every answer.
+
+**Your job:**
+1. **Deduplicate:** If two or more questions are identical or very similar, merge them into one and place it in the category that fits best.
+2. **Categorize:** If a question clearly belongs in a different role's section, move it there.
+3. **Format consistently:** Every question must follow the exact same formatting:
+   - Numbered sequentially within each section (1. 2. 3. …)
+   - One question per number. Multi-sentence is fine, but keep it focused.
+   - No sub-bullets, no bold, no markdown formatting inside questions.
+   - Plain text only for the question line.
+4. **Preserve meaning:** Do NOT remove questions that are unique. Do NOT add new questions.
+5. **Preserve answers:** If a question has an answer, include it VERBATIM after the question using the **Answer:** marker. If two questions with answers are merged, concatenate BOTH answers separated by a blank line — never discard answer text.
+6. **Unanswered questions:** If a question has no answer, still include the **Answer:** marker with nothing after it.
+
+**Output format — use EXACTLY this structure:**
+
+## plan-clarify
+1. First PM question
+**Answer:** the original answer text (if any)
+
+2. Second PM question
+**Answer:**
+
+## plan-eng-clarify
+1. First engineering question
+**Answer:** the original answer text (if any)
+
+## plan-design-clarify
+1. First design question
+**Answer:**
+
+Output ONLY the sections above. No preamble, no summary, no commentary.`;
+
 const STEP_REVIEWER_INSTRUCTIONS = `You are a Senior Technical Reviewer evaluating one section of a project plan.
 Your goal is to verify the section is clear, complete, and actionable enough for implementation.
 
@@ -246,6 +283,11 @@ export class PlanningEngine {
     // Harvest mode: generate questions file and exit early
     if (this.config.harvest) {
       return this.harvestQuestions();
+    }
+
+    // Harvest-verify mode: consolidate existing questions file
+    if (this.config.harvestVerify) {
+      return this.verifyHarvestQuestions();
     }
 
     this.logger.info(msg.planningStart);
@@ -1155,6 +1197,95 @@ export class PlanningEngine {
     }
 
     return consolidated;
+  }
+
+  /**
+   * Verify/consolidate an existing questions file, preserving answers.
+   * Reads questions.md → runs answer-aware consolidation → writes back.
+   */
+  private async verifyHarvestQuestions(): Promise<string> {
+    this.logger.info(msg.planHarvestVerifyStart);
+
+    const qfPath = questionsFilePath(this.config);
+    let content: string;
+    try {
+      content = await fs.readFile(qfPath, "utf-8");
+    } catch {
+      const relPath = path.relative(this.config.repoRoot, qfPath);
+      this.logger.error(msg.planHarvestVerifyNoFile(relPath));
+      return msg.planHarvestVerifyNoFile(relPath);
+    }
+
+    const allPairs = parseQuestionsFileAll(content);
+    const totalBefore = Object.values(allPairs).reduce((sum, qs) => sum + qs.length, 0);
+    if (totalBefore === 0) {
+      this.logger.warn(msg.planHarvestVerifyEmpty);
+      return msg.planHarvestVerifyEmpty;
+    }
+
+    // Format Q&A pairs for the consolidation agent
+    const sections: string[] = [];
+    for (const [key, pairs] of Object.entries(allPairs)) {
+      sections.push(`## ${key}`);
+      for (let i = 0; i < pairs.length; i++) {
+        sections.push(`${i + 1}. ${pairs[i].question}`);
+        if (pairs[i].answer) {
+          sections.push(`**Answer:** ${pairs[i].answer}`);
+        } else {
+          sections.push("**Answer:**");
+        }
+        sections.push("");
+      }
+    }
+
+    this.logger.info(msg.planHarvestConsolidating);
+
+    const raw = await this.sessions.callIsolatedWithInstructions(
+      HARVEST_VERIFY_CONSOLIDATION_INSTRUCTIONS,
+      `Here are the questions (some with answers) from all roles:\n\n${sections.join("\n")}\n\nConsolidate them following your instructions. Preserve every answer.`,
+      "Verifying questions…",
+      this.pipeline.fastModel,
+      "harvest-verify",
+      "Verifier",
+    );
+
+    const consolidated = parseConsolidatedQAPairs(raw);
+    const totalAfter = Object.values(consolidated).reduce((sum, qs) => sum + qs.length, 0);
+
+    // Validate: no answers lost
+    const answersBefore = Object.values(allPairs).reduce((sum, qs) => sum + qs.filter((q) => q.answer).length, 0);
+    const answersAfter = Object.values(consolidated).reduce((sum, qs) => sum + qs.filter((q) => q.answer).length, 0);
+
+    if (totalAfter === 0 || answersAfter < answersBefore) {
+      this.logger.warn(msg.planHarvestConsolidationSkipped);
+      // Fall back: write original pairs back (no-op, but ensures format is clean)
+      await writeQuestionsFileWithAnswers(qfPath, allPairs, {
+        sessionId: this.config.resolvedSessionId,
+        request: this.extractRequestFromContent(content),
+        timestamp: new Date().toISOString(),
+      });
+    } else {
+      const removed = totalBefore - totalAfter;
+      if (removed > 0) {
+        this.logger.info(msg.planHarvestConsolidated(totalBefore, totalAfter, removed));
+      }
+
+      await writeQuestionsFileWithAnswers(qfPath, consolidated, {
+        sessionId: this.config.resolvedSessionId,
+        request: this.extractRequestFromContent(content),
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const relPath = path.relative(this.config.repoRoot, qfPath);
+    this.logger.info(msg.planHarvestVerifyComplete(totalBefore, totalAfter, relPath));
+    return `Verified ${relPath}: ${totalBefore} → ${totalAfter} question(s), ${answersAfter} answer(s) preserved.`;
+  }
+
+  /** Extract the request preview from an existing questions file header. */
+  private extractRequestFromContent(content: string): string {
+    const match = content.match(/^> Request: (.+)$/m);
+    return match?.[1] ?? "";
   }
 
   private async recoverClarification(

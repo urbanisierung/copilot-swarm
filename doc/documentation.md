@@ -178,6 +178,17 @@ swarm plan --resume
 
 The questions file uses structured markdown with sections per role (`plan-clarify`, `plan-eng-clarify`, `plan-design-clarify`). Leave answers blank to let the agent decide. On resume, the full sequential pipeline runs with pre-populated answers — reviews, analysis, and cross-model checks all still execute.
 
+#### Verifying Questions
+
+Use `--harvest-verify` to consolidate and deduplicate an existing questions file. This runs the same consolidation pass that happens during `--harvest`, but on a file that may already have answers:
+
+```bash
+# Verify/consolidate the questions file (answers are preserved)
+swarm plan --harvest-verify
+```
+
+The verifier deduplicates similar questions, moves misplaced questions to the correct role section, and normalizes formatting — all while preserving every answer verbatim. If two questions with answers are merged, both answers are concatenated so no information is lost. If verification would lose any answers, it falls back to the original file.
+
 Output files:
 - `.swarm/plans/plan-<timestamp>.md` — Timestamped plan with refined requirements, engineering decisions, design decisions, and technical analysis (never overwritten)
 - `.swarm/plans/plan-latest.md` — Copy of the most recent plan (stable reference)

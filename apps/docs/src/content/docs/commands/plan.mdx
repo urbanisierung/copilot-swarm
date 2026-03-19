@@ -55,6 +55,25 @@ swarm plan --resume
 
 The questions file uses structured markdown with sections per role (`plan-clarify`, `plan-eng-clarify`, `plan-design-clarify`). Leave answers blank to let the agent decide.
 
+### Verifying Questions
+
+Use `--harvest-verify` to consolidate and deduplicate an existing questions file — even one that already has answers filled in:
+
+```bash
+swarm plan --harvest-verify
+```
+
+This runs the same consolidation pass that happens during `--harvest`:
+- **Deduplicates** similar questions across roles
+- **Re-categorizes** misplaced questions into the correct role section
+- **Normalizes** formatting for consistency
+
+All existing answers are preserved verbatim. If two answered questions are merged, both answers are concatenated so no information is lost. If the consolidation would lose any answers, the original file is kept unchanged.
+
+<Aside type="tip">
+Run `--harvest-verify` after manually editing a questions file to clean up formatting and remove duplicate questions you may have introduced.
+</Aside>
+
 ## Interactive Editor
 
 During clarification, a split-pane editor opens:
