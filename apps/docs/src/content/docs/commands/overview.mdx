@@ -43,6 +43,7 @@ swarm [command] [options] "<prompt>"
   <LinkCard title="finish" description="Finalize a session — summarize and log to changelog." href="/commands/finish/" />
   <LinkCard title="list" description="List all sessions across all repositories." href="/commands/list/" />
   <LinkCard title="stats" description="View agent invocation statistics." href="/commands/stats/" />
+  <LinkCard title="logs" description="Show recent log files and paths." href="/commands/logs/" />
   <LinkCard title="backup & restore" description="Sync artifacts to/from the central store." href="/commands/backup-restore/" />
 </CardGrid>
 
@@ -50,7 +51,8 @@ swarm [command] [options] "<prompt>"
 
 | Option | Description |
 |---|---|
-| `-v, --verbose` | Enable verbose streaming output |
+| `-v, --verbose` | Enable verbose streaming output (sets log level to debug) |
+| `--log-level <level>` | Set log level: `error`, `warn`, `info` (default), `debug` |
 | `-e, --editor` | Open interactive text editor for the prompt |
 | `-p, --plan <file>` | Use a plan file as input |
 | `-f, --file <file>` | Read prompt from a file |

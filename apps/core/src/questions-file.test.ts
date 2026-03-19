@@ -400,3 +400,131 @@ Line three
     expect(Object.keys(result)).toHaveLength(0);
   });
 });
+
+describe("section-prefixed numbering and summary", () => {
+  it("writeQuestionsFile produces section-prefixed Q headers", async () => {
+    const roleQuestions: Record<string, string[]> = {
+      "plan-clarify": ["Scope?", "Priority?"],
+      "plan-eng-clarify": ["API format?"],
+      "plan-design-clarify": ["Colors?"],
+    };
+    const meta = { sessionId: "s1", request: "Test", timestamp: "2026-01-01T00:00:00Z" };
+    const tmpPath = "/tmp/test-section-prefix.md";
+    await writeQuestionsFile(tmpPath, roleQuestions, meta);
+    const fs = await import("node:fs/promises");
+    const written = await fs.readFile(tmpPath, "utf-8");
+
+    expect(written).toContain("### Q1.1");
+    expect(written).toContain("### Q1.2");
+    expect(written).toContain("### Q2.1");
+    expect(written).toContain("### Q3.1");
+    expect(written).not.toMatch(/### Q1\n/);
+
+    await fs.unlink(tmpPath);
+  });
+
+  it("writeQuestionsFile includes summary comment", async () => {
+    const roleQuestions: Record<string, string[]> = {
+      "plan-clarify": ["Scope?"],
+      "plan-eng-clarify": ["API?", "DB?"],
+      "plan-design-clarify": [],
+    };
+    const meta = { sessionId: "s1", request: "Test", timestamp: "2026-01-01T00:00:00Z" };
+    const tmpPath = "/tmp/test-summary-comment.md";
+    await writeQuestionsFile(tmpPath, roleQuestions, meta);
+    const fs = await import("node:fs/promises");
+    const written = await fs.readFile(tmpPath, "utf-8");
+
+    expect(written).toContain("<!-- Summary: 3 question(s) across 3 sections -->");
+    expect(written).toContain("Section 1 (PM / Requirements): 1");
+    expect(written).toContain("Section 2 (Engineering): 2");
+    expect(written).toContain("Section 3 (Design): 0");
+    expect(written).toContain("multiple-choice");
+
+    await fs.unlink(tmpPath);
+  });
+
+  it("writeQuestionsFileWithAnswers includes answered count in summary", async () => {
+    const pairs: Record<string, QAPair[]> = {
+      "plan-clarify": [
+        { question: "Scope?", answer: "Full" },
+        { question: "Priority?", answer: "" },
+      ],
+      "plan-eng-clarify": [{ question: "API?", answer: "REST" }],
+      "plan-design-clarify": [],
+    };
+    const meta = { sessionId: "s1", request: "Test", timestamp: "2026-01-01T00:00:00Z" };
+    const tmpPath = "/tmp/test-summary-answers.md";
+    await writeQuestionsFileWithAnswers(tmpPath, pairs, meta);
+    const fs = await import("node:fs/promises");
+    const written = await fs.readFile(tmpPath, "utf-8");
+
+    expect(written).toContain("<!-- Summary: 3 question(s), 2 answered, across 3 sections -->");
+    expect(written).toContain("1 answered");
+    expect(written).toContain("### Q1.1");
+    expect(written).toContain("### Q1.2");
+
+    await fs.unlink(tmpPath);
+  });
+
+  it("parsers handle old format (### Q1) for backward compatibility", () => {
+    const oldFormat = `# Plan Questions
+
+## PM / Requirements (\`plan-clarify\`)
+
+### Q1
+> Scope?
+
+**Answer:** Everything
+
+### Q2
+> Priority?
+
+**Answer:**
+
+`;
+    const parsed = parseQuestionsFileAll(oldFormat);
+    expect(parsed["plan-clarify"]).toHaveLength(2);
+    expect(parsed["plan-clarify"][0].question).toBe("Scope?");
+    expect(parsed["plan-clarify"][0].answer).toBe("Everything");
+
+    const answeredOnly = parseQuestionsFile(oldFormat);
+    expect(answeredOnly["plan-clarify"]).toHaveLength(1);
+  });
+
+  it("parsers handle new format (### Q1.1) correctly", () => {
+    const newFormat = `# Plan Questions
+
+<!-- Summary: 2 question(s) across 3 sections -->
+
+## PM / Requirements (\`plan-clarify\`)
+
+### Q1.1
+> Scope?
+
+**Answer:** Everything
+
+### Q1.2
+> Priority?
+
+**Answer:**
+
+## Engineering (\`plan-eng-clarify\`)
+
+### Q2.1
+> API?
+
+**Answer:** REST
+
+`;
+    const parsed = parseQuestionsFileAll(newFormat);
+    expect(parsed["plan-clarify"]).toHaveLength(2);
+    expect(parsed["plan-clarify"][0].answer).toBe("Everything");
+    expect(parsed["plan-eng-clarify"]).toHaveLength(1);
+    expect(parsed["plan-eng-clarify"][0].answer).toBe("REST");
+
+    const answeredOnly = parseQuestionsFile(newFormat);
+    expect(answeredOnly["plan-clarify"]).toHaveLength(1);
+    expect(answeredOnly["plan-eng-clarify"]).toHaveLength(1);
+  });
+});

@@ -6,6 +6,7 @@ export default new Map([
 ["src/content/docs/agents/pm.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fagents%2Fpm.mdx&astroContentModuleFlag=true")],
 ["src/content/docs/commands/analyze.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fcommands%2Fanalyze.mdx&astroContentModuleFlag=true")],
 ["src/content/docs/commands/fleet.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fcommands%2Ffleet.mdx&astroContentModuleFlag=true")],
+["src/content/docs/commands/logs.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fcommands%2Flogs.mdx&astroContentModuleFlag=true")],
 ["src/content/docs/commands/overview.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fcommands%2Foverview.mdx&astroContentModuleFlag=true")],
 ["src/content/docs/commands/plan.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fcommands%2Fplan.mdx&astroContentModuleFlag=true")],
 ["src/content/docs/commands/run.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fcommands%2Frun.mdx&astroContentModuleFlag=true")],

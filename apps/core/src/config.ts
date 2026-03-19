@@ -23,7 +23,7 @@ function detectRepoRoot(): string | null {
   return _repoRoot;
 }
 
-const COMMANDS_WITHOUT_GIT: ReadonlySet<string> = new Set(["fleet", "list"]);
+const COMMANDS_WITHOUT_GIT: ReadonlySet<string> = new Set(["fleet", "list", "logs"]);
 
 function readEnvString(key: string, fallback: string): string {
   const value = process.env[key];
@@ -66,15 +66,25 @@ export type SwarmCommand =
   | "demo"
   | "backup"
   | "restore"
-  | "prepare";
+  | "prepare"
+  | "logs";
 
 export type FleetMode = "analyze" | "plan" | "cleanup" | "architecture";
 
 export type PrepareMode = "dirs";
 
+export type LogLevel = "error" | "warn" | "info" | "debug";
+
+const LOG_LEVELS: Record<LogLevel, number> = { error: 0, warn: 1, info: 2, debug: 3 };
+
+export function logLevelValue(level: LogLevel): number {
+  return LOG_LEVELS[level];
+}
+
 interface CliArgs {
   command: SwarmCommand;
   verbose: boolean;
+  logLevel: LogLevel | undefined;
   prompt: string | undefined;
   planFile: string | undefined;
   promptFile: string | undefined;
@@ -119,12 +129,14 @@ Commands:
   finish           Finalize the active session — summarize, log to changelog, clean up
   list             List all sessions across all repositories
   stats            Show agent invocation statistics
+  logs             Show path to latest log file or tail recent logs
   demo             Interactive TUI demo — guided walkthrough of all modes
   backup           Sync all .swarm/ artifacts to central store
   restore          Restore .swarm/ artifacts from central store
 
 Options:
-  -v, --verbose        Enable verbose streaming output
+  -v, --verbose        Enable verbose streaming output (sets log level to debug)
+  --log-level <level>  Set log level: error, warn, info (default), debug
   -e, --editor         Force the interactive editor (auto-opens when no prompt given)
   -p, --plan <file>    Use a plan file as input (reads the refined requirements section)
   -f, --file <file>    Read prompt from a file instead of inline text
@@ -187,6 +199,8 @@ Examples:
   swarm plan --harvest "Add dark mode"    Generate questions file, answer async
   swarm plan --harvest-verify             Verify/consolidate existing questions file
   swarm plan --harvest-verify -f q.md     Verify a specific questions file
+  swarm logs                             Show path to latest log file
+  swarm run --log-level debug "Fix bug"  Log all debug info to file
 
 Environment variables override defaults; CLI args override env vars.
 See documentation for all env var options.`;
@@ -205,6 +219,7 @@ function parseCliArgs(): CliArgs {
       "auto-model": { type: "boolean", default: false },
       harvest: { type: "boolean", default: false },
       "harvest-verify": { type: "boolean", default: false },
+      "log-level": { type: "string" },
       plan: { type: "string", short: "p" },
       file: { type: "string", short: "f" },
       run: { type: "string" },
@@ -249,7 +264,8 @@ function parseCliArgs(): CliArgs {
       positionals[0] === "demo" ||
       positionals[0] === "backup" ||
       positionals[0] === "restore" ||
-      positionals[0] === "prepare")
+      positionals[0] === "prepare" ||
+      positionals[0] === "logs")
   ) {
     command = positionals[0] as SwarmCommand;
     promptParts = positionals.slice(1);
@@ -303,9 +319,21 @@ function parseCliArgs(): CliArgs {
     }
   }
 
+  // Validate --log-level
+  const rawLogLevel = values["log-level"] as string | undefined;
+  let logLevel: LogLevel | undefined;
+  if (rawLogLevel) {
+    if (!["error", "warn", "info", "debug"].includes(rawLogLevel)) {
+      console.error(`Error: Invalid log level "${rawLogLevel}". Must be one of: error, warn, info, debug.`);
+      process.exit(1);
+    }
+    logLevel = rawLogLevel as LogLevel;
+  }
+
   return {
     command,
     verbose: values.verbose as boolean,
+    logLevel,
     prompt: promptParts.length > 0 ? promptParts.join(" ") : undefined,
     planFile: values.plan as string | undefined,
     promptFile: values.file as string | undefined,
@@ -366,6 +394,8 @@ export interface SwarmConfig {
   readonly command: SwarmCommand;
   readonly repoRoot: string;
   readonly verbose: boolean;
+  /** Log level for file logging. --verbose sets this to "debug". Default: "info". */
+  readonly logLevel: LogLevel;
   readonly resume: boolean;
   readonly tui: boolean;
   readonly planProvided: boolean;
@@ -442,6 +472,7 @@ export async function loadConfig(): Promise<SwarmConfig> {
       cli.command !== "demo" &&
       cli.command !== "backup" &&
       cli.command !== "restore" &&
+      cli.command !== "logs" &&
       !(
         cli.command === "fleet" &&
         (cli.fleetMode === "analyze" || cli.fleetMode === "cleanup" || cli.fleetMode === "architecture")
@@ -466,6 +497,7 @@ export async function loadConfig(): Promise<SwarmConfig> {
     cli.command !== "demo" &&
     cli.command !== "backup" &&
     cli.command !== "restore" &&
+    cli.command !== "logs" &&
     !(
       cli.command === "fleet" &&
       (cli.fleetMode === "analyze" || cli.fleetMode === "cleanup" || cli.fleetMode === "architecture")
@@ -497,10 +529,21 @@ export async function loadConfig(): Promise<SwarmConfig> {
     ? { build: cli.verifyBuild, test: cli.verifyTest, lint: cli.verifyLint }
     : undefined;
 
+  const isVerbose = cli.verbose || readEnvBoolean("VERBOSE", false);
+  const envLogLevel = readEnvString("LOG_LEVEL", "") as LogLevel | "";
+  const resolvedLogLevel: LogLevel =
+    cli.logLevel ??
+    (envLogLevel && ["error", "warn", "info", "debug"].includes(envLogLevel)
+      ? (envLogLevel as LogLevel)
+      : isVerbose
+        ? "debug"
+        : "info");
+
   return {
     command: cli.command,
     repoRoot,
-    verbose: cli.verbose || readEnvBoolean("VERBOSE", false),
+    verbose: isVerbose,
+    logLevel: resolvedLogLevel,
     resume: cli.resume,
     tui: !cli.noTui && !cli.verbose && process.stdout.isTTY === true,
     planProvided: cli.planFile !== undefined,

@@ -12,6 +12,7 @@ function makeConfig(runId: string): SwarmConfig {
     command: "run",
     repoRoot: tmpDir,
     verbose: false,
+    logLevel: "info" as const,
     resume: false,
     tui: false,
     planProvided: false,

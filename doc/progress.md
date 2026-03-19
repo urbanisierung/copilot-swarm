@@ -5,7 +5,11 @@ All notable changes to this project are documented here, in reverse chronologica
 ## 2026-03-19
 
 ### Added
-- **Harvest verify mode** — `swarm plan --harvest-verify` verifies/consolidates an existing questions file. Runs the same deduplication and categorization pass as `--harvest`, but on a file that may already have user-provided answers. All answers are preserved; if two answered questions merge, both answers are concatenated. Falls back to the original file if consolidation would lose any answers. New functions: `parseQuestionsFileAll()`, `writeQuestionsFileWithAnswers()`, `parseConsolidatedQAPairs()`. 14 new tests (122 total).
+- **Harvest verify mode** — `swarm plan --harvest-verify` verifies/consolidates an existing questions file. Runs the same deduplication and categorization pass as `--harvest`, but on a file that may already have user-provided answers. All answers are preserved; if two answered questions merge, both answers are concatenated. Falls back to the original file if consolidation would lose any answers. New functions: `parseQuestionsFileAll()`, `writeQuestionsFileWithAnswers()`, `parseConsolidatedQAPairs()`.
+- **Questions file format v2** — Section-prefixed numbering (Q1.1, Q1.2, ..., Q2.1, ...) for global uniqueness. Summary HTML comment at top with total/per-section question counts. Multiple-choice instructions in comment header. Fully backward-compatible: parsers accept both old (`### Q1`) and new (`### Q1.1`) formats.
+- **OG images** for `apps/landing` and `apps/docs` — Auto-generated at build time via sharp SVG→PNG endpoints. 1200×630 dark cards with gradient accents, SWARM logo, tagline, and terminal-style install command.
+- **Structured logging** — JSON Lines (`.jsonl`) log files with rich error context: stack traces, error codes, model names, agent names, timing, and error classification (transient/permanent). New `--log-level` flag (`error`|`warn`|`info`|`debug`) and `LOG_LEVEL` env var. `--verbose` maps to `debug`. Automatic log rotation (>7 days or >20 files). Individual stream failure logging in parallel execution. `swarm logs` command shows recent log files with `jq` tips. Error classification utility categorizes failures as rate limit, timeout, network, auth, context length, etc.
+- 151 tests across 8 test files (24 new logger tests).
 
 ## 2026-03-18
 

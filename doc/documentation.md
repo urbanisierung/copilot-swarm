@@ -47,7 +47,8 @@ Commands:
   stats            Show agent invocation statistics
 
 Options:
-  -v, --verbose        Enable verbose streaming output
+  -v, --verbose        Enable verbose streaming output (sets log level to debug)
+  --log-level <level>  Set log level: error, warn, info (default), debug
   -e, --editor         Open an interactive text editor to enter the prompt
   -p, --plan <file>    Use a plan file as input (reads the refined requirements section)
   -f, --file <file>    Read prompt from a file instead of inline text
@@ -176,7 +177,7 @@ swarm plan --harvest "Add a dark mode toggle"
 swarm plan --resume
 ```
 
-The questions file uses structured markdown with sections per role (`plan-clarify`, `plan-eng-clarify`, `plan-design-clarify`). Leave answers blank to let the agent decide. On resume, the full sequential pipeline runs with pre-populated answers — reviews, analysis, and cross-model checks all still execute.
+The questions file uses structured markdown with sections per role (`plan-clarify`, `plan-eng-clarify`, `plan-design-clarify`). Questions use section-prefixed numbering (Q1.1, Q1.2, ..., Q2.1, ...) for global uniqueness. A summary HTML comment at the top shows total and per-section question counts. Multiple-choice questions include labeled options (A, B, C, ...) — just write the letter or a custom answer. Leave answers blank to let the agent decide. On resume, the full sequential pipeline runs with pre-populated answers — reviews, analysis, and cross-model checks all still execute.
 
 #### Verifying Questions
 
@@ -681,13 +682,28 @@ After the TUI exits, a completion summary is printed with elapsed time, phase st
 
 ### Log Files
 
-Every run writes a debug log to the system temp directory:
+Every run writes a structured JSON Lines log to the system temp directory:
 
-- **Linux:** `/tmp/copilot-swarm/swarm-<runId>.log`
-- **macOS:** `$TMPDIR/copilot-swarm/swarm-<runId>.log`
-- **Windows:** `%TEMP%\copilot-swarm\swarm-<runId>.log`
+- **Linux:** `/tmp/copilot-swarm/swarm-<runId>.jsonl`
+- **macOS:** `$TMPDIR/copilot-swarm/swarm-<runId>.jsonl`
+- **Windows:** `%TEMP%\copilot-swarm\swarm-<runId>.jsonl`
 
-The log file captures all messages (including debug-level) regardless of verbose mode or TUI state. If an error occurs, the log file path is printed to help with debugging. Log file creation is non-blocking — if it fails, the tool continues normally.
+Each line is a JSON object with structured fields:
+
+```jsonl
+{"ts":"2026-03-19T12:00:00.000Z","level":"error","msg":"Error calling engineer","ctx":{"agent":"engineer","model":"gpt-4.1","attempt":1,"maxAttempts":2},"error":{"name":"Error","message":"rate limit exceeded","stack":"...","category":"transient","retryable":true}}
+```
+
+**Exploring logs:**
+
+```bash
+swarm logs                                    # List recent log files
+cat <logfile> | jq .                          # Pretty-print all entries
+cat <logfile> | jq 'select(.level == "error")'  # Filter errors only
+cat <logfile> | jq 'select(.ctx.agent == "engineer")'  # Filter by agent
+```
+
+Log files are automatically rotated — files older than 7 days or exceeding 20 total are pruned on startup. Log level is controlled via `--log-level` flag or `LOG_LEVEL` env var (default: `info`). The `--verbose` flag sets log level to `debug`.
 
 ### Local Development
 
@@ -837,7 +853,8 @@ For long or detailed prompts, use one of these approaches:
 
 | Variable | Default | Description |
 |---|---|---|
-| `VERBOSE` | `false` | Enable verbose streaming output. Must be `"true"` or `"false"`. |
+| `VERBOSE` | `false` | Enable verbose streaming output (sets log level to `debug`). Must be `"true"` or `"false"`. |
+| `LOG_LEVEL` | `info` | Log level for file logging: `error`, `warn`, `info`, `debug`. CLI flag `--log-level` takes precedence. |
 | `AGENTS_DIR` | `.github/agents` | Directory containing agent instruction `.md` files. |
 | `SWARM_DIR` | `.swarm` | Root directory for all swarm output (plans, runs, analysis). |
 | `SESSION_TIMEOUT_MS` | `1800000` | Timeout in milliseconds for each agent session call (default: 30 minutes). |

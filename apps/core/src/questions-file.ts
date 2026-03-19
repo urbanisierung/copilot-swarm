@@ -22,17 +22,31 @@ export async function writeQuestionsFile(
   const lines: string[] = [];
   const preview = meta.request.length > 100 ? `${meta.request.substring(0, 100)}...` : meta.request;
 
+  // Compute summary stats
+  const sectionStats: string[] = [];
+  let totalQuestions = 0;
+  for (let s = 0; s < HARVEST_ROLES.length; s++) {
+    const count = (roleQuestions[HARVEST_ROLES[s].phaseKey] ?? []).length;
+    totalQuestions += count;
+    sectionStats.push(`Section ${s + 1} (${HARVEST_ROLES[s].label}): ${count}`);
+  }
+
   lines.push("# Plan Questions");
   lines.push("");
   lines.push(`> Session: ${meta.sessionId ?? "default"}`);
   lines.push(`> Request: ${preview.replace(/\n/g, " ")}`);
   lines.push(`> Generated: ${meta.timestamp}`);
   lines.push("");
+  lines.push(`<!-- Summary: ${totalQuestions} question(s) across ${HARVEST_ROLES.length} sections -->`);
+  lines.push(`<!-- ${sectionStats.join(" | ")} -->`);
   lines.push("<!-- Fill in your answers below each question. Leave blank to let the agent decide. -->");
+  lines.push("<!-- For multiple-choice questions, just write the letter (A, B, C, ...) or a custom answer. -->");
   lines.push("<!-- When done, run: swarm plan --resume -->");
   lines.push("");
 
+  let sectionIdx = 0;
   for (const role of HARVEST_ROLES) {
+    sectionIdx++;
     const questions = roleQuestions[role.phaseKey] ?? [];
     lines.push(`## ${role.label} (\`${role.phaseKey}\`)`);
     lines.push("");
@@ -44,8 +58,7 @@ export async function writeQuestionsFile(
     }
 
     for (let i = 0; i < questions.length; i++) {
-      lines.push(`### Q${i + 1}`);
-      // Prefix each line of the question with > for blockquote
+      lines.push(`### Q${sectionIdx}.${i + 1}`);
       for (const qLine of questions[i].split("\n")) {
         lines.push(`> ${qLine}`);
       }
@@ -68,17 +81,36 @@ export async function writeQuestionsFileWithAnswers(
   const lines: string[] = [];
   const preview = meta.request.length > 100 ? `${meta.request.substring(0, 100)}...` : meta.request;
 
+  // Compute summary stats
+  const sectionStats: string[] = [];
+  let totalQuestions = 0;
+  let totalAnswered = 0;
+  for (let s = 0; s < HARVEST_ROLES.length; s++) {
+    const pairs = roleQAPairs[HARVEST_ROLES[s].phaseKey] ?? [];
+    const answered = pairs.filter((p) => p.answer).length;
+    totalQuestions += pairs.length;
+    totalAnswered += answered;
+    sectionStats.push(`Section ${s + 1} (${HARVEST_ROLES[s].label}): ${pairs.length} (${answered} answered)`);
+  }
+
   lines.push("# Plan Questions");
   lines.push("");
   lines.push(`> Session: ${meta.sessionId ?? "default"}`);
   lines.push(`> Request: ${preview.replace(/\n/g, " ")}`);
   lines.push(`> Generated: ${meta.timestamp}`);
   lines.push("");
+  lines.push(
+    `<!-- Summary: ${totalQuestions} question(s), ${totalAnswered} answered, across ${HARVEST_ROLES.length} sections -->`,
+  );
+  lines.push(`<!-- ${sectionStats.join(" | ")} -->`);
   lines.push("<!-- Fill in your answers below each question. Leave blank to let the agent decide. -->");
+  lines.push("<!-- For multiple-choice questions, just write the letter (A, B, C, ...) or a custom answer. -->");
   lines.push("<!-- When done, run: swarm plan --resume -->");
   lines.push("");
 
+  let sectionIdx = 0;
   for (const role of HARVEST_ROLES) {
+    sectionIdx++;
     const pairs = roleQAPairs[role.phaseKey] ?? [];
     lines.push(`## ${role.label} (\`${role.phaseKey}\`)`);
     lines.push("");
@@ -90,7 +122,7 @@ export async function writeQuestionsFileWithAnswers(
     }
 
     for (let i = 0; i < pairs.length; i++) {
-      lines.push(`### Q${i + 1}`);
+      lines.push(`### Q${sectionIdx}.${i + 1}`);
       for (const qLine of pairs[i].question.split("\n")) {
         lines.push(`> ${qLine}`);
       }
@@ -141,8 +173,8 @@ export function parseQuestionsFile(content: string): Record<string, QAPair[]> {
       continue;
     }
 
-    // Detect question header: ### Q1
-    if (/^### Q\d+/.test(line)) {
+    // Detect question header: ### Q1 (old) or ### Q1.1 (new)
+    if (/^### Q\d+(\.\d+)?/.test(line)) {
       flushQA();
       currentQuestion = "";
       collectingAnswer = false;
@@ -207,7 +239,7 @@ export function parseQuestionsFileAll(content: string): Record<string, QAPair[]>
       continue;
     }
 
-    if (/^### Q\d+/.test(line)) {
+    if (/^### Q\d+(\.\d+)?/.test(line)) {
       flushQA();
       currentQuestion = "";
       collectingAnswer = false;

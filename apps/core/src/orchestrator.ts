@@ -79,8 +79,9 @@ export class SwarmOrchestrator {
     // Auto-resume loop: retry from checkpoint up to maxAutoResume times
     const max = this.config.maxAutoResume;
     for (let attempt = 1; attempt <= max; attempt++) {
-      this.logger.warn(`⚠️  Pipeline failed: ${lastError instanceof Error ? lastError.message : String(lastError)}`);
-      this.logger.info(msg.autoResumeAttempt(attempt, max));
+      const ctx = { phase: "auto-resume", attempt, maxAttempts: max };
+      this.logger.error("Pipeline failed, attempting auto-resume", lastError, ctx);
+      this.logger.info(msg.autoResumeAttempt(attempt, max), ctx);
 
       // Tear down old engine and create a fresh one with resume enabled
       await this.engine.stop();
@@ -102,7 +103,11 @@ export class SwarmOrchestrator {
       }
     }
 
-    this.logger.error(msg.autoResumeExhausted(max));
+    this.logger.error(msg.autoResumeExhausted(max), lastError, {
+      phase: "auto-resume",
+      attempt: max,
+      maxAttempts: max,
+    });
     throw lastError;
   }
 
