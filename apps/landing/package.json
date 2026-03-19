@@ -11,6 +11,7 @@
     "check": "biome check src/styles src/layouts src/pages --files-include='*.css' --files-include='*.ts' || true"
   },
   "dependencies": {
-    "astro": "^6.0.4"
+    "astro": "^6.0.4",
+    "sharp": "^0.34.5"
   }
 }
