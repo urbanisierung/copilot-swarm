@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.59
+
+### Patch Changes
+
+- aa2fbc8: Fix harvest verify logic
+
 ## 0.0.58
 
 ### Patch Changes
