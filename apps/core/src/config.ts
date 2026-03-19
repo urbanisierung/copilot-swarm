@@ -134,7 +134,7 @@ Options:
   --no-tui             Disable TUI dashboard (use plain log output)
   --auto-model         Auto-select model per task (use fast model when primary isn't needed)
   --harvest            Plan mode: generate questions file for async answering (use with plan command)
-  --harvest-verify     Verify/consolidate an existing questions file (preserves answers)
+  --harvest-verify     Verify/consolidate an existing questions file (preserves answers, use -f for custom path)
   --verify-build <cmd> Shell command to verify the build (e.g. "npm run build")
   --verify-test <cmd>  Shell command to run tests (e.g. "npm test")
   --verify-lint <cmd>  Shell command to run linting (e.g. "npm run lint")
@@ -186,6 +186,7 @@ Examples:
   swarm run --auto-model "Fix validation"  Use fast model for simple tasks
   swarm plan --harvest "Add dark mode"    Generate questions file, answer async
   swarm plan --harvest-verify             Verify/consolidate existing questions file
+  swarm plan --harvest-verify -f q.md     Verify a specific questions file
 
 Environment variables override defaults; CLI args override env vars.
 See documentation for all env var options.`;
@@ -401,6 +402,8 @@ export interface SwarmConfig {
   readonly harvest: boolean;
   /** When true, verify/consolidate an existing questions file (preserves answers). */
   readonly harvestVerify: boolean;
+  /** Optional override path to questions file (for --harvest-verify -f). */
+  readonly questionsFilePath?: string;
 }
 
 export async function loadConfig(): Promise<SwarmConfig> {
@@ -408,7 +411,10 @@ export async function loadConfig(): Promise<SwarmConfig> {
 
   let issueBody: string | undefined;
 
-  if (cli.planFile) {
+  if (cli.harvestVerify) {
+    // harvest-verify needs no prompt — skip all prompt resolution
+    issueBody = "";
+  } else if (cli.planFile) {
     issueBody = readPlanFile(cli.planFile);
   } else if (cli.promptFile) {
     issueBody = readPromptFile(cli.promptFile);
@@ -465,6 +471,7 @@ export async function loadConfig(): Promise<SwarmConfig> {
       (cli.fleetMode === "analyze" || cli.fleetMode === "cleanup" || cli.fleetMode === "architecture")
     ) &&
     !cli.resume &&
+    !cli.harvestVerify &&
     (!issueBody || issueBody === "")
   ) {
     console.error(
@@ -516,5 +523,6 @@ export async function loadConfig(): Promise<SwarmConfig> {
     preparePath: cli.preparePath,
     harvest: cli.harvest,
     harvestVerify: cli.harvestVerify,
+    questionsFilePath: cli.harvestVerify ? cli.promptFile : undefined,
   };
 }
