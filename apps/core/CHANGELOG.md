@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.60
+
+### Patch Changes
+
+- 9b4deb6: Improved logging
+
 ## 0.0.59
 
 ### Patch Changes
