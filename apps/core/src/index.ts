@@ -97,6 +97,25 @@ if (config.command === "stats") {
   process.exit(0);
 }
 
+// Handle logs command — show recent log files
+if (config.command === "logs") {
+  const { listRecentLogs } = await import("./logger.js");
+  const logs = listRecentLogs();
+  if (logs.length === 0) {
+    console.log("No log files found.");
+  } else {
+    console.log("Recent log files:\n");
+    for (const log of logs) {
+      console.log(`  ${log.name}  (${log.size})`);
+    }
+    console.log(`\nLatest: ${logs[0].path}`);
+    console.log(`\nTip: Use 'jq' to explore structured logs:`);
+    console.log(`  cat "${logs[0].path}" | jq .`);
+    console.log(`  cat "${logs[0].path}" | jq 'select(.level == "error")'`);
+  }
+  process.exit(0);
+}
+
 // Handle demo command
 if (config.command === "demo") {
   const { runDemo } = await import("./demo.js");
@@ -130,7 +149,7 @@ if (config.command === "restore") {
 // Handle digest command
 if (config.command === "digest") {
   const pipeline = (await import("./pipeline-config.js")).loadPipelineConfig(config.repoRoot);
-  const logger = new Logger(config.verbose, config.runId);
+  const logger = new Logger(config.verbose, config.runId, config.logLevel);
   const { runDigest } = await import("./digest.js");
 
   // Resolve session so paths work
@@ -184,9 +203,11 @@ if (config.command === "finish") {
 // Resolve session for all other commands
 config.resolvedSessionId = await resolveSessionId(config);
 
-const logger = new Logger(config.verbose, config.runId);
+const logger = new Logger(config.verbose, config.runId, config.logLevel);
 
 const showLogOnError = (err: unknown) => {
+  // Log the full error with stack trace to the structured log file
+  logger.error("Fatal error", err);
   if (logger.logFilePath) {
     console.error(msg.logFileHint(logger.logFilePath));
   }
@@ -405,8 +426,9 @@ if (config.command === "plan" || config.command === "auto") {
     // Auto-resume loop: retry from checkpoint up to maxAutoResume times
     const max = config.maxAutoResume;
     for (let attempt = 1; attempt <= max; attempt++) {
-      logger.warn(`⚠️  Analysis failed: ${lastError instanceof Error ? lastError.message : String(lastError)}`);
-      logger.info(msg.autoResumeAttempt(attempt, max));
+      const ctx = { phase: "auto-resume-analysis", attempt, maxAttempts: max };
+      logger.error("Analysis failed, attempting auto-resume", lastError, ctx);
+      logger.info(msg.autoResumeAttempt(attempt, max), ctx);
 
       await analyzer.stop();
       const resumeConfig: SwarmConfig = { ...config, resume: true };
@@ -425,7 +447,7 @@ if (config.command === "plan" || config.command === "auto") {
       }
     }
 
-    logger.error(msg.autoResumeExhausted(max));
+    logger.error(msg.autoResumeExhausted(max), lastError, { phase: "auto-resume-analysis" });
     throw lastError;
   };
 

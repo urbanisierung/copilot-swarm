@@ -692,6 +692,13 @@ export class PipelineEngine {
           const settled = await Promise.allSettled(wave.map((idx) => runStream(ctx.tasks[idx], idx)));
           const failures = settled.filter((r): r is PromiseRejectedResult => r.status === "rejected");
           if (failures.length > 0) {
+            for (let fi = 0; fi < failures.length; fi++) {
+              const streamIdx = wave[settled.indexOf(failures[fi])];
+              this.logger.error(`Stream ${streamIdx} failed in wave ${w + 1}`, failures[fi].reason, {
+                phase: "implement",
+                stream: streamIdx,
+              });
+            }
             this.logger.warn(msg.partialStreamFailure(failures.length, settled.length));
             await save();
             throw new Error(
@@ -714,6 +721,11 @@ export class PipelineEngine {
       const settled = await Promise.allSettled(ctx.tasks.map((task, idx) => runStream(task, idx)));
       const failures = settled.filter((r): r is PromiseRejectedResult => r.status === "rejected");
       if (failures.length > 0) {
+        for (const [i, result] of settled.entries()) {
+          if (result.status === "rejected") {
+            this.logger.error(`Stream ${i} failed`, result.reason, { phase: "implement", stream: i });
+          }
+        }
         this.logger.warn(msg.partialStreamFailure(failures.length, settled.length));
         await save();
         throw new Error(`${failures.length}/${settled.length} streams failed. Use --resume to retry failed streams.`);

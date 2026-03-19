@@ -31,7 +31,7 @@ export class SessionManager {
     private readonly logger: Logger,
   ) {
     this.client = new CopilotClient({
-      logLevel: config.verbose ? "debug" : "warning",
+      logLevel: config.logLevel === "debug" ? "debug" : "warning",
     });
   }
 
@@ -163,15 +163,19 @@ export class SessionManager {
       this.tracker.addActiveAgent(session.sessionId, label, resolvedModel);
     }
 
+    // Always log SDK events to the structured log file
+    const ctx = { agent: label, model: resolvedModel, sessionId: session.sessionId };
+    session.on(SessionEvent.TOOL_EXECUTION_START, (e) => {
+      this.logger.debug(msg.toolExecution(e.data.toolName), ctx);
+    });
+    session.on(SessionEvent.INTENT, (e) => {
+      this.logger.debug(msg.intentUpdate(e.data.intent), ctx);
+    });
+
+    // Verbose mode additionally streams deltas to stdout
     if (this.config.verbose) {
       session.on(SessionEvent.MESSAGE_DELTA, (e) => {
         this.logger.write(e.data.deltaContent);
-      });
-      session.on(SessionEvent.TOOL_EXECUTION_START, (e) => {
-        this.logger.debug(msg.toolExecution(e.data.toolName));
-      });
-      session.on(SessionEvent.INTENT, (e) => {
-        this.logger.debug(msg.intentUpdate(e.data.intent));
       });
     }
 
@@ -225,20 +229,22 @@ export class SessionManager {
 
   async callIsolated(agentName: string, prompt: string, model?: string, sessionKey?: string): Promise<string> {
     const maxAttempts = this.config.maxRetries;
+    const resolvedModel = model ?? this.pipeline.primaryModel;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const session = await this.createAgentSession(agentName, model);
       if (sessionKey) this.recordSession(sessionKey, session, agentName, agentName);
+      const ctx = { agent: agentName, model: resolvedModel, attempt, maxAttempts, sessionId: session.sessionId };
       try {
         const content = await this.send(session, prompt, `${agentName} is working…`);
         if (!content && attempt < maxAttempts) {
-          this.logger.warn(msg.emptyResponse(agentName, attempt, maxAttempts));
+          this.logger.warn(msg.emptyResponse(agentName, attempt, maxAttempts), ctx);
           continue;
         }
         return content;
       } catch (err) {
         this.logger.stopSpinner();
-        this.logger.error(msg.callError(agentName, attempt, maxAttempts), err);
+        this.logger.error(msg.callError(agentName, attempt, maxAttempts), err, ctx);
         if (attempt >= maxAttempts) throw err;
       } finally {
         await this.destroySession(session);
@@ -258,20 +264,22 @@ export class SessionManager {
   ): Promise<string> {
     const maxAttempts = this.config.maxRetries;
     const label = agentLabel ?? "agent";
+    const resolvedModel = model ?? this.pipeline.primaryModel;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const session = await this.createSessionWithInstructions(instructions, model, label);
       if (sessionKey) this.recordSession(sessionKey, session, "inline-agent", "inline-agent");
+      const ctx = { agent: label, model: resolvedModel, attempt, maxAttempts, sessionId: session.sessionId };
       try {
         const content = await this.send(session, prompt, spinnerLabel, collectAll);
         if (!content && attempt < maxAttempts) {
-          this.logger.warn(msg.emptyResponse("inline-agent", attempt, maxAttempts));
+          this.logger.warn(msg.emptyResponse("inline-agent", attempt, maxAttempts), ctx);
           continue;
         }
         return content;
       } catch (err) {
         this.logger.stopSpinner();
-        this.logger.error(msg.callError("inline-agent", attempt, maxAttempts), err);
+        this.logger.error(msg.callError("inline-agent", attempt, maxAttempts), err, ctx);
         if (attempt >= maxAttempts) throw err;
       } finally {
         await this.destroySession(session);

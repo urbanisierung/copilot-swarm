@@ -1,0 +1,92 @@
+---
+title: "swarm logs"
+description: Show recent log files and explore structured debug logs.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+List recent structured log files and get tips for exploring them.
+
+## Usage
+
+```bash
+swarm logs
+```
+
+**Output:**
+
+```
+Recent log files:
+
+  swarm-2026-03-19T12-00-00-000Z.jsonl  (12.3 KB)
+  swarm-2026-03-18T15-30-00-000Z.jsonl  (8.1 KB)
+
+Latest: /tmp/copilot-swarm/swarm-2026-03-19T12-00-00-000Z.jsonl
+
+Tip: Use 'jq' to explore structured logs:
+  cat "/tmp/copilot-swarm/swarm-2026-03-19T12-00-00-000Z.jsonl" | jq .
+  cat "/tmp/copilot-swarm/swarm-2026-03-19T12-00-00-000Z.jsonl" | jq 'select(.level == "error")'
+```
+
+## Log Format
+
+Every run writes a JSON Lines (`.jsonl`) log file. Each line is a self-contained JSON object:
+
+```json
+{
+  "ts": "2026-03-19T12:00:00.000Z",
+  "level": "error",
+  "msg": "Error calling engineer",
+  "ctx": {
+    "agent": "engineer",
+    "model": "gpt-4.1",
+    "attempt": 1,
+    "maxAttempts": 2,
+    "sessionId": "abc-123"
+  },
+  "error": {
+    "name": "Error",
+    "message": "rate limit exceeded",
+    "stack": "Error: rate limit...\n  at ...",
+    "category": "transient",
+    "retryable": true
+  }
+}
+```
+
+## Useful Queries
+
+```bash
+# All errors
+cat <logfile> | jq 'select(.level == "error")'
+
+# Errors from a specific agent
+cat <logfile> | jq 'select(.ctx.agent == "engineer")'
+
+# Only transient (retryable) errors
+cat <logfile> | jq 'select(.error.retryable == true)'
+
+# All entries for a specific phase
+cat <logfile> | jq 'select(.ctx.phase == "implement")'
+```
+
+## Log Level
+
+Control what gets logged via `--log-level` or the `LOG_LEVEL` environment variable:
+
+| Level | What's logged |
+|---|---|
+| `error` | Errors only |
+| `warn` | Errors + warnings |
+| `info` | Errors + warnings + informational messages (default) |
+| `debug` | Everything including SDK events, tool calls, intents |
+
+<Aside type="tip">
+The `--verbose` / `-v` flag automatically sets the log level to `debug` and additionally streams LLM response deltas to stdout.
+</Aside>
+
+## Log Rotation
+
+Log files are automatically pruned on each run:
+- Files older than **7 days** are removed
+- If more than **20 files** exist, the oldest are removed

@@ -946,7 +946,11 @@ export class FleetEngine {
           } catch (err) {
             const errMsg = err instanceof Error ? err.message : String(err);
             checkpoint.waveResults[waveIdx][repoPath] = `FAILED: ${errMsg}`;
-            this.logger.error(`  ❌ ${path.basename(repoPath)} failed: ${errMsg}`);
+            this.logger.error(`  ❌ ${path.basename(repoPath)} failed`, err, {
+              phase: "fleet-wave",
+              agent: path.basename(repoPath),
+              stream: streamIdx,
+            });
             this.tracker?.updateStream(streamIdx, "failed");
             this.tracker?.updateStreamDetail(streamIdx, errMsg.slice(0, 80));
           }

@@ -1,22 +1,146 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import type { LogLevel } from "./config.js";
+import { logLevelValue } from "./config.js";
 import type { ProgressTracker } from "./progress-tracker.js";
 
 const LOG_DIR = path.join(os.tmpdir(), "copilot-swarm");
+const MAX_LOG_FILES = 20;
+const MAX_LOG_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
-/** Thin logging wrapper for centralized output control. */
+/** Optional context attached to log entries for structured debugging. */
+export interface LogContext {
+  agent?: string;
+  model?: string;
+  phase?: string;
+  stream?: number;
+  attempt?: number;
+  maxAttempts?: number;
+  sessionId?: string;
+  duration?: number;
+  [key: string]: unknown;
+}
+
+/** Structured error details for log entries. */
+export interface LogErrorDetail {
+  name: string;
+  message: string;
+  stack?: string;
+  code?: string;
+  category?: string;
+  retryable?: boolean;
+  cause?: string;
+}
+
+/** Extract structured error details from an unknown error. */
+export function serializeError(err: unknown): LogErrorDetail | undefined {
+  if (err == null) return undefined;
+  if (err instanceof Error) {
+    const detail: LogErrorDetail = {
+      name: err.name,
+      message: err.message,
+      stack: err.stack,
+    };
+    if ("code" in err && typeof (err as Record<string, unknown>).code === "string") {
+      detail.code = (err as Record<string, unknown>).code as string;
+    }
+    if (err.cause instanceof Error) {
+      detail.cause = `${err.cause.name}: ${err.cause.message}`;
+    }
+    const classified = classifyError(err);
+    detail.category = classified.category;
+    detail.retryable = classified.retryable;
+    return detail;
+  }
+  return { name: "UnknownError", message: String(err) };
+}
+
+/** Error classification result. */
+export interface ErrorClassification {
+  category: "transient" | "permanent" | "unknown";
+  type: string;
+  retryable: boolean;
+}
+
+/** Classify an error as transient (retryable) or permanent based on error inspection. */
+export function classifyError(err: unknown): ErrorClassification {
+  if (!(err instanceof Error)) return { category: "unknown", type: "unknown", retryable: false };
+
+  const msg = err.message.toLowerCase();
+  const code = "code" in err ? String((err as Record<string, unknown>).code) : "";
+
+  // Rate limits
+  if (msg.includes("rate limit") || msg.includes("429") || code === "rate_limit") {
+    return { category: "transient", type: "rate_limit", retryable: true };
+  }
+  // Timeouts
+  if (msg.includes("timeout") || msg.includes("timed out") || code === "ETIMEDOUT" || code === "ESOCKETTIMEDOUT") {
+    return { category: "transient", type: "timeout", retryable: true };
+  }
+  // Network errors
+  if (
+    code === "ECONNRESET" ||
+    code === "ECONNREFUSED" ||
+    code === "ENOTFOUND" ||
+    code === "EAI_AGAIN" ||
+    msg.includes("network") ||
+    msg.includes("socket hang up") ||
+    msg.includes("fetch failed")
+  ) {
+    return { category: "transient", type: "network", retryable: true };
+  }
+  // Server errors (5xx)
+  if (msg.includes("500") || msg.includes("502") || msg.includes("503") || msg.includes("504")) {
+    return { category: "transient", type: "server_error", retryable: true };
+  }
+  // Context length exceeded
+  if (msg.includes("context length") || msg.includes("too many tokens") || msg.includes("token limit")) {
+    return { category: "permanent", type: "context_length", retryable: false };
+  }
+  // Auth errors
+  if (
+    msg.includes("unauthorized") ||
+    msg.includes("authentication") ||
+    msg.includes("401") ||
+    msg.includes("403") ||
+    msg.includes("forbidden")
+  ) {
+    return { category: "permanent", type: "auth", retryable: false };
+  }
+  // Bad request
+  if (msg.includes("400") || msg.includes("bad request") || msg.includes("invalid")) {
+    return { category: "permanent", type: "bad_request", retryable: false };
+  }
+
+  return { category: "unknown", type: "unknown", retryable: false };
+}
+
+/** A single JSON Lines log entry. */
+interface LogEntry {
+  ts: string;
+  level: string;
+  msg: string;
+  ctx?: LogContext;
+  error?: LogErrorDetail;
+}
+
+/** Thin logging wrapper with structured file logging and centralized output control. */
 export class Logger {
   private spinnerInterval: ReturnType<typeof setInterval> | null = null;
   private spinnerFrame = 0;
   private tracker: ProgressTracker | null = null;
   private readonly logFile: string | null;
+  private readonly levelNum: number;
   private static readonly SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
   constructor(
     private readonly verbose: boolean,
     runId: string,
+    logLevel: LogLevel = "info",
   ) {
+    this.levelNum = logLevelValue(logLevel);
+    pruneOldLogs();
     this.logFile = this.initLogFile(runId);
   }
 
@@ -24,23 +148,31 @@ export class Logger {
   private initLogFile(runId: string): string | null {
     try {
       fs.mkdirSync(LOG_DIR, { recursive: true });
-      const filePath = path.join(LOG_DIR, `swarm-${runId}.log`);
-      fs.writeFileSync(filePath, `# Copilot Swarm log — ${new Date().toISOString()}\n`);
+      const filePath = path.join(LOG_DIR, `swarm-${runId}.jsonl`);
+      const header: LogEntry = { ts: new Date().toISOString(), level: "info", msg: "Copilot Swarm log started" };
+      fs.writeFileSync(filePath, `${JSON.stringify(header)}\n`);
       return filePath;
     } catch {
       return null;
     }
   }
 
-  /** Append a line to the log file (fire-and-forget). */
-  private appendLog(level: string, message: string): void {
+  /** Append a structured JSON log entry (fire-and-forget). */
+  private appendLog(level: string, message: string, ctx?: LogContext, errorDetail?: LogErrorDetail): void {
     if (!this.logFile) return;
     try {
-      const ts = new Date().toISOString();
-      fs.appendFileSync(this.logFile, `${ts} [${level}] ${message}\n`);
+      const entry: LogEntry = { ts: new Date().toISOString(), level, msg: message };
+      if (ctx && Object.keys(ctx).length > 0) entry.ctx = ctx;
+      if (errorDetail) entry.error = errorDetail;
+      fs.appendFileSync(this.logFile, `${JSON.stringify(entry)}\n`);
     } catch {
       // Non-blocking — silently ignore write failures
     }
+  }
+
+  /** Check if a given level should be logged. */
+  private shouldLog(level: LogLevel): boolean {
+    return logLevelValue(level) <= this.levelNum;
   }
 
   /** Path to the current run's log file, or null if logging failed to initialize. */
@@ -53,8 +185,8 @@ export class Logger {
     this.tracker = tracker;
   }
 
-  info(message: string): void {
-    this.appendLog("INFO", message);
+  info(message: string, ctx?: LogContext): void {
+    if (this.shouldLog("info")) this.appendLog("info", message, ctx);
     if (this.tracker) {
       this.tracker.addLog(message);
       return;
@@ -62,8 +194,8 @@ export class Logger {
     console.log(message);
   }
 
-  warn(message: string): void {
-    this.appendLog("WARN", message);
+  warn(message: string, ctx?: LogContext): void {
+    if (this.shouldLog("warn")) this.appendLog("warn", message, ctx);
     if (this.tracker) {
       this.tracker.addLog(message, "warn");
       return;
@@ -71,10 +203,11 @@ export class Logger {
     console.warn(message);
   }
 
-  error(message: string, err?: unknown): void {
-    const detail = err instanceof Error ? err.message : String(err ?? "");
+  error(message: string, err?: unknown, ctx?: LogContext): void {
+    const errorDetail = serializeError(err);
+    const detail = errorDetail?.message ?? "";
     const full = detail ? `${message}: ${detail}` : message;
-    this.appendLog("ERROR", full);
+    if (this.shouldLog("error")) this.appendLog("error", message, ctx, errorDetail);
     if (this.tracker) {
       this.tracker.addLog(full, "error");
       return;
@@ -98,9 +231,9 @@ export class Logger {
     }
   }
 
-  /** Log only when verbose mode is enabled. Always written to log file. */
-  debug(message: string): void {
-    this.appendLog("DEBUG", message);
+  /** Log only when debug level is enabled. Always written to log file when level allows. */
+  debug(message: string, ctx?: LogContext): void {
+    if (this.shouldLog("debug")) this.appendLog("debug", message, ctx);
     if (this.tracker) return;
     if (this.verbose) {
       console.log(message);
@@ -109,7 +242,7 @@ export class Logger {
 
   /** Show an animated spinner with a message. No-op in verbose mode (streaming output is enough). */
   startSpinner(message: string): void {
-    this.appendLog("INFO", `[spinner] ${message}`);
+    this.appendLog("info", `[spinner] ${message}`);
     if (this.tracker) {
       this.tracker.setActiveAgent(message);
       return;
@@ -136,5 +269,50 @@ export class Logger {
       this.spinnerInterval = null;
       process.stdout.write("\r\x1b[K");
     }
+  }
+}
+
+/** Remove old log files (>7 days or >20 files). */
+function pruneOldLogs(): void {
+  try {
+    if (!fs.existsSync(LOG_DIR)) return;
+    const files = fs
+      .readdirSync(LOG_DIR)
+      .filter((f) => f.startsWith("swarm-") && (f.endsWith(".jsonl") || f.endsWith(".log")))
+      .map((f) => ({ name: f, mtime: fs.statSync(path.join(LOG_DIR, f)).mtimeMs }))
+      .sort((a, b) => b.mtime - a.mtime);
+
+    const now = Date.now();
+    for (let i = 0; i < files.length; i++) {
+      if (i >= MAX_LOG_FILES || now - files[i].mtime > MAX_LOG_AGE_MS) {
+        try {
+          fs.unlinkSync(path.join(LOG_DIR, files[i].name));
+        } catch {
+          // Ignore individual deletion failures
+        }
+      }
+    }
+  } catch {
+    // Non-blocking — don't fail if pruning fails
+  }
+}
+
+/** List recent log files sorted by newest first. */
+export function listRecentLogs(): { name: string; path: string; size: string }[] {
+  try {
+    if (!fs.existsSync(LOG_DIR)) return [];
+    return fs
+      .readdirSync(LOG_DIR)
+      .filter((f) => f.startsWith("swarm-") && (f.endsWith(".jsonl") || f.endsWith(".log")))
+      .map((f) => {
+        const fullPath = path.join(LOG_DIR, f);
+        const stat = fs.statSync(fullPath);
+        const kb = (stat.size / 1024).toFixed(1);
+        return { name: f, path: fullPath, size: `${kb} KB`, mtime: stat.mtimeMs };
+      })
+      .sort((a, b) => b.mtime - a.mtime)
+      .map(({ name, path: p, size }) => ({ name, path: p, size }));
+  } catch {
+    return [];
   }
 }
