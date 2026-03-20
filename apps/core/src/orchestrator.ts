@@ -6,7 +6,9 @@ import * as path from "node:path";
 import type { PreviousRunContext } from "./checkpoint.js";
 import type { SwarmConfig } from "./config.js";
 import { readVersion } from "./config.js";
+import { ContextLengthError } from "./errors.js";
 import type { Logger } from "./logger.js";
+import { classifyError } from "./logger.js";
 import { msg } from "./messages.js";
 import { runDir } from "./paths.js";
 import { loadPipelineConfig } from "./pipeline-config.js";
@@ -76,6 +78,17 @@ export class SwarmOrchestrator {
       lastError = error;
     }
 
+    // Don't auto-resume permanent errors — they won't resolve by retrying
+    const classification = classifyError(lastError);
+    if (lastError instanceof ContextLengthError || !classification.retryable) {
+      this.logger.error(
+        `Pipeline failed with non-retryable error (${classification.type}), skipping auto-resume`,
+        lastError,
+        { phase: "auto-resume" },
+      );
+      throw lastError;
+    }
+
     // Auto-resume loop: retry from checkpoint up to maxAutoResume times
     const max = this.config.maxAutoResume;
     for (let attempt = 1; attempt <= max; attempt++) {
@@ -100,6 +113,16 @@ export class SwarmOrchestrator {
         return;
       } catch (retryError) {
         lastError = retryError;
+        // Check again if the new error is permanent
+        const retryClassification = classifyError(retryError);
+        if (retryError instanceof ContextLengthError || !retryClassification.retryable) {
+          this.logger.error(
+            `Auto-resume hit non-retryable error (${retryClassification.type}), stopping`,
+            retryError,
+            ctx,
+          );
+          throw retryError;
+        }
       }
     }
 

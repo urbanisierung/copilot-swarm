@@ -705,6 +705,23 @@ cat <logfile> | jq 'select(.ctx.agent == "engineer")'  # Filter by agent
 
 Log files are automatically rotated — files older than 7 days or exceeding 20 total are pruned on startup. Log level is controlled via `--log-level` flag or `LOG_LEVEL` env var (default: `info`). The `--verbose` flag sets log level to `debug`.
 
+### Error Recovery
+
+Copilot Swarm uses a layered error recovery system:
+
+1. **Smart retries** — Errors are classified as transient (rate limit, timeout, network) or permanent (auth, context length). Transient errors get exponential backoff (1s → 2s → 4s). Permanent errors fail immediately instead of wasting retries.
+
+2. **Deterministic context reduction** — When a prompt exceeds the model's token limit, the system progressively reduces content by priority: repo context first, then spec/design truncation, then dropping optional components.
+
+3. **AI recovery agent** — When deterministic reduction isn't enough, a fast-model AI agent analyzes the prompt component breakdown and returns structured recovery instructions (what to trim, drop, or summarize).
+
+4. **Actionable messages** — Error messages include specific guidance:
+   - Auth errors → "Try `gh auth login`"
+   - Rate limits → "Wait and retry"
+   - Context length → Shows exact token overage and suggestions
+
+Error classification is also included in structured log entries with a `retryable` flag for post-mortem analysis.
+
 ### Local Development
 
 ```bash

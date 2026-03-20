@@ -90,3 +90,36 @@ The `--verbose` / `-v` flag automatically sets the log level to `debug` and addi
 Log files are automatically pruned on each run:
 - Files older than **7 days** are removed
 - If more than **20 files** exist, the oldest are removed
+
+## Error Recovery
+
+When errors occur, Copilot Swarm applies a layered recovery strategy:
+
+### Layer 1 — Smart Retries
+
+Errors are classified and handled based on type:
+
+| Error Type | Category | Behavior |
+|---|---|---|
+| Rate limit, timeout, network | Transient | Retry with exponential backoff (1s → 2s → 4s) |
+| Auth (401/403) | Permanent | Fail immediately with guidance |
+| Context length exceeded | Permanent | Route to context reduction (Layer 2) |
+| Bad request | Permanent | Fail immediately |
+
+### Layer 2 — Deterministic Context Reduction
+
+When a prompt exceeds the model's token limit, content is progressively reduced by priority:
+1. Reduce repository context (16K → 8K → 0 tokens)
+2. Truncate spec and design documents
+3. Drop optional components (dependency context, design spec for non-frontend tasks)
+
+### Layer 3 — AI Recovery Agent
+
+If deterministic reduction isn't enough, a fast-model AI agent analyzes the prompt breakdown and returns structured recovery instructions — deciding what to trim, drop, or summarize.
+
+### Layer 4 — Actionable Messages
+
+Error messages include specific guidance for common failures:
+- **Auth errors** → "Try `gh auth login` or check your GITHUB_TOKEN"
+- **Rate limits** → "Wait a few minutes and retry, or reduce parallel streams"
+- **Context length** → Shows exact token overage and suggestions

@@ -90,13 +90,20 @@ export function classifyError(err: unknown): ErrorClassification {
   ) {
     return { category: "transient", type: "network", retryable: true };
   }
+  // Context length exceeded (check before server errors — large token numbers can contain "500")
+  if (
+    msg.includes("context length") ||
+    msg.includes("too many tokens") ||
+    msg.includes("token limit") ||
+    msg.includes("token count") ||
+    msg.includes("exceeds the limit") ||
+    msg.includes("exceeds the maximum")
+  ) {
+    return { category: "permanent", type: "context_length", retryable: false };
+  }
   // Server errors (5xx)
   if (msg.includes("500") || msg.includes("502") || msg.includes("503") || msg.includes("504")) {
     return { category: "transient", type: "server_error", retryable: true };
-  }
-  // Context length exceeded
-  if (msg.includes("context length") || msg.includes("too many tokens") || msg.includes("token limit")) {
-    return { category: "permanent", type: "context_length", retryable: false };
   }
   // Auth errors
   if (
