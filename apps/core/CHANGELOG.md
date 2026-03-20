@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.62
+
+### Patch Changes
+
+- 6fe7315: Introduction of multi-layered error handling, including AI error handling.
+
 ## 0.0.61
 
 ### Patch Changes
