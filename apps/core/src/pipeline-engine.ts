@@ -1091,7 +1091,7 @@ export class PipelineEngine {
   // AI-driven context recovery
   // ---------------------------------------------------------------------------
 
-  private readonly DEFAULT_CONTEXT_LIMIT = 128_000;
+  private readonly DEFAULT_CONTEXT_LIMIT = 136_000;
 
   /**
    * Attempt to recover from a ContextLengthError by reducing the prompt.

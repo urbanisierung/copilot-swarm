@@ -8,6 +8,7 @@ import {
   parseRecoveryActions,
   reducePrompt,
   shouldRetry,
+  smartTruncate,
 } from "./errors.js";
 
 // ---------------------------------------------------------------------------
@@ -223,5 +224,49 @@ describe("buildRecoveryPrompt", () => {
     expect(prompt).toContain("task: 100 tokens");
     expect(prompt).toContain("spec: 5000 tokens");
     expect(prompt).toContain("128000");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// smartTruncate
+// ---------------------------------------------------------------------------
+
+describe("smartTruncate", () => {
+  it("returns content unchanged if within budget", () => {
+    const content = "Hello world";
+    expect(smartTruncate(content, 1000)).toBe(content);
+  });
+
+  it("returns content unchanged at exact boundary", () => {
+    const content = "a".repeat(4000); // 1000 tokens
+    expect(smartTruncate(content, 1000)).toBe(content);
+  });
+
+  it("keeps beginning and end, removes middle", () => {
+    const content = "a".repeat(8000); // 2000 tokens
+    const result = smartTruncate(content, 1000); // Target 1000 tokens = 4000 chars
+    expect(result.length).toBeLessThan(content.length);
+    expect(result).toContain("tokens removed from middle");
+    expect(result.startsWith("a")).toBe(true);
+    expect(result.endsWith("a")).toBe(true);
+  });
+
+  it("preserves 60% from start and 30% from end", () => {
+    const start = "S".repeat(4000);
+    const middle = "M".repeat(4000);
+    const end = "E".repeat(4000);
+    const content = start + middle + end; // 12000 chars = 3000 tokens
+    const result = smartTruncate(content, 1500); // Target 1500 tokens = 6000 chars
+    // Start portion: floor(6000 * 0.6) = 3600 chars → all S's
+    expect(result.substring(0, 3600)).toBe("S".repeat(3600));
+    // End portion: floor(6000 * 0.3) = 1800 chars → all E's
+    expect(result.substring(result.length - 1800)).toBe("E".repeat(1800));
+  });
+
+  it("includes token count in removal marker", () => {
+    const content = "x".repeat(20000); // 5000 tokens
+    const result = smartTruncate(content, 2000); // Target 2000 tokens = 8000 chars
+    // Removed: 20000 - floor(8000*0.6) - floor(8000*0.3) = 20000 - 4800 - 2400 = 12800 chars = 3200 tokens
+    expect(result).toContain("3200 tokens removed");
   });
 });
