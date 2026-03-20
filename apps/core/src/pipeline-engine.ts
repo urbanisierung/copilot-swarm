@@ -4,6 +4,15 @@ import * as path from "node:path";
 import type { IterationSnapshot, PreviousRunContext } from "./checkpoint.js";
 import { clearCheckpoint, loadCheckpoint, saveCheckpoint } from "./checkpoint.js";
 import type { SwarmConfig } from "./config.js";
+import {
+  AI_RECOVERY_INSTRUCTIONS,
+  applyRecoveryActions,
+  buildRecoveryPrompt,
+  ContextLengthError,
+  type PromptComponent,
+  parseRecoveryActions,
+  reducePrompt,
+} from "./errors.js";
 import type { Logger } from "./logger.js";
 import { msg } from "./messages.js";
 import { latestPointerPath, loadRepoAnalysis, runDir, sessionScopedRoot } from "./paths.js";
@@ -510,7 +519,7 @@ export class PipelineEngine {
         this.tracker?.updateStreamModel(idx, streamModel);
       }
 
-      const session = await this.sessions.createAgentSession(phase.agent, streamModel, `implement/${streamKey}`);
+      let session = await this.sessions.createAgentSession(phase.agent, streamModel, `implement/${streamKey}`);
       const editedFiles = this.sessions.trackEditedFiles(session);
       let sessionPrimed = false;
 
@@ -538,10 +547,46 @@ export class PipelineEngine {
               repoContext = `\n\n## Repository Context\n\n${ctx.repoAnalysis.substring(0, charLimit)}\n\n[… truncated — see full analysis in .swarm/analysis/repo-analysis.md …]`;
             }
           }
-          const engineeringPrompt = isFrontendTask(task)
-            ? `Spec:\n${ctx.spec}\n\nDesign:\n${ctx.designSpec}\n\nTask:\n${task}${depContext}${repoContext}\n\nImplement this task. Use \`edit_file\` to apply all code changes directly — do NOT just output code in your response.`
-            : `Spec:\n${ctx.spec}\n\nTask:\n${task}${depContext}${repoContext}\n\nImplement this task. Use \`edit_file\` to apply all code changes directly — do NOT just output code in your response.`;
-          code = await this.sessions.send(session, engineeringPrompt, `${phase.agent} (${label}) is implementing…`);
+          const isFrontend = isFrontendTask(task);
+          const suffix =
+            "Implement this task. Use `edit_file` to apply all code changes directly — do NOT just output code in your response.";
+          const engineeringPrompt = isFrontend
+            ? `Spec:\n${ctx.spec}\n\nDesign:\n${ctx.designSpec}\n\nTask:\n${task}${depContext}${repoContext}\n\n${suffix}`
+            : `Spec:\n${ctx.spec}\n\nTask:\n${task}${depContext}${repoContext}\n\n${suffix}`;
+
+          try {
+            code = await this.sessions.send(session, engineeringPrompt, `${phase.agent} (${label}) is implementing…`);
+          } catch (engErr) {
+            if (engErr instanceof ContextLengthError) {
+              const components: PromptComponent[] = [
+                { label: "task", content: `Task:\n${task}\n\n${suffix}`, priority: 0, droppable: false },
+                { label: "spec", content: `Spec:\n${ctx.spec}`, priority: 2, droppable: false, maxTokens: 16_000 },
+                ...(isFrontend
+                  ? [
+                      {
+                        label: "design",
+                        content: `Design:\n${ctx.designSpec}`,
+                        priority: 3,
+                        droppable: true,
+                        maxTokens: 8_000,
+                      },
+                    ]
+                  : []),
+                { label: "dependencies", content: depContext, priority: 4, droppable: true },
+                { label: "repo-context", content: repoContext, priority: 5, droppable: true, maxTokens: 8_000 },
+              ];
+              const reducedPrompt = await this.recoverFromContextLength(engErr, components, `implement/${streamKey}`);
+              await this.destroySessionSafe(session);
+              session = await this.sessions.createAgentSession(phase.agent);
+              code = await this.sessions.send(
+                session,
+                reducedPrompt,
+                `${phase.agent} (${label}) retrying with reduced context…`,
+              );
+            } else {
+              throw engErr;
+            }
+          }
           sessionPrimed = true;
 
           // Engineer-to-PM clarification: if the engineer signals ambiguity, consult the PM
@@ -984,12 +1029,24 @@ export class PipelineEngine {
         .map((f) => `## ${f.label}: \`${f.command}\`\n\`\`\`\n${f.output}\n\`\`\``)
         .join("\n\n");
 
+      // Cap implementation context to avoid exceeding token limits
+      const maxImplTokens = 32_000;
+      let implContext: string;
       const allCode = ctx.streamResults.join("\n\n---\n\n");
+      const implTokens = estimateTokens(allCode);
+      if (implTokens <= maxImplTokens) {
+        implContext = allCode;
+      } else {
+        // Include only the error report and a summary of files changed
+        const charLimit = maxImplTokens * 4;
+        implContext = `${allCode.substring(0, charLimit)}\n\n[… implementation truncated (${implTokens} tokens) — focus on the failing commands above …]`;
+      }
+
       await this.sessions.callIsolated(
         phase.fixAgent,
         `The following verification commands failed after implementing the spec.\n\n` +
           `Spec:\n${ctx.spec}\n\n` +
-          `Implementation:\n${allCode}\n\n` +
+          `Implementation:\n${implContext}\n\n` +
           `## Failures\n\n${errorReport}\n\n` +
           `Fix the issues causing these failures. Only change what is needed to make the commands pass.`,
         undefined,
@@ -999,5 +1056,87 @@ export class PipelineEngine {
       this.iterationProgress.verify = { content: "fix-attempted", completedIterations: i };
       await save();
     }
+  }
+
+  private async destroySessionSafe(session: { destroy(): Promise<void> }): Promise<void> {
+    try {
+      await session.destroy();
+    } catch {
+      // Ignore — session may already be destroyed
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // AI-driven context recovery
+  // ---------------------------------------------------------------------------
+
+  private readonly DEFAULT_CONTEXT_LIMIT = 128_000;
+
+  /**
+   * Attempt to recover from a ContextLengthError by reducing the prompt.
+   * 1. Deterministic reduction (progressive truncation by priority)
+   * 2. AI recovery agent (asks a fast model what to trim)
+   * Returns the rebuilt prompt string, or throws if recovery fails.
+   */
+  async recoverFromContextLength(
+    error: ContextLengthError,
+    components: PromptComponent[],
+    sessionKey: string,
+  ): Promise<string> {
+    const contextLimit = error.limit || this.DEFAULT_CONTEXT_LIMIT;
+    this.logger.warn(`  🔧 Context length exceeded by ${error.overage} tokens — attempting recovery`);
+
+    // Pass 1: deterministic reduction
+    const { components: reduced, succeeded } = reducePrompt(components, contextLimit);
+    if (succeeded) {
+      this.logger.info("  ✅ Deterministic reduction succeeded");
+      return reduced
+        .map((c) => c.content)
+        .filter(Boolean)
+        .join("\n\n");
+    }
+
+    // Pass 2: AI recovery agent
+    this.logger.info("  🤖 Deterministic reduction insufficient — consulting AI recovery agent");
+    try {
+      const recoveryPrompt = buildRecoveryPrompt(error, components, contextLimit);
+      const raw = await this.sessions.callIsolatedWithInstructions(
+        AI_RECOVERY_INSTRUCTIONS,
+        recoveryPrompt,
+        "AI recovery agent analyzing…",
+        this.pipeline.fastModel,
+        `${sessionKey}/recovery`,
+        "Recovery Agent",
+      );
+      const actions = parseRecoveryActions(raw);
+      if (actions.length > 0) {
+        const recovered = applyRecoveryActions(components, actions);
+        this.logger.info(`  ✅ AI recovery applied ${actions.length} action(s)`);
+        return recovered
+          .map((c) => c.content)
+          .filter(Boolean)
+          .join("\n\n");
+      }
+    } catch (recoveryErr) {
+      this.logger.warn("  ⚠️  AI recovery agent failed, falling back to aggressive truncation", {
+        error: recoveryErr,
+      });
+    }
+
+    // Pass 3: aggressive fallback — drop all droppable, halve the rest
+    const aggressive = components.map((c) => ({ ...c }));
+    for (const c of aggressive) {
+      if (c.droppable) {
+        c.content = "";
+      } else if (c.priority > 1) {
+        const charLimit = Math.floor(c.content.length / 3);
+        c.content = `${c.content.substring(0, charLimit)}\n\n[… aggressively truncated to fit token budget …]`;
+      }
+    }
+    this.logger.warn("  ⚠️  Using aggressive truncation as last resort");
+    return aggressive
+      .map((c) => c.content)
+      .filter(Boolean)
+      .join("\n\n");
   }
 }

@@ -155,6 +155,10 @@ describe("classifyError", () => {
     ["socket hang up", { category: "transient", type: "network", retryable: true }],
     ["502 Bad Gateway", { category: "transient", type: "server_error", retryable: true }],
     ["context length exceeded", { category: "permanent", type: "context_length", retryable: false }],
+    [
+      "prompt token count of 137574 exceeds the limit of 136000",
+      { category: "permanent", type: "context_length", retryable: false },
+    ],
     ["401 Unauthorized", { category: "permanent", type: "auth", retryable: false }],
     ["400 Bad Request", { category: "permanent", type: "bad_request", retryable: false }],
     ["something completely unknown", { category: "unknown", type: "unknown", retryable: false }],

@@ -7,6 +7,7 @@ import { syncStats } from "./central-store.js";
 import type { SessionRecord } from "./checkpoint.js";
 import type { SwarmConfig } from "./config.js";
 import { BUILTIN_AGENT_PREFIX, SessionEvent, SYSTEM_MESSAGE_MODE } from "./constants.js";
+import { ContextLengthError, shouldRetry } from "./errors.js";
 import type { Logger } from "./logger.js";
 import { msg } from "./messages.js";
 import type { PipelineConfig } from "./pipeline-types.js";
@@ -245,7 +246,15 @@ export class SessionManager {
       } catch (err) {
         this.logger.stopSpinner();
         this.logger.error(msg.callError(agentName, attempt, maxAttempts), err, ctx);
-        if (attempt >= maxAttempts) throw err;
+
+        // Throw typed error for context-length so callers can recover
+        const ctxErr = ContextLengthError.fromError(err);
+        if (ctxErr) throw ctxErr;
+
+        const decision = shouldRetry(err, attempt, maxAttempts);
+        if (!decision.shouldRetry) throw err instanceof Error ? err : new Error(String(err));
+        this.logger.warn(`  ↻ Retrying (${decision.reason}), backoff ${decision.delayMs}ms`, ctx);
+        if (decision.delayMs > 0) await sleep(decision.delayMs);
       } finally {
         await this.destroySession(session);
       }
@@ -280,7 +289,14 @@ export class SessionManager {
       } catch (err) {
         this.logger.stopSpinner();
         this.logger.error(msg.callError("inline-agent", attempt, maxAttempts), err, ctx);
-        if (attempt >= maxAttempts) throw err;
+
+        const ctxErr = ContextLengthError.fromError(err);
+        if (ctxErr) throw ctxErr;
+
+        const decision = shouldRetry(err, attempt, maxAttempts);
+        if (!decision.shouldRetry) throw err instanceof Error ? err : new Error(String(err));
+        this.logger.warn(`  ↻ Retrying (${decision.reason}), backoff ${decision.delayMs}ms`, ctx);
+        if (decision.delayMs > 0) await sleep(decision.delayMs);
       } finally {
         await this.destroySession(session);
       }
@@ -314,4 +330,8 @@ export class SessionManager {
       await this.destroySession(session);
     }
   }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

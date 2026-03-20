@@ -2,7 +2,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { loadConfig, readVersion, type SwarmConfig } from "./config.js";
-import { Logger } from "./logger.js";
+import { ContextLengthError } from "./errors.js";
+import { classifyError, Logger } from "./logger.js";
 import { msg } from "./messages.js";
 import { SwarmOrchestrator } from "./orchestrator.js";
 import { analysisDir, brainstormsDir, plansDir } from "./paths.js";
@@ -11,10 +12,35 @@ import { ProgressTracker } from "./progress-tracker.js";
 import { resolveSessionId } from "./session-store.js";
 import { TuiRenderer } from "./tui-renderer.js";
 
+/** Return actionable guidance for known error types. */
+function actionableHint(err: unknown): string {
+  if (err instanceof ContextLengthError) {
+    const parts = [`\n\n💡 Prompt exceeded token limit by ${err.overage} tokens (${err.promptTokens}/${err.limit}).`];
+    parts.push(
+      "   Try: reduce prompt size, split complex tasks, or set MODEL_CONTEXT_LIMIT to a higher value if your model supports it.",
+    );
+    return parts.join("\n");
+  }
+  const classification = classifyError(err);
+  switch (classification.type) {
+    case "auth":
+      return "\n\n💡 Authentication failed. Try: `gh auth login` or check your GITHUB_TOKEN.";
+    case "rate_limit":
+      return "\n\n💡 Rate limit hit. Wait a few minutes and retry, or reduce parallel streams.";
+    case "network":
+      return "\n\n💡 Network error. Check your internet connection and try again.";
+    case "context_length":
+      return "\n\n💡 Prompt too large. Try splitting the task or reducing the spec/design size.";
+    default:
+      return "";
+  }
+}
+
 // Global error handler — prevent unhandled exceptions from showing stack traces
 function handleFatalError(err: unknown): void {
   const message = err instanceof Error ? err.message : String(err);
-  console.error(`\nError: ${message}\n`);
+  const hint = actionableHint(err);
+  console.error(`\nError: ${message}${hint}\n`);
   process.exit(1);
 }
 process.on("uncaughtException", handleFatalError);
@@ -208,6 +234,8 @@ const logger = new Logger(config.verbose, config.runId, config.logLevel);
 const showLogOnError = (err: unknown) => {
   // Log the full error with stack trace to the structured log file
   logger.error("Fatal error", err);
+  const hint = actionableHint(err);
+  if (hint) console.error(hint);
   if (logger.logFilePath) {
     console.error(msg.logFileHint(logger.logFilePath));
   }
