@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.64
+
+### Patch Changes
+
+- e6d8668: Improved error handling.
+
 ## 0.0.63
 
 ### Patch Changes
