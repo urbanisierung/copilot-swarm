@@ -34,6 +34,7 @@ export class SessionManager {
   private readonly _sessionModels = new Map<string, string>();
   private readonly _sessionLabels = new Map<string, string>();
   private readonly _sessionStartTimes = new Map<string, number>();
+  private readonly _sessionInstructions = new Map<string, string>();
   private tracker?: ProgressTracker;
 
   constructor(
@@ -193,6 +194,7 @@ export class SessionManager {
     this._sessionModels.set(session.sessionId, resolvedModel);
     this._sessionLabels.set(session.sessionId, label);
     this._sessionStartTimes.set(session.sessionId, Date.now());
+    this._sessionInstructions.set(session.sessionId, instructions);
     if (this.tracker) {
       this.tracker.addActiveAgent(session.sessionId, label, resolvedModel);
     }
@@ -217,6 +219,10 @@ export class SessionManager {
   }
 
   async send(session: CopilotSession, prompt: string, spinnerLabel?: string, collectAll = false): Promise<string> {
+    // Pre-flight safety net: sync smart-truncation if prompt would exceed budget.
+    // This catches ALL code paths (multi-turn conversations, direct send() callers).
+    const safePrompt = this.truncateForSend(session.sessionId, prompt);
+
     const allContent: string[] = [];
     let unsub: (() => void) | undefined;
 
@@ -229,7 +235,7 @@ export class SessionManager {
     }
 
     if (spinnerLabel) this.logger.startSpinner(spinnerLabel);
-    const response = await session.sendAndWait({ prompt }, this.config.sessionTimeoutMs);
+    const response = await session.sendAndWait({ prompt: safePrompt }, this.config.sessionTimeoutMs);
     this.logger.stopSpinner();
     this.logger.newline();
     unsub?.();
@@ -238,6 +244,30 @@ export class SessionManager {
       return allContent.join("\n\n");
     }
     return response?.data.content ?? "";
+  }
+
+  /**
+   * Sync pre-flight check for send(). Applies smart truncation if the prompt
+   * would exceed the token budget. This is a safety net — callers using
+   * callIsolated/callIsolatedWithInstructions get the full AI summarization
+   * treatment via fitToTokenBudget() before reaching here.
+   */
+  private truncateForSend(sessionId: string, prompt: string): string {
+    const instructions = this._sessionInstructions.get(sessionId) ?? "";
+    const limit = SessionManager.CONTEXT_LIMIT;
+    const budget = Math.floor(limit * SessionManager.PROMPT_BUDGET_RATIO) - SessionManager.SDK_OVERHEAD_TOKENS;
+    const systemTokens = Math.ceil(instructions.length / 4);
+    const promptTokens = Math.ceil(prompt.length / 4);
+    const total = systemTokens + promptTokens;
+
+    if (total <= budget) return prompt;
+
+    const availableTokens = Math.max(budget - systemTokens, 1000);
+    const label = this._sessionLabels.get(sessionId) ?? "agent";
+    this.logger.warn(
+      `  ✂️  send() pre-flight: ${label} prompt too large (~${total} est. tokens, budget ${budget}). Applying smart truncation.`,
+    );
+    return smartTruncate(prompt, availableTokens);
   }
 
   async destroySession(session: CopilotSession): Promise<void> {
@@ -257,6 +287,7 @@ export class SessionManager {
       }
     }
     this._sessionStartTimes.delete(session.sessionId);
+    this._sessionInstructions.delete(session.sessionId);
     this._editedFiles.delete(session.sessionId);
     await session.destroy();
   }
@@ -273,6 +304,10 @@ export class SessionManager {
   })();
   // Our chars/4 estimation is imprecise, so we leave a 10% margin to avoid edge cases.
   private static readonly PROMPT_BUDGET_RATIO = 0.9;
+  // The Copilot SDK adds tool definitions, system boilerplate, and response format
+  // instructions on top of our system message. This overhead counts toward the API's
+  // token limit but is invisible to us. Empirically ~10-15K tokens.
+  private static readonly SDK_OVERHEAD_TOKENS = 15_000;
 
   /**
    * Pre-flight check: if system message + prompt would exceed the model's token limit,
@@ -282,7 +317,7 @@ export class SessionManager {
    */
   private async fitToTokenBudget(systemMessage: string, prompt: string, label: string): Promise<string> {
     const limit = SessionManager.CONTEXT_LIMIT;
-    const budget = Math.floor(limit * SessionManager.PROMPT_BUDGET_RATIO);
+    const budget = Math.floor(limit * SessionManager.PROMPT_BUDGET_RATIO) - SessionManager.SDK_OVERHEAD_TOKENS;
     const systemTokens = Math.ceil(systemMessage.length / 4);
     const promptTokens = Math.ceil(prompt.length / 4);
     const total = systemTokens + promptTokens;
