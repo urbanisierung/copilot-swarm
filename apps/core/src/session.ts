@@ -311,10 +311,11 @@ export class SessionManager {
   private static readonly CHARS_PER_TOKEN = 3;
   // 10% margin on top of the conservative estimation for additional safety.
   private static readonly PROMPT_BUDGET_RATIO = 0.9;
-  // The Copilot SDK adds tool definitions, system boilerplate, and response format
-  // instructions on top of our system message. This overhead counts toward the API's
-  // token limit but is invisible to us. Empirically ~10-15K tokens.
-  private static readonly SDK_OVERHEAD_TOKENS = 15_000;
+  // The Copilot SDK adds its full system prompt, tool definitions (edit_file, run_command,
+  // search, etc.), and workspace context on top of our system message. This overhead counts
+  // toward the API's token limit but is invisible to us. Empirically measured at ~100K tokens
+  // for standard Copilot sessions with the full tool suite.
+  private static readonly SDK_OVERHEAD_TOKENS = 100_000;
 
   /**
    * Pre-flight check: if system message + prompt would exceed the model's token limit,
