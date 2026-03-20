@@ -106,12 +106,15 @@ Errors are classified and handled based on type:
 | Context length exceeded | Permanent | Route to context reduction (Layer 2) |
 | Bad request | Permanent | Fail immediately |
 
-### Layer 2 — Deterministic Context Reduction
+### Layer 2 — Pre-flight Context Reduction
 
-When a prompt exceeds the model's token limit, content is progressively reduced by priority:
-1. Reduce repository context (16K → 8K → 0 tokens)
-2. Truncate spec and design documents
-3. Drop optional components (dependency context, design spec for non-frontend tasks)
+Before each AI call, the system estimates total tokens. When a prompt exceeds the budget:
+
+**Small overages (under 5%)**:
+Smart truncation keeps 60% from the start (task context, role) and 30% from the end (specific instructions), removing only the middle bulk.
+
+**Larger overages**:
+AI-powered summarization via the fast model condenses the excess content while preserving all critical details — file paths, code snippets, requirements, decisions, and constraints. Falls back to smart truncation if summarization fails. Supports chunked summarization for extremely large prompts.
 
 ### Layer 3 — AI Recovery Agent
 

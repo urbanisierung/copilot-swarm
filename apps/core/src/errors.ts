@@ -174,6 +174,29 @@ export function reducePrompt(
 }
 
 // ---------------------------------------------------------------------------
+// Smart truncation — preserves beginning (context) and end (task)
+// ---------------------------------------------------------------------------
+
+/**
+ * Intelligent truncation: keeps the beginning and end of content, removes the middle.
+ * The beginning typically contains task context and role setup, the end contains
+ * specific instructions or questions — both are more valuable than the middle bulk.
+ */
+export function smartTruncate(content: string, targetTokens: number): string {
+  const charLimit = targetTokens * 4;
+  if (content.length <= charLimit) return content;
+
+  // 60% from start (task context, role), 30% from end (specific task/question)
+  const startChars = Math.floor(charLimit * 0.6);
+  const endChars = Math.floor(charLimit * 0.3);
+  const start = content.substring(0, startChars);
+  const end = content.substring(content.length - endChars);
+  const removedTokens = Math.ceil((content.length - startChars - endChars) / 4);
+
+  return `${start}\n\n[… ${removedTokens} tokens removed from middle to fit token budget …]\n\n${end}`;
+}
+
+// ---------------------------------------------------------------------------
 // AI recovery agent instructions
 // ---------------------------------------------------------------------------
 

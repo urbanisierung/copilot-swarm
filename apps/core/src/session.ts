@@ -7,7 +7,7 @@ import { syncStats } from "./central-store.js";
 import type { SessionRecord } from "./checkpoint.js";
 import type { SwarmConfig } from "./config.js";
 import { BUILTIN_AGENT_PREFIX, SessionEvent, SYSTEM_MESSAGE_MODE } from "./constants.js";
-import { ContextLengthError, shouldRetry } from "./errors.js";
+import { ContextLengthError, shouldRetry, smartTruncate } from "./errors.js";
 import type { Logger } from "./logger.js";
 import { msg } from "./messages.js";
 import type { PipelineConfig } from "./pipeline-types.js";
@@ -16,6 +16,16 @@ import { recordAgentInvocation } from "./stats.js";
 
 const PACKAGE_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const BUNDLED_AGENTS_DIR = path.join(PACKAGE_DIR, "defaults", "agents");
+
+const SUMMARIZE_INSTRUCTIONS = `You are a technical content compressor. Condense the provided content to approximately the requested size while preserving ALL critical information.
+
+Rules:
+1. Preserve ALL: file paths, function/class names, API endpoints, error messages, config keys
+2. Preserve ALL: requirements, constraints, decisions, and their rationale
+3. Preserve ALL: code snippets, type definitions, and interfaces
+4. Remove: verbose explanations, repeated context, redundant examples
+5. Use concise language — bullet points over paragraphs
+6. Output ONLY the condensed content, no preamble or meta-commentary`;
 
 export class SessionManager {
   private readonly client: CopilotClient;
@@ -251,16 +261,136 @@ export class SessionManager {
     await session.destroy();
   }
 
+  // The API enforces a hard prompt token limit (system message + user prompt).
+  // Default matches the limit reported by the Copilot API. Configure with MODEL_CONTEXT_LIMIT.
+  private static readonly CONTEXT_LIMIT = (() => {
+    const env = process.env.MODEL_CONTEXT_LIMIT;
+    if (env) {
+      const n = Number.parseInt(env, 10);
+      if (n > 0) return n;
+    }
+    return 136_000;
+  })();
+  // Our chars/4 estimation is imprecise, so we leave a 10% margin to avoid edge cases.
+  private static readonly PROMPT_BUDGET_RATIO = 0.9;
+
+  /**
+   * Pre-flight check: if system message + prompt would exceed the model's token limit,
+   * intelligently reduce the prompt to fit. For small overages, uses smart truncation
+   * (keeps beginning + end). For larger overages, uses the fast model to summarize
+   * the excess content, preserving key information instead of losing it.
+   */
+  private async fitToTokenBudget(systemMessage: string, prompt: string, label: string): Promise<string> {
+    const limit = SessionManager.CONTEXT_LIMIT;
+    const budget = Math.floor(limit * SessionManager.PROMPT_BUDGET_RATIO);
+    const systemTokens = Math.ceil(systemMessage.length / 4);
+    const promptTokens = Math.ceil(prompt.length / 4);
+    const total = systemTokens + promptTokens;
+
+    if (total <= budget) return prompt;
+
+    const availableTokens = Math.max(budget - systemTokens, 1000);
+    const overage = total - budget;
+    const overageRatio = overage / budget;
+    this.logger.warn(
+      `  ✂️  Pre-flight: ${label} prompt too large (~${total} est. tokens, budget ${budget}). Overage: ${overage} tokens (${Math.round(overageRatio * 100)}%).`,
+    );
+
+    // Small overages (< 5%): smart truncation is fast and sufficient
+    if (overageRatio < 0.05) {
+      this.logger.info("  📐 Using smart truncation (small overage)");
+      return smartTruncate(prompt, availableTokens);
+    }
+
+    // Larger overages: try AI-powered summarization to preserve key information
+    try {
+      this.logger.info("  🤖 Using AI summarization to preserve key information");
+      return await this.summarizeToFit(prompt, availableTokens, label);
+    } catch (err) {
+      this.logger.warn(
+        `  ⚠️  AI summarization failed, falling back to smart truncation: ${err instanceof Error ? err.message : err}`,
+      );
+      return smartTruncate(prompt, availableTokens);
+    }
+  }
+
+  /**
+   * Summarize a prompt to fit within a token budget using the fast model.
+   * Keeps the first portion intact (task context) and summarizes the rest.
+   */
+  private async summarizeToFit(prompt: string, targetTokens: number, label: string): Promise<string> {
+    // Keep first 50% intact (task context, role setup), summarize the rest
+    const keepTokens = Math.floor(targetTokens * 0.5);
+    const summaryTarget = targetTokens - keepTokens;
+    const keepChars = keepTokens * 4;
+    const keptPortion = prompt.substring(0, keepChars);
+    const restPortion = prompt.substring(keepChars);
+
+    if (!restPortion.trim()) return keptPortion;
+
+    // Chunk if the rest is too large for a single summarization call
+    const maxChunkTokens = 100_000;
+    const restTokens = Math.ceil(restPortion.length / 4);
+    const numChunks = Math.max(1, Math.ceil(restTokens / maxChunkTokens));
+    const chunkChars = Math.ceil(restPortion.length / numChunks);
+    const summaryPerChunk = Math.floor(summaryTarget / numChunks);
+
+    const chunks: string[] = [];
+    for (let i = 0; i < numChunks; i++) {
+      chunks.push(restPortion.substring(i * chunkChars, (i + 1) * chunkChars));
+    }
+
+    // Summarize chunks in parallel
+    const summaries = await Promise.all(
+      chunks.map((chunk, i) => this.summarizeChunk(chunk, summaryPerChunk, label, i + 1, numChunks)),
+    );
+
+    const marker =
+      numChunks > 1
+        ? `[AI-summarized from ${numChunks} sections to fit token budget]`
+        : "[AI-summarized to fit token budget]";
+
+    return `${keptPortion}\n\n${marker}\n\n${summaries.join("\n\n")}`;
+  }
+
+  /** Summarize a single chunk using the fast model. Direct session call to avoid recursion. */
+  private async summarizeChunk(
+    content: string,
+    targetTokens: number,
+    label: string,
+    chunkIndex: number,
+    totalChunks: number,
+  ): Promise<string> {
+    const chunkLabel = totalChunks > 1 ? `${label}/summarizer-${chunkIndex}` : `${label}/summarizer`;
+    const session = await this.createSessionWithInstructions(
+      SUMMARIZE_INSTRUCTIONS,
+      this.pipeline.fastModel,
+      chunkLabel,
+    );
+    try {
+      const prompt = `Condense the following content to approximately ${targetTokens * 4} characters (~${targetTokens} tokens). Preserve all critical technical details.\n\n---\n\n${content}`;
+      const chunkProgress = totalChunks > 1 ? ` (${chunkIndex}/${totalChunks})` : "";
+      const response = await this.send(session, prompt, `Summarizing content${chunkProgress}…`);
+      return response || smartTruncate(content, targetTokens);
+    } catch {
+      return smartTruncate(content, targetTokens);
+    } finally {
+      await this.destroySession(session);
+    }
+  }
+
   async callIsolated(agentName: string, prompt: string, model?: string, sessionKey?: string): Promise<string> {
     const maxAttempts = this.config.maxRetries;
     const resolvedModel = model ?? this.pipeline.primaryModel;
+    const instructions = await this.loadAgentInstructions(agentName);
+    const safePrompt = await this.fitToTokenBudget(instructions, prompt, agentName);
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const session = await this.createAgentSession(agentName, model);
       if (sessionKey) this.recordSession(sessionKey, session, agentName, agentName);
       const ctx = { agent: agentName, model: resolvedModel, attempt, maxAttempts, sessionId: session.sessionId };
       try {
-        const content = await this.send(session, prompt, `${agentName} is working…`);
+        const content = await this.send(session, safePrompt, `${agentName} is working…`);
         if (!content && attempt < maxAttempts) {
           this.logger.warn(msg.emptyResponse(agentName, attempt, maxAttempts), ctx);
           continue;
@@ -297,13 +427,14 @@ export class SessionManager {
     const maxAttempts = this.config.maxRetries;
     const label = agentLabel ?? "agent";
     const resolvedModel = model ?? this.pipeline.primaryModel;
+    const safePrompt = await this.fitToTokenBudget(instructions, prompt, label);
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const session = await this.createSessionWithInstructions(instructions, model, label);
       if (sessionKey) this.recordSession(sessionKey, session, "inline-agent", "inline-agent");
       const ctx = { agent: label, model: resolvedModel, attempt, maxAttempts, sessionId: session.sessionId };
       try {
-        const content = await this.send(session, prompt, spinnerLabel, collectAll);
+        const content = await this.send(session, safePrompt, spinnerLabel, collectAll);
         if (!content && attempt < maxAttempts) {
           this.logger.warn(msg.emptyResponse("inline-agent", attempt, maxAttempts), ctx);
           continue;

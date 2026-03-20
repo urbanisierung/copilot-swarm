@@ -711,7 +711,9 @@ Copilot Swarm uses a layered error recovery system:
 
 1. **Smart retries** — Errors are classified as transient (rate limit, timeout, network) or permanent (auth, context length). Transient errors get exponential backoff (1s → 2s → 4s). Permanent errors fail immediately instead of wasting retries.
 
-2. **Deterministic context reduction** — When a prompt exceeds the model's token limit, the system progressively reduces content by priority: repo context first, then spec/design truncation, then dropping optional components.
+2. **Pre-flight context reduction** — Before each AI call, the system estimates total tokens (system message + prompt). When the prompt exceeds the model's token limit:
+   - **Small overages (<5%)**: Smart truncation keeps 60% from the start (task context, role setup) and 30% from the end (specific instructions, questions), removing only the middle bulk.
+   - **Larger overages**: The fast model summarizes the excess content, preserving all critical technical details — file paths, code snippets, requirements, and decisions. Falls back to smart truncation if summarization fails.
 
 3. **AI recovery agent** — When deterministic reduction isn't enough, a fast-model AI agent analyzes the prompt component breakdown and returns structured recovery instructions (what to trim, drop, or summarize).
 

@@ -16,7 +16,7 @@ const MAX_REVIEW_ITERATIONS = 3;
 const APPROVAL_KEYWORD = "ANALYSIS_APPROVED";
 const DEFAULT_CHUNK_THRESHOLD = 500;
 const DEFAULT_CHUNK_MAX_FILES = 300;
-const DEFAULT_CONTEXT_LIMIT = 128_000;
+const DEFAULT_CONTEXT_LIMIT = 136_000;
 /** Fraction of context window available for prompt content (rest reserved for system msg + response). */
 const TOKEN_BUDGET_RATIO = 0.7;
 
