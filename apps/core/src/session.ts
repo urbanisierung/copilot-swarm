@@ -255,9 +255,10 @@ export class SessionManager {
   private truncateForSend(sessionId: string, prompt: string): string {
     const instructions = this._sessionInstructions.get(sessionId) ?? "";
     const limit = SessionManager.CONTEXT_LIMIT;
+    const cpt = SessionManager.CHARS_PER_TOKEN;
     const budget = Math.floor(limit * SessionManager.PROMPT_BUDGET_RATIO) - SessionManager.SDK_OVERHEAD_TOKENS;
-    const systemTokens = Math.ceil(instructions.length / 4);
-    const promptTokens = Math.ceil(prompt.length / 4);
+    const systemTokens = Math.ceil(instructions.length / cpt);
+    const promptTokens = Math.ceil(prompt.length / cpt);
     const total = systemTokens + promptTokens;
 
     if (total <= budget) return prompt;
@@ -267,7 +268,9 @@ export class SessionManager {
     this.logger.warn(
       `  ✂️  send() pre-flight: ${label} prompt too large (~${total} est. tokens, budget ${budget}). Applying smart truncation.`,
     );
-    return smartTruncate(prompt, availableTokens);
+    // Convert our budget tokens (chars/3) to smartTruncate's expected format (chars/4)
+    const truncateTarget = Math.floor((availableTokens * cpt) / 4);
+    return smartTruncate(prompt, truncateTarget);
   }
 
   async destroySession(session: CopilotSession): Promise<void> {
@@ -302,7 +305,11 @@ export class SessionManager {
     }
     return 136_000;
   })();
-  // Our chars/4 estimation is imprecise, so we leave a 10% margin to avoid edge cases.
+  // Conservative chars-per-token ratio for pre-flight estimation. Code-heavy content
+  // tokenizes at ~3-3.5 chars/token (not the typical 4 for English prose). Using 3
+  // ensures we catch oversized prompts before they reach the API.
+  private static readonly CHARS_PER_TOKEN = 3;
+  // 10% margin on top of the conservative estimation for additional safety.
   private static readonly PROMPT_BUDGET_RATIO = 0.9;
   // The Copilot SDK adds tool definitions, system boilerplate, and response format
   // instructions on top of our system message. This overhead counts toward the API's
@@ -317,9 +324,10 @@ export class SessionManager {
    */
   private async fitToTokenBudget(systemMessage: string, prompt: string, label: string): Promise<string> {
     const limit = SessionManager.CONTEXT_LIMIT;
+    const cpt = SessionManager.CHARS_PER_TOKEN;
     const budget = Math.floor(limit * SessionManager.PROMPT_BUDGET_RATIO) - SessionManager.SDK_OVERHEAD_TOKENS;
-    const systemTokens = Math.ceil(systemMessage.length / 4);
-    const promptTokens = Math.ceil(prompt.length / 4);
+    const systemTokens = Math.ceil(systemMessage.length / cpt);
+    const promptTokens = Math.ceil(prompt.length / cpt);
     const total = systemTokens + promptTokens;
 
     if (total <= budget) return prompt;
@@ -334,7 +342,8 @@ export class SessionManager {
     // Small overages (< 5%): smart truncation is fast and sufficient
     if (overageRatio < 0.05) {
       this.logger.info("  📐 Using smart truncation (small overage)");
-      return smartTruncate(prompt, availableTokens);
+      const truncateTarget = Math.floor((availableTokens * cpt) / 4);
+      return smartTruncate(prompt, truncateTarget);
     }
 
     // Larger overages: try AI-powered summarization to preserve key information
@@ -345,7 +354,8 @@ export class SessionManager {
       this.logger.warn(
         `  ⚠️  AI summarization failed, falling back to smart truncation: ${err instanceof Error ? err.message : err}`,
       );
-      return smartTruncate(prompt, availableTokens);
+      const truncateTarget = Math.floor((availableTokens * cpt) / 4);
+      return smartTruncate(prompt, truncateTarget);
     }
   }
 
@@ -354,10 +364,11 @@ export class SessionManager {
    * Keeps the first portion intact (task context) and summarizes the rest.
    */
   private async summarizeToFit(prompt: string, targetTokens: number, label: string): Promise<string> {
+    const cpt = SessionManager.CHARS_PER_TOKEN;
     // Keep first 50% intact (task context, role setup), summarize the rest
     const keepTokens = Math.floor(targetTokens * 0.5);
     const summaryTarget = targetTokens - keepTokens;
-    const keepChars = keepTokens * 4;
+    const keepChars = keepTokens * cpt;
     const keptPortion = prompt.substring(0, keepChars);
     const restPortion = prompt.substring(keepChars);
 
@@ -365,7 +376,7 @@ export class SessionManager {
 
     // Chunk if the rest is too large for a single summarization call
     const maxChunkTokens = 100_000;
-    const restTokens = Math.ceil(restPortion.length / 4);
+    const restTokens = Math.ceil(restPortion.length / cpt);
     const numChunks = Math.max(1, Math.ceil(restTokens / maxChunkTokens));
     const chunkChars = Math.ceil(restPortion.length / numChunks);
     const summaryPerChunk = Math.floor(summaryTarget / numChunks);
@@ -396,6 +407,8 @@ export class SessionManager {
     chunkIndex: number,
     totalChunks: number,
   ): Promise<string> {
+    const cpt = SessionManager.CHARS_PER_TOKEN;
+    const targetChars = targetTokens * cpt;
     const chunkLabel = totalChunks > 1 ? `${label}/summarizer-${chunkIndex}` : `${label}/summarizer`;
     const session = await this.createSessionWithInstructions(
       SUMMARIZE_INSTRUCTIONS,
@@ -403,12 +416,14 @@ export class SessionManager {
       chunkLabel,
     );
     try {
-      const prompt = `Condense the following content to approximately ${targetTokens * 4} characters (~${targetTokens} tokens). Preserve all critical technical details.\n\n---\n\n${content}`;
+      const prompt = `Condense the following content to approximately ${targetChars} characters (~${targetTokens} tokens). Preserve all critical technical details.\n\n---\n\n${content}`;
       const chunkProgress = totalChunks > 1 ? ` (${chunkIndex}/${totalChunks})` : "";
       const response = await this.send(session, prompt, `Summarizing content${chunkProgress}…`);
-      return response || smartTruncate(content, targetTokens);
+      const truncateTarget = Math.floor((targetTokens * cpt) / 4);
+      return response || smartTruncate(content, truncateTarget);
     } catch {
-      return smartTruncate(content, targetTokens);
+      const truncateTarget = Math.floor((targetTokens * cpt) / 4);
+      return smartTruncate(content, truncateTarget);
     } finally {
       await this.destroySession(session);
     }
