@@ -285,7 +285,28 @@ export class PipelineEngine {
       const prompt = ctx.repoAnalysis
         ? `## Repository Context\n\n${ctx.repoAnalysis}\n\n## Task\n\n${this.config.issueBody}`
         : this.config.issueBody;
-      spec = await this.sessions.callIsolated(phase.agent, prompt, undefined, `spec`);
+
+      try {
+        spec = await this.sessions.callIsolated(phase.agent, prompt, undefined, "spec");
+      } catch (err) {
+        if (err instanceof ContextLengthError && ctx.repoAnalysis) {
+          const components: PromptComponent[] = [
+            { label: "task", content: `## Task\n\n${this.config.issueBody}`, priority: 0, droppable: false },
+            {
+              label: "repo-analysis",
+              content: `## Repository Context\n\n${ctx.repoAnalysis}`,
+              priority: 3,
+              droppable: true,
+              maxTokens: 16_000,
+            },
+          ];
+          const reducedPrompt = await this.recoverFromContextLength(err, components, "spec");
+          spec = await this.sessions.callIsolated(phase.agent, reducedPrompt, undefined, "spec/recovery");
+        } else {
+          throw err;
+        }
+      }
+
       this.phaseDraft = spec;
       await save();
     }

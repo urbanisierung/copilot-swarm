@@ -150,10 +150,33 @@ export class SessionManager {
     agentLabel?: string,
   ): Promise<CopilotSession> {
     const resolvedModel = model ?? this.pipeline.primaryModel;
+    const hookLogger = this.logger;
     const session = await this.client.createSession({
       model: resolvedModel,
       systemMessage: { mode: SYSTEM_MESSAGE_MODE, content: instructions },
       onPermissionRequest: async () => ({ kind: "approved" }),
+      hooks: {
+        onErrorOccurred: async (input) => {
+          const errLower = input.error.toLowerCase();
+          // Abort immediately on permanent errors — don't let the CLI retry them
+          if (
+            errLower.includes("token count") ||
+            errLower.includes("exceeds the limit") ||
+            errLower.includes("exceeds the maximum") ||
+            errLower.includes("context length") ||
+            errLower.includes("too many tokens") ||
+            errLower.includes("token limit") ||
+            errLower.includes("unauthorized") ||
+            errLower.includes("forbidden") ||
+            errLower.includes("authentication")
+          ) {
+            hookLogger.debug(`  ⛔ Aborting CLI retry for permanent error: ${input.error.substring(0, 120)}`);
+            return { errorHandling: "abort" };
+          }
+          hookLogger.debug(`  ↻ Allowing CLI retry for: ${input.error.substring(0, 120)}`);
+          return { errorHandling: "retry" };
+        },
+      },
     });
 
     const label = agentLabel ?? "agent";

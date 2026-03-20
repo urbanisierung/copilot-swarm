@@ -15,6 +15,8 @@ All notable changes to this project are documented here, in reverse chronologica
 ### Improved
 - **Harvest consolidation quality** — Consolidation now uses the primary model instead of the fast model for significantly better reasoning over large question sets. Two-pass deduplication: first pass consolidates, second pass verifies and catches remaining semantic duplicates. Stronger prompts that explicitly target cross-section semantic overlap (same topic asked from PM/Engineer/Designer angles). Expected to reduce 100+ questions down to 30–50 unique topics.
 - **Error classification ordering** — Context-length check now runs before server-error check to prevent false positives when token counts contain "500" (e.g., "128000" was wrongly classified as a 5xx server error).
+- **SDK error hook** — Registered `onErrorOccurred` hook on all Copilot SDK sessions. Permanent errors (context length, auth) return `{ errorHandling: "abort" }` to prevent the CLI's internal 5-retry loop from wasting time on unrecoverable errors. Transient errors still get CLI-level retries.
+- **Spec phase context recovery** — PM spec phase now catches `ContextLengthError` and applies the same layered recovery (deterministic reduction → AI recovery agent) by truncating repo analysis to fit within the token budget.
 
 ## 2026-03-18
 
