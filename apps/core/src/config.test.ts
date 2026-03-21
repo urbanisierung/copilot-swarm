@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { formatHelpText } from "./config.js";
+import { describe, expect, it, type MockInstance, vi } from "vitest";
+import { formatHelpText, loadConfig } from "./config.js";
 
 const SAMPLE_HELP = `Usage: swarm [command] [options] "<prompt>"
 
@@ -106,5 +106,115 @@ describe("formatHelpText", () => {
   it("preserves empty lines", () => {
     const result = formatHelpText(SAMPLE_HELP, fakeTTY());
     expect(result).toContain("\n\n");
+  });
+});
+
+describe("no-prompt fallback path", () => {
+  let origArgv: string[];
+  let origIssueBody: string | undefined;
+  let origNoColor: string | undefined;
+  let origStderrIsTTY: boolean | undefined;
+  let errorSpy: MockInstance;
+  let exitSpy: MockInstance;
+
+  function setup() {
+    origArgv = process.argv;
+    origIssueBody = process.env.ISSUE_BODY;
+    origNoColor = process.env.NO_COLOR;
+    origStderrIsTTY = process.stderr.isTTY;
+
+    process.argv = ["node", "swarm"];
+    delete process.env.ISSUE_BODY;
+
+    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    exitSpy = vi.spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("process.exit");
+    });
+  }
+
+  function teardown() {
+    process.argv = origArgv;
+    if (origIssueBody === undefined) delete process.env.ISSUE_BODY;
+    else process.env.ISSUE_BODY = origIssueBody;
+    if (origNoColor === undefined) delete process.env.NO_COLOR;
+    else process.env.NO_COLOR = origNoColor;
+    Object.defineProperty(process.stderr, "isTTY", {
+      value: origStderrIsTTY,
+      writable: true,
+      configurable: true,
+    });
+    vi.restoreAllMocks();
+  }
+
+  it("emits ANSI-formatted help text when stderr is TTY", async () => {
+    setup();
+    try {
+      delete process.env.NO_COLOR;
+      Object.defineProperty(process.stderr, "isTTY", {
+        value: true,
+        writable: true,
+        configurable: true,
+      });
+
+      await expect(loadConfig()).rejects.toThrow("process.exit");
+
+      expect(exitSpy).toHaveBeenCalledWith(1);
+      expect(errorSpy).toHaveBeenCalledOnce();
+
+      const msg = errorSpy.mock.calls[0][0] as string;
+      expect(msg).toContain("Error: No prompt provided");
+      // TTY + no NO_COLOR → ANSI bold codes present
+      expect(msg).toContain("\x1b[1m");
+    } finally {
+      teardown();
+    }
+  });
+
+  it("emits plain help text when stderr is not TTY", async () => {
+    setup();
+    try {
+      delete process.env.NO_COLOR;
+      Object.defineProperty(process.stderr, "isTTY", {
+        value: undefined,
+        writable: true,
+        configurable: true,
+      });
+
+      await expect(loadConfig()).rejects.toThrow("process.exit");
+
+      expect(exitSpy).toHaveBeenCalledWith(1);
+      expect(errorSpy).toHaveBeenCalledOnce();
+
+      const msg = errorSpy.mock.calls[0][0] as string;
+      expect(msg).toContain("Error: No prompt provided");
+      // Non-TTY → no ANSI codes
+      expect(msg).not.toContain("\x1b[");
+    } finally {
+      teardown();
+    }
+  });
+
+  it("emits plain help text when NO_COLOR is set", async () => {
+    setup();
+    try {
+      process.env.NO_COLOR = "";
+      Object.defineProperty(process.stderr, "isTTY", {
+        value: true,
+        writable: true,
+        configurable: true,
+      });
+
+      await expect(loadConfig()).rejects.toThrow("process.exit");
+
+      expect(exitSpy).toHaveBeenCalledWith(1);
+      expect(errorSpy).toHaveBeenCalledOnce();
+
+      const msg = errorSpy.mock.calls[0][0] as string;
+      expect(msg).toContain("Error: No prompt provided");
+      // NO_COLOR set → no ANSI codes even on TTY
+      expect(msg).not.toContain("\x1b[");
+    } finally {
+      teardown();
+    }
   });
 });
