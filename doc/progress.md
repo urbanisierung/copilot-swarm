@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here, in reverse chronological order.
 
+## 2026-03-21
+
+### Improved
+- **Landing page mobile header** — Replaced cramped horizontal nav links with a hamburger menu + slide-out drawer on screens ≤768px. Nav links are now in a fixed side panel that toggles open/closed. Also improved terminal preview readability on small screens.
+
 ## 2026-03-19
 
 ### Added

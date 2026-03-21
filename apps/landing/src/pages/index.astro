@@ -13,6 +13,11 @@ import Layout from "../layouts/Layout.astro";
         <img src="/logo.svg" alt="Copilot Swarm" />
         Copilot Swarm
       </a>
+      <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+        <span class="nav-toggle-bar"></span>
+        <span class="nav-toggle-bar"></span>
+        <span class="nav-toggle-bar"></span>
+      </button>
       <ul class="nav-links">
         <li><a href="#features">Features</a></li>
         <li><a href="#pipeline">Pipeline</a></li>
@@ -367,6 +372,21 @@ import Layout from "../layouts/Layout.astro";
       </div>
     </div>
   </section>
+
+  <script>
+    const toggle = document.querySelector('.nav-toggle');
+    const links = document.querySelector('.nav-links');
+    toggle?.addEventListener('click', () => {
+      const open = links?.classList.toggle('open');
+      toggle.setAttribute('aria-expanded', String(!!open));
+    });
+    links?.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).tagName === 'A') {
+        links.classList.remove('open');
+        toggle?.setAttribute('aria-expanded', 'false');
+      }
+    });
+  </script>
 
   <!-- FOOTER -->
   <footer>
