@@ -246,38 +246,40 @@ nav .nav-links a:hover {
   color: var(--color-text-muted);
   font-family: var(--font-mono);
 }
-.terminal-body {
-  padding: 1.25rem;
-  font-family: var(--font-mono);
-  font-size: 0.88rem;
-  line-height: 1.8;
+
+/* ── ASCIINEMA NEON THEME ── */
+.asciinema-player-theme-neon {
+  --term-color-foreground: #e4e4ef;
+  --term-color-background: #12121a;
+  --term-color-0: #1a1a2e;
+  --term-color-1: #f472b6;
+  --term-color-2: #34d399;
+  --term-color-3: #fbbf24;
+  --term-color-4: #60a5fa;
+  --term-color-5: #a78bfa;
+  --term-color-6: #67e8f9;
+  --term-color-7: #e4e4ef;
+  --term-color-8: #2a2a3a;
+  --term-color-9: #fb7eca;
+  --term-color-10: #5eead4;
+  --term-color-11: #fcd34d;
+  --term-color-12: #93c5fd;
+  --term-color-13: #c4b5fd;
+  --term-color-14: #a5f3fc;
+  --term-color-15: #ffffff;
 }
-.terminal-body .prompt {
-  color: var(--color-accent-green);
+
+/* Player container overrides */
+#player-container .ap-wrapper {
+  border-radius: 0;
 }
-.terminal-body .command {
-  color: var(--color-text);
+#player-container .ap-player {
+  border-radius: 0;
+  background: transparent;
+  width: 100%;
 }
-.terminal-body .output {
-  color: var(--color-text-muted);
-}
-.terminal-body .highlight {
-  color: var(--color-accent);
-}
-.terminal-body .blue {
-  color: var(--color-accent-blue);
-}
-.terminal-body .green {
-  color: var(--color-accent-green);
-}
-.terminal-body .pink {
-  color: var(--color-accent-pink);
-}
-.terminal-body .yellow {
-  color: var(--color-accent-yellow);
-}
-.terminal-body .orange {
-  color: var(--color-accent-orange);
+.terminal-preview #player-container .ap-control-bar {
+  background: var(--color-bg-card);
 }
 
 /* ── SECTIONS ── */
@@ -535,9 +537,7 @@ footer .footer-links {
   .feature-grid {
     grid-template-columns: 1fr;
   }
-  .terminal-body {
-    font-size: 0.75rem;
-    padding: 1rem;
-    overflow-x: auto;
+  .terminal-preview {
+    max-width: 100%;
   }
 }

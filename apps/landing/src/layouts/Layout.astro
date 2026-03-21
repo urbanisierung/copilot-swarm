@@ -27,6 +27,7 @@ const ogImage = new URL("/og.png", Astro.site ?? "https://cpswarm.com").href;
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImage} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/asciinema-player@3.9.0/dist/bundle/asciinema-player.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -37,5 +38,6 @@ const ogImage = new URL("/og.png", Astro.site ?? "https://cpswarm.com").href;
   </head>
   <body>
     <slot />
+    <script is:inline src="https://cdn.jsdelivr.net/npm/asciinema-player@3.9.0/dist/bundle/asciinema-player.min.js"></script>
   </body>
 </html>
