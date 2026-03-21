@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here, in reverse chronological order.
 
+## 2026-03-21
+
+### Added
+- **Help output syntax highlighting** — `swarm -h` / `--help` now renders with ANSI colors: bold section headers, green command names, yellow flags, cyan parameter placeholders, and dim footer/example comments. Respects `NO_COLOR` env var and non-TTY output (piped/redirected). Also applies to the error-state help fallback.
+
+### Improved
+- **Landing page mobile header** — Replaced cramped horizontal nav links with a hamburger menu + slide-out drawer on screens ≤768px. Nav links are now in a fixed side panel that toggles open/closed. Also improved terminal preview readability on small screens.
+- **Landing page terminal demo** — Replaced static terminal screenshot with an embedded asciinema player showing a real 28s recording of a full swarm run. Custom "neon" theme maps ANSI colors to the landing page palette (purple, blue, green, pink, yellow). Auto-plays in a loop with JetBrains Mono font.
+
 ## 2026-03-19
 
 ### Added

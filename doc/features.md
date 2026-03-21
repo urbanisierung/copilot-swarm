@@ -63,6 +63,7 @@ High-level feature list for Copilot Swarm.
 | **Interactive stream selection** | 2026-03-01 | During TUI mode, navigate streams with ↑↓ arrow keys to see a detail panel with full task description, model, and current activity. Press Escape/q to deselect. Works in all modes that use streams (run, analyze, fleet) |
 | **Landing page** | 2026-03-18 | `apps/landing` — Single-page marketing site built with Astro 6. Dark developer-focused design, feature grid, pipeline visualization, agent showcase, quickstart steps |
 | **Documentation site** | 2026-03-18 | `apps/docs` — Comprehensive Astro Starlight docs site covering all commands, agent roles, pipeline config, environment variables, GitHub Action, and quick start guide |
+| **Help syntax highlighting** | 2026-03-21 | `swarm -h` renders with ANSI colors: bold headers, green commands, yellow flags, cyan params, dim examples. Respects `NO_COLOR` and non-TTY |
 
 ## Pipeline Phases
 

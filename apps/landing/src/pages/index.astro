@@ -13,6 +13,11 @@ import Layout from "../layouts/Layout.astro";
         <img src="/logo.svg" alt="Copilot Swarm" />
         Copilot Swarm
       </a>
+      <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+        <span class="nav-toggle-bar"></span>
+        <span class="nav-toggle-bar"></span>
+        <span class="nav-toggle-bar"></span>
+      </button>
       <ul class="nav-links">
         <li><a href="#features">Features</a></li>
         <li><a href="#pipeline">Pipeline</a></li>
@@ -53,22 +58,25 @@ import Layout from "../layouts/Layout.astro";
         <span class="terminal-dot green"></span>
         <span class="terminal-title">terminal</span>
       </div>
-      <div class="terminal-body">
-        <div><span class="prompt">$</span> <span class="command">npx @copilot-swarm/core "Add OAuth login with PKCE"</span></div>
-        <br />
-        <div><span class="highlight">🐝 Copilot Swarm v1.0.0</span> <span class="output">· claude-opus-4-6 · /my-app</span></div>
-        <br />
-        <div><span class="output">Phase</span> <span class="green">✔ Spec</span> <span class="output">→</span> <span class="green">✔ Decompose</span> <span class="output">→</span> <span class="blue">◆ Implement</span> <span class="output">→ Verify</span></div>
-        <br />
-        <div><span class="output">Streams</span></div>
-        <div>&nbsp;&nbsp;<span class="green">✔</span> <span class="output">stream-0</span> &nbsp;<span class="pink">auth/oauth-pkce.ts</span> &nbsp;<span class="output">done</span></div>
-        <div>&nbsp;&nbsp;<span class="green">✔</span> <span class="output">stream-1</span> &nbsp;<span class="pink">auth/token-rotation.ts</span> &nbsp;<span class="output">done</span></div>
-        <div>&nbsp;&nbsp;<span class="yellow">◆</span> <span class="output">stream-2</span> &nbsp;<span class="pink">components/LoginForm.tsx</span> &nbsp;<span class="output">testing</span></div>
-        <br />
-        <div><span class="output">Active Agents</span></div>
-        <div>&nbsp;&nbsp;<span class="orange">▸ QA Engineer</span> &nbsp;<span class="output">stream-2 · 01:23</span></div>
-      </div>
+      <div id="player-container"></div>
     </div>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const container = document.getElementById('player-container');
+        if (container && typeof AsciinemaPlayer !== 'undefined') {
+          AsciinemaPlayer.create('/demo.cast', container, {
+            theme: 'neon',
+            autoPlay: true,
+            loop: true,
+            fit: 'width',
+            terminalFontFamily: "'JetBrains Mono', 'Fira Code', 'SF Mono', monospace",
+            terminalFontSize: 'small',
+            idleTimeLimit: 0.5,
+          });
+        }
+      });
+    </script>
   </section>
 
   <!-- FEATURES -->
@@ -367,6 +375,21 @@ import Layout from "../layouts/Layout.astro";
       </div>
     </div>
   </section>
+
+  <script>
+    const toggle = document.querySelector('.nav-toggle');
+    const links = document.querySelector('.nav-links');
+    toggle?.addEventListener('click', () => {
+      const open = links?.classList.toggle('open');
+      toggle.setAttribute('aria-expanded', String(!!open));
+    });
+    links?.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).tagName === 'A') {
+        links.classList.remove('open');
+        toggle?.setAttribute('aria-expanded', 'false');
+      }
+    });
+  </script>
 
   <!-- FOOTER -->
   <footer>
