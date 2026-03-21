@@ -4,6 +4,9 @@ All notable changes to this project are documented here, in reverse chronologica
 
 ## 2026-03-21
 
+### Added
+- **Help output syntax highlighting** — `swarm -h` / `--help` now renders with ANSI colors: bold section headers, green command names, yellow flags, cyan parameter placeholders, and dim footer/example comments. Respects `NO_COLOR` env var and non-TTY output (piped/redirected). Also applies to the error-state help fallback.
+
 ### Improved
 - **Landing page mobile header** — Replaced cramped horizontal nav links with a hamburger menu + slide-out drawer on screens ≤768px. Nav links are now in a fixed side panel that toggles open/closed. Also improved terminal preview readability on small screens.
 

@@ -114,6 +114,84 @@ export function readVersion(): string {
   return pkg.version;
 }
 
+/** Apply ANSI color highlighting to help text. Respects NO_COLOR and non-TTY. */
+export function formatHelpText(text: string, stream: NodeJS.WriteStream = process.stdout): string {
+  if (!stream.isTTY || "NO_COLOR" in process.env) return text;
+
+  const bold = (s: string) => `\x1b[1m${s}\x1b[22m`;
+  const dim = (s: string) => `\x1b[2m${s}\x1b[22m`;
+  const green = (s: string) => `\x1b[32m${s}\x1b[39m`;
+  const yellow = (s: string) => `\x1b[33m${s}\x1b[39m`;
+  const cyan = (s: string) => `\x1b[36m${s}\x1b[39m`;
+
+  const lines = text.split("\n");
+  const out: string[] = [];
+  let section = "";
+
+  for (const line of lines) {
+    if (line.startsWith("Usage:")) {
+      out.push(bold(line));
+      continue;
+    }
+
+    if (/^[A-Z][\w ]+(?:\([^)]*\))?:$/.test(line)) {
+      if (line.startsWith("Commands")) section = "commands";
+      else if (line.startsWith("Options")) section = "options";
+      else if (line.startsWith("Prompt")) section = "prompt";
+      else if (line.startsWith("Examples")) section = "examples";
+      out.push(bold(line));
+      continue;
+    }
+
+    if (/^[A-Z]/.test(line) && !line.startsWith("  ")) {
+      out.push(dim(line));
+      continue;
+    }
+
+    if (line.startsWith("  ") && line.trim() !== "") {
+      if (section === "commands") {
+        const m = line.match(/^(\s+)(\S+)(\s{2,})(.*)$/);
+        if (m) {
+          out.push(`${m[1]}${green(m[2])}${m[3]}${m[4]}`);
+          continue;
+        }
+      }
+
+      if (section === "options" || section === "prompt") {
+        const m = line.match(/^(\s+)((?:-\w,\s)?--[\w-]+)(?:(\s<[^>]+>))?(\s{2,})(.*)$/);
+        if (m) {
+          out.push(`${m[1]}${yellow(m[2])}${m[3] ? cyan(m[3]) : ""}${m[4]}${m[5]}`);
+          continue;
+        }
+        if (section === "prompt") {
+          const m2 = line.match(/^(\s+)(.+?)(\s{2,})(.+)$/);
+          if (m2) {
+            out.push(`${m2[1]}${cyan(m2[2])}${m2[3]}${m2[4]}`);
+            continue;
+          }
+        }
+      }
+
+      if (section === "examples") {
+        const m = line.match(/^(\s+)(swarm\s.+\S)(\s{2,})(.+)$/);
+        if (m) {
+          out.push(`${m[1]}${cyan(m[2])}${m[3]}${dim(m[4])}`);
+          continue;
+        }
+        const m2 = line.match(/^(\s+)(swarm\s.+)$/);
+        if (m2) {
+          out.push(`${m2[1]}${cyan(m2[2])}`);
+          continue;
+        }
+      }
+    }
+
+    out.push(line);
+  }
+
+  return out.join("\n");
+}
+
 const HELP_TEXT = `Usage: swarm [command] [options] "<prompt>"
 
 Commands:
@@ -239,7 +317,7 @@ function parseCliArgs(): CliArgs {
   }
 
   if (values.help) {
-    console.log(HELP_TEXT);
+    console.log(formatHelpText(HELP_TEXT));
     process.exit(0);
   }
 
@@ -507,7 +585,7 @@ export async function loadConfig(): Promise<SwarmConfig> {
     (!issueBody || issueBody === "")
   ) {
     console.error(
-      `Error: No prompt provided. Pass it as an argument, use --editor, --plan, or set ISSUE_BODY.\n\n${HELP_TEXT}`,
+      `Error: No prompt provided. Pass it as an argument, use --editor, --plan, or set ISSUE_BODY.\n\n${formatHelpText(HELP_TEXT, process.stderr)}`,
     );
     process.exit(1);
   }
