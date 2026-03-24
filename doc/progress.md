@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here, in reverse chronological order.
 
+## 2026-03-24
+
+### Fixed
+- **Stream failure error classification** — When parallel streams fail (e.g., SDK session timeout), the wrapper error now preserves the original error as its `cause`. `classifyError` traverses the `cause` chain so that transient/retryable errors (timeouts, rate limits, network failures) remain retryable even when wrapped. This fixes auto-resume being skipped for retriable failures like "Timeout after 1800000ms waiting for session.idle".
+
 ## 2026-03-21
 
 ### Added
