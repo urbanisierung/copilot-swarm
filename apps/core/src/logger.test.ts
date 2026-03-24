@@ -180,6 +180,24 @@ describe("classifyError", () => {
   it("handles non-Error input", () => {
     expect(classifyError("not an error")).toEqual({ category: "unknown", type: "unknown", retryable: false });
   });
+
+  it("classifies via error.cause when wrapper message is unknown", () => {
+    const cause = new Error("Timeout after 1800000ms waiting for session.idle");
+    const wrapper = new Error("1/3 streams failed in wave 6. Use --resume to retry.", { cause });
+    expect(classifyError(wrapper)).toEqual({ category: "transient", type: "timeout", retryable: true });
+  });
+
+  it("does not follow cause when wrapper itself is classified", () => {
+    const cause = new Error("Timeout after 1800000ms");
+    const wrapper = new Error("401 Unauthorized", { cause });
+    expect(classifyError(wrapper)).toEqual({ category: "permanent", type: "auth", retryable: false });
+  });
+
+  it("returns unknown when cause is also non-retryable", () => {
+    const cause = new Error("something unknown too");
+    const wrapper = new Error("streams failed somehow", { cause });
+    expect(classifyError(wrapper)).toEqual({ category: "unknown", type: "unknown", retryable: false });
+  });
 });
 
 describe("listRecentLogs", () => {

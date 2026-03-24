@@ -769,6 +769,7 @@ export class PipelineEngine {
             await save();
             throw new Error(
               `${failures.length}/${settled.length} streams failed in wave ${w + 1}. Use --resume to retry.`,
+              { cause: failures[0].reason },
             );
           }
         } else {
@@ -794,7 +795,9 @@ export class PipelineEngine {
         }
         this.logger.warn(msg.partialStreamFailure(failures.length, settled.length));
         await save();
-        throw new Error(`${failures.length}/${settled.length} streams failed. Use --resume to retry failed streams.`);
+        throw new Error(`${failures.length}/${settled.length} streams failed. Use --resume to retry failed streams.`, {
+          cause: failures[0].reason,
+        });
       }
       return results;
     }

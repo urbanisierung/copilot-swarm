@@ -120,6 +120,12 @@ export function classifyError(err: unknown): ErrorClassification {
     return { category: "permanent", type: "bad_request", retryable: false };
   }
 
+  // Check error.cause — wrapper errors (e.g. "streams failed in wave") may wrap a retryable cause
+  if (err.cause) {
+    const causeClassification = classifyError(err.cause);
+    if (causeClassification.retryable) return causeClassification;
+  }
+
   return { category: "unknown", type: "unknown", retryable: false };
 }
 
