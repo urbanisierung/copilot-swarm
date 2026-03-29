@@ -5,7 +5,7 @@ description: Understanding the 11 specialized agents in Copilot Swarm.
 
 import { Card, CardGrid } from "@astrojs/starlight/components";
 
-Copilot Swarm coordinates **11 specialized agents**, each with a distinct role, tools, and expertise — mirroring a real engineering team.
+Copilot Swarm coordinates **14 specialized agents**, each with a distinct role, tools, and expertise — mirroring a real engineering team.
 
 ## Agent Suites
 
@@ -72,6 +72,22 @@ Coordinates multi-repository orchestration.
   </Card>
   <Card title="Fleet Reviewer" icon="approve-check-circle">
     Verifies cross-repo consistency, interface compatibility, integration completeness.
+  </Card>
+</CardGrid>
+
+### Compare Suite
+
+Analyzes and compares two PR implementations side-by-side.
+
+<CardGrid>
+  <Card title="Diff Analyst" icon="magnifier">
+    Inventories and categorizes changes in a single PR — files, patterns, scope.
+  </Card>
+  <Card title="Requirements Evaluator" icon="approve-check-circle">
+    Scores each PR against requirements using a coverage matrix (✅/⚠️/❌).
+  </Card>
+  <Card title="Comparative Reviewer" icon="random">
+    Head-to-head synthesis — compares approaches and produces a recommendation.
   </Card>
 </CardGrid>
 

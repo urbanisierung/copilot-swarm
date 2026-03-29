@@ -23,7 +23,7 @@ function detectRepoRoot(): string | null {
   return _repoRoot;
 }
 
-const COMMANDS_WITHOUT_GIT: ReadonlySet<string> = new Set(["fleet", "list", "logs"]);
+const COMMANDS_WITHOUT_GIT: ReadonlySet<string> = new Set(["fleet", "list", "logs", "compare"]);
 
 function readEnvString(key: string, fallback: string): string {
   const value = process.env[key];
@@ -59,6 +59,7 @@ export type SwarmCommand =
   | "review"
   | "fleet"
   | "digest"
+  | "compare"
   | "session"
   | "finish"
   | "list"
@@ -105,6 +106,10 @@ interface CliArgs {
   preparePath: string | undefined;
   harvest: boolean;
   harvestVerify: boolean;
+  compareLeft: string | undefined;
+  compareRight: string | undefined;
+  compareBase: string | undefined;
+  compareOutput: string | undefined;
 }
 
 export function readVersion(): string {
@@ -203,6 +208,7 @@ Commands:
   review           Review a previous run — provide feedback for agents to fix/improve
   digest           Show a concise highlights summary of a completed run
   fleet            Multi-repo orchestration — coordinate work across repositories
+  compare          Compare two PRs/branches side-by-side and generate a report
   session          Manage sessions: create, list, use (group related runs)
   finish           Finalize the active session — summarize, log to changelog, clean up
   list             List all sessions across all repositories
@@ -231,6 +237,10 @@ Options:
   --repos <paths...>   Repository paths for fleet mode (space-separated)
   --fleet-config <f>   Fleet config file path (default: fleet.config.yaml)
   --create-branch <n>  Create a branch in all fleet repos before execution
+  --left <path>        Left PR/branch root folder (for compare command)
+  --right <path>       Right PR/branch root folder (for compare command)
+  --base <branch>      Base branch to diff against (default: main)
+  -o, --output <file>  Output report file path (default: compare-report.md)
   -V, --version        Show version number
   -h, --help           Show this help message
 
@@ -279,6 +289,9 @@ Examples:
   swarm plan --harvest-verify -f q.md     Verify a specific questions file
   swarm logs                             Show path to latest log file
   swarm run --log-level debug "Fix bug"  Log all debug info to file
+  swarm compare --left ./pr-a --right ./pr-b
+  swarm compare --left ./pr-a --right ./pr-b -f requirements.md
+  swarm compare --left ./pr-a --right ./pr-b --base develop -o report.md
 
 Environment variables override defaults; CLI args override env vars.
 See documentation for all env var options.`;
@@ -308,6 +321,10 @@ function parseCliArgs(): CliArgs {
       repos: { type: "string", multiple: true },
       "fleet-config": { type: "string" },
       "create-branch": { type: "string" },
+      left: { type: "string" },
+      right: { type: "string" },
+      base: { type: "string" },
+      output: { type: "string", short: "o" },
     },
   });
 
@@ -335,6 +352,7 @@ function parseCliArgs(): CliArgs {
       positionals[0] === "review" ||
       positionals[0] === "fleet" ||
       positionals[0] === "digest" ||
+      positionals[0] === "compare" ||
       positionals[0] === "session" ||
       positionals[0] === "finish" ||
       positionals[0] === "list" ||
@@ -432,6 +450,10 @@ function parseCliArgs(): CliArgs {
     fleetBranch,
     prepareMode,
     preparePath,
+    compareLeft: values.left as string | undefined,
+    compareRight: values.right as string | undefined,
+    compareBase: values.base as string | undefined,
+    compareOutput: values.output as string | undefined,
   };
 }
 
@@ -512,6 +534,14 @@ export interface SwarmConfig {
   readonly harvestVerify: boolean;
   /** Optional override path to questions file (for --harvest-verify -f). */
   readonly questionsFilePath?: string;
+  /** Left PR/branch root folder (for compare command). */
+  readonly compareLeft?: string;
+  /** Right PR/branch root folder (for compare command). */
+  readonly compareRight?: string;
+  /** Base branch to diff against in compare mode (default: main). */
+  readonly compareBase: string;
+  /** Output file path for compare report (default: compare-report.md). */
+  readonly compareOutput: string;
 }
 
 export async function loadConfig(): Promise<SwarmConfig> {
@@ -551,6 +581,7 @@ export async function loadConfig(): Promise<SwarmConfig> {
       cli.command !== "backup" &&
       cli.command !== "restore" &&
       cli.command !== "logs" &&
+      cli.command !== "compare" &&
       !(
         cli.command === "fleet" &&
         (cli.fleetMode === "analyze" || cli.fleetMode === "cleanup" || cli.fleetMode === "architecture")
@@ -568,6 +599,7 @@ export async function loadConfig(): Promise<SwarmConfig> {
     cli.command !== "analyze" &&
     cli.command !== "prepare" &&
     cli.command !== "digest" &&
+    cli.command !== "compare" &&
     cli.command !== "session" &&
     cli.command !== "finish" &&
     cli.command !== "list" &&
@@ -645,5 +677,9 @@ export async function loadConfig(): Promise<SwarmConfig> {
     harvest: cli.harvest,
     harvestVerify: cli.harvestVerify,
     questionsFilePath: cli.harvestVerify ? cli.promptFile : undefined,
+    compareLeft: cli.compareLeft,
+    compareRight: cli.compareRight,
+    compareBase: cli.compareBase ?? "main",
+    compareOutput: cli.compareOutput ?? "compare-report.md",
   };
 }

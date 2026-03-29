@@ -189,6 +189,55 @@ if (config.command === "digest") {
   process.exit(0);
 }
 
+// Handle compare command — compare two PRs side-by-side
+if (config.command === "compare") {
+  const pipeline = (await import("./pipeline-config.js")).loadPipelineConfig(config.compareLeft ?? process.cwd());
+  const cLogger = new Logger(config.verbose, config.runId, config.logLevel);
+  const { CompareEngine } = await import("./compare-engine.js");
+
+  if (!config.compareLeft || !config.compareRight) {
+    console.error("Error: Both --left and --right paths are required for the compare command.");
+    process.exit(1);
+  }
+
+  const startMs = Date.now();
+  let tracker: ProgressTracker | undefined;
+  let renderer: TuiRenderer | undefined;
+  if (config.tui) {
+    tracker = new ProgressTracker();
+    tracker.runId = config.runId;
+    tracker.primaryModel = pipeline.primaryModel;
+    tracker.reviewModel = pipeline.reviewModel;
+    tracker.version = readVersion();
+    tracker.cwd = process.cwd();
+    renderer = new TuiRenderer(tracker);
+    cLogger.setTracker(tracker);
+  }
+
+  const engine = new CompareEngine(config, pipeline, cLogger, tracker);
+  renderer?.start();
+  try {
+    await engine.start();
+    await engine.execute();
+    await engine.stop();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`\nError: ${message}\n`);
+    process.exit(1);
+  } finally {
+    renderer?.stop();
+    if (tracker) cLogger.setTracker(null);
+  }
+
+  const sec = Math.floor((Date.now() - startMs) / 1000);
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  const elapsed = `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  console.log(msg.compareComplete(elapsed));
+  console.log(`📄 Report: ${path.resolve(config.compareOutput)}`);
+  process.exit(0);
+}
+
 // Handle finish command before resolving session (resolves its own)
 if (config.command === "finish") {
   const { resolveSessionId, getSession } = await import("./session-store.js");

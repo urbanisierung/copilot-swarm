@@ -78,3 +78,16 @@ See [`doc/standalone-execution.md`](standalone-execution.md) for the full extrac
 - [x] Checkpoint integration — `questionsFile` field in `PipelineCheckpoint`
 - [x] Documentation updates (documentation, features, progress, roadmap)
 - [x] `--harvest-verify` flag — verify/consolidate existing questions file, preserving answers
+
+## Phase 9: PR Comparison ✅
+
+- [x] `swarm compare` command — side-by-side comparison of two PRs/branches
+- [x] `--left`, `--right`, `--base`, `-o` CLI options for compare mode
+- [x] File inventory with noise filtering (`.github/`, `node_modules/`, lock files, etc.)
+- [x] Diff Analyst agent — parallel change analysis with fast model
+- [x] Requirements Evaluator agent — conditional requirements scoring (✅/⚠️/❌ matrix)
+- [x] Comparative Reviewer agent — head-to-head synthesis with recommendation
+- [x] Token budget management via `callIsolated` + `fitToTokenBudget`
+- [x] TUI dashboard integration with compare-specific phase names
+- [x] Unit tests for file filtering and git integration (17 tests)
+- [x] Documentation updates (documentation, features, progress, roadmap)

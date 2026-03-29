@@ -28,6 +28,8 @@ function makeConfig(runId: string): SwarmConfig {
     autoModel: false,
     harvest: false,
     harvestVerify: false,
+    compareBase: "main",
+    compareOutput: "compare-report.md",
   };
 }
 

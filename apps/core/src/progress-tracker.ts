@@ -54,6 +54,10 @@ const PHASE_NAMES: Record<string, string> = {
   "fleet-strategize": "Strategize",
   "fleet-review": "Cross-Repo Review",
   "fleet-summary": "Summary",
+  "compare-inventory": "File Inventory",
+  "compare-analyze": "Diff Analysis",
+  "compare-requirements": "Requirements Check",
+  "compare-review": "Comparative Review",
 };
 
 const MAX_LOG_ENTRIES = 100;
