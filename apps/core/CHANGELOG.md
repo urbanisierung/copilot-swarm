@@ -1,5 +1,12 @@
 # @copilot-swarm/core
 
+## 0.0.68
+
+### Patch Changes
+
+- d19ef56: Introduction of compare command.
+- 54b7d43: Fix timeout handling
+
 ## 0.0.67
 
 ### Patch Changes
