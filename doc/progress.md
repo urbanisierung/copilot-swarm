@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here, in reverse chronological order.
 
+## 2026-03-29
+
+### Added
+- **Compare mode** (`swarm compare`) — New command to compare two PRs/branches side-by-side. Detects changed files via `git diff`, filters noise directories (`.github/`, `node_modules/`, `dist/`, lock files, etc.), runs parallel Diff Analyst agents on each side, optionally evaluates against a requirements file (`-f`), then a Comparative Reviewer synthesizes a comprehensive Markdown report. Options: `--left`, `--right`, `--base` (default: main), `-o` (output path). Three new agents: `diff-analyst` (fast model, parallel), `requirements-evaluator` (primary model, conditional), `comparative-reviewer` (primary model). Token limits handled via `callIsolated` with `fitToTokenBudget` pre-flight and `truncateForSend` safety net. TUI dashboard integration with 4 phases. 17 new tests.
+
 ## 2026-03-24
 
 ### Fixed

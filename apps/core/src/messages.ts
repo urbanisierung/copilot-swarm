@@ -185,6 +185,17 @@ export const msg = {
   brainstormSummarizing: "\n[Brainstorm: Generating Summary]",
   brainstormComplete: "\n✅ Brainstorm complete.",
   brainstormSaved: (path: string) => `📄 Brainstorm summary saved to ${path}`,
+
+  // --- Compare Mode ---
+  compareStart: "🔍 Starting PR Comparison...",
+  compareInventory: "\n[Compare: Inventorying changed files]",
+  compareFileCounts: (left: number, right: number) => `  📊 Left PR: ${left} files, Right PR: ${right} files`,
+  compareAnalyzePhase: "\n[Compare: Analyzing changes (parallel)]",
+  compareRequirementsPhase: "\n[Compare: Evaluating against requirements]",
+  compareReviewPhase: "\n[Compare: Generating comparative review]",
+  compareComplete: (elapsed: string) => `\n✅ PR comparison complete (${elapsed})`,
+  compareSaved: (filePath: string) => `📄 Report saved to ${filePath}`,
+
   summaryPhases: (done: number, total: number, skipped: number) => {
     const parts = [`${done}/${total} phases completed`];
     if (skipped > 0) parts.push(`${skipped} skipped`);

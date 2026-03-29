@@ -18,6 +18,9 @@ agents:
   cross-model:     builtin:cross-model-reviewer
   fleet-strategist: builtin:fleet-strategist
   fleet-reviewer:  builtin:fleet-reviewer
+  diff-analyst:    builtin:diff-analyst
+  requirements-evaluator: builtin:requirements-evaluator
+  comparative-reviewer: builtin:comparative-reviewer
 
 pipeline:
   - phase: spec

@@ -54,6 +54,7 @@ export default defineConfig({
             { label: "review", slug: "commands/review" },
             { label: "digest", slug: "commands/digest" },
             { label: "fleet", slug: "commands/fleet" },
+            { label: "compare", slug: "commands/compare" },
             { label: "prepare", slug: "commands/prepare" },
             { label: "session", slug: "commands/session" },
             { label: "finish", slug: "commands/finish" },
@@ -77,6 +78,9 @@ export default defineConfig({
             { label: "Cross-Model Reviewer", slug: "agents/cross-model-reviewer" },
             { label: "Fleet Strategist", slug: "agents/fleet-strategist" },
             { label: "Fleet Reviewer", slug: "agents/fleet-reviewer" },
+            { label: "Diff Analyst", slug: "agents/diff-analyst" },
+            { label: "Requirements Evaluator", slug: "agents/requirements-evaluator" },
+            { label: "Comparative Reviewer", slug: "agents/comparative-reviewer" },
           ],
         },
         {

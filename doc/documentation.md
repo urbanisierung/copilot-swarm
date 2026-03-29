@@ -41,6 +41,7 @@ Commands:
   digest           Show a concise highlights summary of a completed run
   fleet            Multi-repo orchestration — coordinate work across repositories
                      Subcommands: analyze (analysis only), plan (analyze + strategize)
+  compare          Compare two PRs/branches side-by-side and generate a report
   session          Manage sessions: create, list, use (group related runs)
   finish           Finalize the active session — summarize, log to changelog, clean up
   list             List all sessions across all repositories
@@ -524,6 +525,52 @@ This will:
 3. Delete the feature branch locally
 
 Repos already on the default branch or without the branch are handled gracefully.
+
+### Compare Mode (PR Comparison)
+
+Use `swarm compare` to compare two PRs or branches that implement the same requirements. The command analyzes changes in each repository, optionally evaluates them against a requirements document, and produces a comprehensive Markdown report.
+
+```bash
+# Basic comparison — two local branches/checkouts
+swarm compare --left ./pr-a --right ./pr-b
+
+# With requirements file — scores each PR against the spec
+swarm compare --left ./pr-a --right ./pr-b -f requirements.md
+
+# Custom base branch and output path
+swarm compare --left ./pr-a --right ./pr-b --base develop -o review.md
+
+# Verbose mode for debugging
+swarm compare --left ./pr-a --right ./pr-b -v -f requirements.md
+```
+
+**Options:**
+- `--left <path>` — Root folder of the first PR (required)
+- `--right <path>` — Root folder of the second PR (required)
+- `-f, --file <file>` — Requirements file describing what should be done (optional)
+- `--base <branch>` — Base branch to diff against (default: `main`)
+- `-o, --output <file>` — Output report file path (default: `compare-report.md`)
+
+**Agent pipeline:**
+1. **File Inventory** — Detects changed files via `git diff` in both repos, filtering out noise (`.github/`, `node_modules/`, `dist/`, lock files, etc.)
+2. **Diff Analyst** (parallel) — Two independent agents analyze the left and right PRs, producing structured change inventories
+3. **Requirements Evaluator** (conditional) — Only runs when `-f` is provided. Scores each PR against each requirement (✅/⚠️/❌ matrix)
+4. **Comparative Reviewer** — Synthesizes all findings into a final head-to-head report with executive summary, comparison tables, strengths/weaknesses, and recommendation
+
+**Output example:**
+```
+🔍 Starting PR Comparison...
+
+[Compare: Inventorying changed files]
+  📊 Left PR: 5 files, Right PR: 8 files
+
+[Compare: Analyzing changes (parallel)]
+[Compare: Evaluating against requirements]
+[Compare: Generating comparative review]
+
+✅ PR comparison complete (01:23)
+📄 Report: /path/to/compare-report.md
+```
 
 ### Checkpoint & Resume
 
