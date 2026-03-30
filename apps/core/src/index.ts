@@ -189,14 +189,15 @@ if (config.command === "digest") {
   process.exit(0);
 }
 
-// Handle compare command — compare two PRs side-by-side
+// Handle compare command — compare multiple PRs side-by-side
 if (config.command === "compare") {
-  const pipeline = (await import("./pipeline-config.js")).loadPipelineConfig(config.compareLeft ?? process.cwd());
+  const pipeline = (await import("./pipeline-config.js")).loadPipelineConfig(config.compareRepos[0] ?? process.cwd());
   const cLogger = new Logger(config.verbose, config.runId, config.logLevel);
   const { CompareEngine } = await import("./compare-engine.js");
 
-  if (!config.compareLeft || !config.compareRight) {
-    console.error("Error: Both --left and --right paths are required for the compare command.");
+  if (config.compareRepos.length < 2) {
+    console.error("Error: At least 2 repository paths are required for the compare command.");
+    console.error("Usage: swarm compare ./pr-a ./pr-b [./pr-c ...] [-f requirements.md]");
     process.exit(1);
   }
 

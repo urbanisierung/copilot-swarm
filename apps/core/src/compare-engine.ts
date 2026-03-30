@@ -1,6 +1,6 @@
 /**
- * CompareEngine — compare two PR/branch implementations side-by-side.
- * Runs Diff Analyst on each side (parallel), optionally a Requirements Evaluator,
+ * CompareEngine — compare multiple PR/branch implementations side-by-side.
+ * Runs Diff Analyst on each repo (parallel), optionally a Requirements Evaluator,
  * then a Comparative Reviewer to produce a final Markdown report.
  */
 
@@ -39,6 +39,11 @@ const MAX_DIFF_TOKENS_PER_FILE = 2_000;
 /** Maximum total tokens for all diffs sent to the analyst agent. */
 const MAX_DIFF_TOKENS_TOTAL = 60_000;
 
+/** Alphabetic label for a repo index: 0→A, 1→B, 2→C, etc. */
+export function repoLabel(index: number): string {
+  return String.fromCharCode(65 + index);
+}
+
 export interface CompareInventory {
   readonly files: string[];
   readonly diff: string;
@@ -55,7 +60,6 @@ export function filterIgnoredFiles(files: string[]): string[] {
 /** Get changed files between a base branch and HEAD in a repo directory. */
 function getChangedFiles(repoPath: string, baseBranch: string): string[] {
   try {
-    // Try merge-base diff first (compares branch point, not tip)
     const mergeBase = execSync(`git merge-base ${baseBranch} HEAD`, {
       cwd: repoPath,
       encoding: "utf-8",
@@ -68,7 +72,6 @@ function getChangedFiles(repoPath: string, baseBranch: string): string[] {
     }).trim();
     return output ? output.split("\n").filter(Boolean) : [];
   } catch {
-    // Fallback: diff against base branch directly
     try {
       const output = execSync(`git diff --name-only ${baseBranch}..HEAD`, {
         cwd: repoPath,
@@ -77,7 +80,6 @@ function getChangedFiles(repoPath: string, baseBranch: string): string[] {
       }).trim();
       return output ? output.split("\n").filter(Boolean) : [];
     } catch {
-      // Last resort: show all uncommitted changes
       const modified = execSync("git diff --name-only", {
         cwd: repoPath,
         encoding: "utf-8",
@@ -129,7 +131,6 @@ function getDiffContent(repoPath: string, baseBranch: string, files: string[]): 
     }
 
     if (!diff) {
-      // New untracked file — read its content
       try {
         const content = execSync(`head -c 8000 "${file}"`, {
           cwd: repoPath,
@@ -170,6 +171,14 @@ function validateGitRepo(repoPath: string, label: string): string {
   return resolved;
 }
 
+/** Per-repo inventory collected during the inventory phase. */
+interface RepoInfo {
+  readonly label: string;
+  readonly path: string;
+  readonly files: string[];
+  readonly diff: string;
+}
+
 export class CompareEngine {
   private readonly sessions: SessionManager;
 
@@ -192,13 +201,17 @@ export class CompareEngine {
   }
 
   async execute(): Promise<string> {
-    const { compareLeft, compareRight, compareBase, compareOutput } = this.config;
-    if (!compareLeft || !compareRight) {
-      throw new Error("Both --left and --right paths are required for the compare command.");
+    const { compareRepos, compareBase, compareOutput } = this.config;
+    if (compareRepos.length < 2) {
+      throw new Error("At least 2 repository paths are required for the compare command.");
     }
 
-    const leftPath = validateGitRepo(compareLeft, "Left");
-    const rightPath = validateGitRepo(compareRight, "Right");
+    // Validate all repos
+    const repos: RepoInfo[] = compareRepos.map((repoPath, i) => {
+      const label = repoLabel(i);
+      const resolved = validateGitRepo(repoPath, `PR ${label}`);
+      return { label, path: resolved, files: [], diff: "" };
+    });
 
     this.logger.info(msg.compareStart);
 
@@ -211,56 +224,57 @@ export class CompareEngine {
     ];
     this.tracker?.initPhases(phases);
 
-    // Phase keys include index from initPhases
     const inventoryKey = "compare-inventory-0";
     const analyzeKey = "compare-analyze-1";
     const requirementsKey = hasRequirements ? "compare-requirements-2" : "";
     const reviewKey = hasRequirements ? "compare-review-3" : "compare-review-2";
 
-    // Phase 1: Inventory
+    // Phase 1: Inventory all repos
     this.tracker?.activatePhase(inventoryKey);
     this.logger.info(msg.compareInventory);
 
-    const leftFiles = filterIgnoredFiles(getChangedFiles(leftPath, compareBase));
-    const rightFiles = filterIgnoredFiles(getChangedFiles(rightPath, compareBase));
+    const repoInfos: RepoInfo[] = repos.map((r) => {
+      const files = filterIgnoredFiles(getChangedFiles(r.path, compareBase));
+      const diff = getDiffContent(r.path, compareBase, files);
+      return { ...r, files, diff };
+    });
 
-    if (leftFiles.length === 0 && rightFiles.length === 0) {
-      const message =
-        "No changed files found in either PR. Ensure both branches have changes relative to the base branch.";
+    const totalFiles = repoInfos.reduce((sum, r) => sum + r.files.length, 0);
+    if (totalFiles === 0) {
+      const message = "No changed files found in any PR. Ensure branches have changes relative to the base branch.";
       this.logger.warn(message);
       this.tracker?.completePhase(inventoryKey);
       return message;
     }
 
-    this.logger.info(msg.compareFileCounts(leftFiles.length, rightFiles.length));
-
-    const leftDiff = getDiffContent(leftPath, compareBase, leftFiles);
-    const rightDiff = getDiffContent(rightPath, compareBase, rightFiles);
-
+    this.logger.info(msg.compareFileCounts(repoInfos.map((r) => ({ label: `PR ${r.label}`, count: r.files.length }))));
     this.tracker?.completePhase(inventoryKey);
 
-    // Phase 2: Diff Analysis (parallel)
+    // Phase 2: Diff Analysis (parallel across all repos)
     this.tracker?.activatePhase(analyzeKey);
     this.logger.info(msg.compareAnalyzePhase);
 
-    const leftAnalystPrompt = this.buildAnalystPrompt("Left PR", leftPath, leftFiles, leftDiff);
-    const rightAnalystPrompt = this.buildAnalystPrompt("Right PR", rightPath, rightFiles, rightDiff);
-
-    const [leftAnalysis, rightAnalysis] = await Promise.all([
-      this.sessions.callIsolated("diff-analyst", leftAnalystPrompt, this.pipeline.fastModel, "compare-analyst-left"),
-      this.sessions.callIsolated("diff-analyst", rightAnalystPrompt, this.pipeline.fastModel, "compare-analyst-right"),
-    ]);
+    const analyses = await Promise.all(
+      repoInfos.map((r) => {
+        const prompt = this.buildAnalystPrompt(`PR ${r.label}`, r.path, r.files, r.diff);
+        return this.sessions.callIsolated(
+          "diff-analyst",
+          prompt,
+          this.pipeline.fastModel,
+          `compare-analyst-${r.label.toLowerCase()}`,
+        );
+      }),
+    );
 
     this.tracker?.completePhase(analyzeKey);
 
     // Phase 3: Requirements Evaluation (conditional)
     let requirementsEval = "";
-    const requirementsText = this.config.issueBody;
     if (hasRequirements) {
       this.tracker?.activatePhase(requirementsKey);
       this.logger.info(msg.compareRequirementsPhase);
 
-      const reqPrompt = this.buildRequirementsPrompt(requirementsText, leftAnalysis, rightAnalysis);
+      const reqPrompt = this.buildRequirementsPrompt(this.config.issueBody, repoInfos, analyses);
       requirementsEval = await this.sessions.callIsolated(
         "requirements-evaluator",
         reqPrompt,
@@ -275,7 +289,7 @@ export class CompareEngine {
     this.tracker?.activatePhase(reviewKey);
     this.logger.info(msg.compareReviewPhase);
 
-    const reviewPrompt = this.buildReviewPrompt(leftAnalysis, rightAnalysis, requirementsEval);
+    const reviewPrompt = this.buildReviewPrompt(repoInfos, analyses, requirementsEval);
     const report = await this.sessions.callIsolated(
       "comparative-reviewer",
       reviewPrompt,
@@ -287,7 +301,8 @@ export class CompareEngine {
 
     // Write report
     const outputPath = path.resolve(compareOutput);
-    const header = `<!-- Generated by Copilot Swarm compare on ${new Date().toISOString()} -->\n<!-- Left: ${leftPath} | Right: ${rightPath} | Base: ${compareBase} -->\n\n`;
+    const repoList = repoInfos.map((r) => `${r.label}: ${r.path}`).join(" | ");
+    const header = `<!-- Generated by Copilot Swarm compare on ${new Date().toISOString()} -->\n<!-- Repos: ${repoList} | Base: ${compareBase} -->\n\n`;
     await fs.writeFile(outputPath, header + report);
     this.logger.info(msg.compareSaved(outputPath));
 
@@ -296,7 +311,7 @@ export class CompareEngine {
 
   private buildAnalystPrompt(label: string, repoPath: string, files: string[], diff: string): string {
     return [
-      `Analyze the following changes from the **${label}** (repository: ${repoPath}).`,
+      `Analyze the following changes from **${label}** (repository: ${repoPath}).`,
       "",
       `## Changed Files (${files.length})`,
       files.map((f) => `- ${f}`).join("\n"),
@@ -306,24 +321,22 @@ export class CompareEngine {
     ].join("\n");
   }
 
-  private buildRequirementsPrompt(requirements: string, leftAnalysis: string, rightAnalysis: string): string {
-    return [
-      "## Requirements",
-      requirements,
-      "",
-      "## Implementation A (Left PR) — Analysis",
-      leftAnalysis,
-      "",
-      "## Implementation B (Right PR) — Analysis",
-      rightAnalysis,
-    ].join("\n");
+  private buildRequirementsPrompt(requirements: string, repos: RepoInfo[], analyses: string[]): string {
+    const parts = ["## Requirements", requirements, ""];
+    for (let i = 0; i < repos.length; i++) {
+      parts.push(`## Implementation ${repos[i].label} — Analysis`, analyses[i], "");
+    }
+    return parts.join("\n");
   }
 
-  private buildReviewPrompt(leftAnalysis: string, rightAnalysis: string, requirementsEval: string): string {
-    const parts = ["## Diff Analysis — Left PR", leftAnalysis, "", "## Diff Analysis — Right PR", rightAnalysis];
+  private buildReviewPrompt(repos: RepoInfo[], analyses: string[], requirementsEval: string): string {
+    const parts: string[] = [];
+    for (let i = 0; i < repos.length; i++) {
+      parts.push(`## Diff Analysis — PR ${repos[i].label}`, analyses[i], "");
+    }
 
     if (requirementsEval) {
-      parts.push("", "## Requirements Evaluation", requirementsEval);
+      parts.push("## Requirements Evaluation", requirementsEval);
     }
 
     return parts.join("\n");

@@ -1,6 +1,6 @@
 ---
 title: Comparative Reviewer
-description: Produces a head-to-head comparison report for two PR implementations.
+description: Produces a head-to-head comparison report for multiple PR implementations.
 ---
 
 **Role:** Comparative Reviewer — Principal Engineer  
@@ -12,26 +12,26 @@ description: Produces a head-to-head comparison report for two PR implementation
 
 1. **Synthesize findings** — Combines Diff Analyst output and Requirements Evaluator output (when available) into a cohesive report.
 2. **Compare across dimensions** — Evaluates correctness, maintainability, performance, testing, security, and readability.
-3. **Be balanced** — Presents strengths and weaknesses for both sides fairly.
+3. **Be balanced** — Presents strengths and weaknesses for all implementations fairly.
 4. **Be specific** — References actual files, patterns, and decisions rather than generalities.
-5. **Recommend** — Provides a clear, justified recommendation.
+5. **Recommend** — Provides a clear, justified recommendation with ranking.
 
 ## Pipeline Involvement
 
 | Phase | Role |
 |---|---|
-| **Compare — Comparative Review** | Produces the final head-to-head report |
+| **Compare — Comparative Review** | Produces the final comparison report across all implementations |
 
 ## Output Format
 
 Produces the final comparison report with:
 
-- **Executive Summary** — Which PR is stronger and why (2-3 sentences)
-- **File Changes Overview** — Side-by-side metrics table
+- **Executive Summary** — Which implementation is strongest and why (2-3 sentences)
+- **File Changes Overview** — Per-implementation metrics table (one column per PR)
 - **Requirements Coverage** — Summary of the coverage matrix (when available)
 - **Detailed Comparison** — Architecture, code quality, error handling, testing, performance, security
-- **Strengths & Weaknesses** — Bullet lists per PR
-- **Recommendation** — Clear recommendation with reasoning
+- **Strengths & Weaknesses** — Bullet lists per implementation
+- **Recommendation** — Clear recommendation with ranking of all implementations
 
 ## Model
 
