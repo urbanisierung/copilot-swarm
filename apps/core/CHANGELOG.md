@@ -1,5 +1,11 @@
 # @copilot-swarm/core
 
+## 0.0.69
+
+### Patch Changes
+
+- fdd4503: Compare for multiple repos.
+
 ## 0.0.68
 
 ### Patch Changes
