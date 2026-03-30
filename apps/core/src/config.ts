@@ -106,8 +106,7 @@ interface CliArgs {
   preparePath: string | undefined;
   harvest: boolean;
   harvestVerify: boolean;
-  compareLeft: string | undefined;
-  compareRight: string | undefined;
+  compareRepos: string[] | undefined;
   compareBase: string | undefined;
   compareOutput: string | undefined;
 }
@@ -208,7 +207,7 @@ Commands:
   review           Review a previous run — provide feedback for agents to fix/improve
   digest           Show a concise highlights summary of a completed run
   fleet            Multi-repo orchestration — coordinate work across repositories
-  compare          Compare two PRs/branches side-by-side and generate a report
+  compare          Compare multiple PRs/branches side-by-side and generate a report
   session          Manage sessions: create, list, use (group related runs)
   finish           Finalize the active session — summarize, log to changelog, clean up
   list             List all sessions across all repositories
@@ -237,8 +236,8 @@ Options:
   --repos <paths...>   Repository paths for fleet mode (space-separated)
   --fleet-config <f>   Fleet config file path (default: fleet.config.yaml)
   --create-branch <n>  Create a branch in all fleet repos before execution
-  --left <path>        Left PR/branch root folder (for compare command)
-  --right <path>       Right PR/branch root folder (for compare command)
+  --left <path>        Left PR/branch root folder (for compare, legacy — prefer positional paths)
+  --right <path>       Right PR/branch root folder (for compare, legacy — prefer positional paths)
   --base <branch>      Base branch to diff against (default: main)
   -o, --output <file>  Output report file path (default: compare-report.md)
   -V, --version        Show version number
@@ -289,9 +288,10 @@ Examples:
   swarm plan --harvest-verify -f q.md     Verify a specific questions file
   swarm logs                             Show path to latest log file
   swarm run --log-level debug "Fix bug"  Log all debug info to file
-  swarm compare --left ./pr-a --right ./pr-b
-  swarm compare --left ./pr-a --right ./pr-b -f requirements.md
-  swarm compare --left ./pr-a --right ./pr-b --base develop -o report.md
+  swarm compare ./pr-a ./pr-b                        Compare two PRs
+  swarm compare ./pr-a ./pr-b ./pr-c                  Compare three PRs
+  swarm compare ./pr-a ./pr-b -f requirements.md      With requirements scoring
+  swarm compare ./pr-a ./pr-b --base develop -o report.md
 
 Environment variables override defaults; CLI args override env vars.
 See documentation for all env var options.`;
@@ -415,6 +415,28 @@ function parseCliArgs(): CliArgs {
     }
   }
 
+  // In compare mode, treat path-like positional args as repo paths
+  // This allows: swarm compare ./pr-a ./pr-b ./pr-c -f requirements.md
+  // Also supports legacy --left/--right flags merged into the repos list
+  let compareRepos: string[] | undefined;
+  if (command === "compare") {
+    const isPathLike = (s: string) =>
+      s.startsWith("./") || s.startsWith("/") || s.startsWith("~/") || s.startsWith("../");
+    const pathArgs = promptParts.filter(isPathLike);
+    if (pathArgs.length > 0) {
+      compareRepos = [...pathArgs];
+      promptParts = promptParts.filter((p) => !isPathLike(p));
+    }
+    // Merge legacy --left/--right into compareRepos
+    const left = values.left as string | undefined;
+    const right = values.right as string | undefined;
+    if (left || right) {
+      compareRepos = compareRepos ?? [];
+      if (left) compareRepos.unshift(left);
+      if (right) compareRepos.push(right);
+    }
+  }
+
   // Validate --log-level
   const rawLogLevel = values["log-level"] as string | undefined;
   let logLevel: LogLevel | undefined;
@@ -450,8 +472,7 @@ function parseCliArgs(): CliArgs {
     fleetBranch,
     prepareMode,
     preparePath,
-    compareLeft: values.left as string | undefined,
-    compareRight: values.right as string | undefined,
+    compareRepos,
     compareBase: values.base as string | undefined,
     compareOutput: values.output as string | undefined,
   };
@@ -534,10 +555,8 @@ export interface SwarmConfig {
   readonly harvestVerify: boolean;
   /** Optional override path to questions file (for --harvest-verify -f). */
   readonly questionsFilePath?: string;
-  /** Left PR/branch root folder (for compare command). */
-  readonly compareLeft?: string;
-  /** Right PR/branch root folder (for compare command). */
-  readonly compareRight?: string;
+  /** Repository paths to compare (for compare command, 2+ required). */
+  readonly compareRepos: string[];
   /** Base branch to diff against in compare mode (default: main). */
   readonly compareBase: string;
   /** Output file path for compare report (default: compare-report.md). */
@@ -677,8 +696,7 @@ export async function loadConfig(): Promise<SwarmConfig> {
     harvest: cli.harvest,
     harvestVerify: cli.harvestVerify,
     questionsFilePath: cli.harvestVerify ? cli.promptFile : undefined,
-    compareLeft: cli.compareLeft,
-    compareRight: cli.compareRight,
+    compareRepos: cli.compareRepos ?? [],
     compareBase: cli.compareBase ?? "main",
     compareOutput: cli.compareOutput ?? "compare-report.md",
   };

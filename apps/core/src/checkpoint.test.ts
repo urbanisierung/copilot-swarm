@@ -30,6 +30,7 @@ function makeConfig(runId: string): SwarmConfig {
     harvestVerify: false,
     compareBase: "main",
     compareOutput: "compare-report.md",
+    compareRepos: [],
   };
 }
 

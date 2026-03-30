@@ -189,7 +189,8 @@ export const msg = {
   // --- Compare Mode ---
   compareStart: "🔍 Starting PR Comparison...",
   compareInventory: "\n[Compare: Inventorying changed files]",
-  compareFileCounts: (left: number, right: number) => `  📊 Left PR: ${left} files, Right PR: ${right} files`,
+  compareFileCounts: (counts: { label: string; count: number }[]) =>
+    `  📊 ${counts.map((c) => `${c.label}: ${c.count} files`).join(", ")}`,
   compareAnalyzePhase: "\n[Compare: Analyzing changes (parallel)]",
   compareRequirementsPhase: "\n[Compare: Evaluating against requirements]",
   compareReviewPhase: "\n[Compare: Generating comparative review]",

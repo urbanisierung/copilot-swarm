@@ -3,7 +3,27 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { filterIgnoredFiles } from "./compare-engine.js";
+import { filterIgnoredFiles, repoLabel } from "./compare-engine.js";
+
+// --- repoLabel ---
+
+describe("repoLabel", () => {
+  it("returns A for index 0", () => {
+    expect(repoLabel(0)).toBe("A");
+  });
+
+  it("returns B for index 1", () => {
+    expect(repoLabel(1)).toBe("B");
+  });
+
+  it("returns C for index 2", () => {
+    expect(repoLabel(2)).toBe("C");
+  });
+
+  it("handles higher indices", () => {
+    expect(repoLabel(25)).toBe("Z");
+  });
+});
 
 // --- filterIgnoredFiles ---
 
